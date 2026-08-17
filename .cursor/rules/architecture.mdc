@@ -1,0 +1,47 @@
+---
+description: Monorepo layout, layering, DI, config, and TypeScript quality
+alwaysApply: true
+---
+
+# Architecture
+
+Production Electronic Signature SaaS. Prefer Node.js 22 LTS unless `package.json` `engines` specifies another supported LTS. TypeScript strict mode including `noUncheckedIndexedAccess`. No implicit `any`. No `any`, `@ts-ignore`, or `eslint-disable` unless a nearby comment documents a narrow, time-bounded reason.
+
+## Layout
+
+- `apps/web`: Next.js App Router UI
+- `apps/api`: Express HTTP adapter and composition root
+- `apps/worker`: asynchronous document-processing worker
+- `packages/database`: Prisma schema, migrations, client
+- `packages/contracts`: shared Zod request/response schemas
+- `packages/config`: typed environment configuration (the only `process.env` reader)
+- `packages/logger`: Pino structured logging
+- `packages/eslint-config`, `packages/typescript-config`, `packages/test-utils`
+- `docs`: ADRs, threat model, runbooks, OpenAPI
+
+pnpm workspaces + Turborepo. Pin versions via the lockfile; do not use floating ranges in new dependencies. Avoid unnecessary packages.
+
+## Layers
+
+Keep presentation, application, domain, and infrastructure separate.
+
+- Domain and application services must not import Express, Next.js, Prisma, or object-storage SDKs.
+- Inject dependencies through interfaces and constructors or factory functions.
+- Route handlers and worker job adapters orchestrate only: parse, authorize, call an application service, map the result.
+- Named exports except where Next.js requires a default export. Small, focused modules. Prefer explicit code over hidden magic.
+
+```typescript
+// ❌ BAD — env and framework types leak into a use case
+export async function sendEnvelope(req: Request) {
+  const db = process.env.DATABASE_URL;
+}
+
+// ✅ GOOD — typed config + ports
+export function createSendEnvelope(deps: { envelopes: EnvelopeRepository; clock: Clock }) {
+  return async function sendEnvelope(input: SendEnvelopeInput): Promise<SendEnvelopeResult> {
+    return deps.envelopes.save({ ...input, createdAt: deps.clock.nowUtc() });
+  };
+}
+```
+
+Object storage is an infrastructure port compatible with S3 and Azure Blob; use MinIO only for local development.

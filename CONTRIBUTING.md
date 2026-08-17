@@ -1,0 +1,61 @@
+# Contributing
+
+This repository will host a production Electronic Signature SaaS: pnpm workspaces, Turborepo, Next.js App Router, Express, Prisma/PostgreSQL, Zod, Vitest, Playwright, and GitHub Actions.
+
+Agent-specific operating rules live in [AGENTS.md](AGENTS.md) and `.cursor/rules/`. This file is for humans. Architecture, security, testing, database, frontend, and API conventions are defined there; do not copy them here.
+
+## Prerequisites
+
+- Node.js 22 LTS, or the LTS version in `package.json` `engines` once set
+- [pnpm](https://pnpm.io) as the only package manager
+- Docker and Docker Compose for local Postgres (and MinIO when object storage is needed)
+
+Until the workspace is scaffolded, there is nothing to install beyond Git.
+
+## Intended layout
+
+```
+apps/web          Next.js frontend
+apps/api          Express API
+apps/worker       document-processing worker
+packages/*        database, contracts, config, logger, eslint, typescript, test-utils
+docs/             ADRs, threat model, runbooks, OpenAPI
+```
+
+## Workflow
+
+1. Branch from `main`. Keep pull requests focused.
+2. Validate input at API/worker boundaries with shared Zod contracts. Keep UI free of Prisma and storage SDKs.
+3. Include tests, error handling, structured logging, and documentation with every feature.
+4. For schema changes, add a Prisma migration. Do not edit migrations that have been applied.
+5. Never commit secrets, `.env` files with credentials, signing tokens, or private documents.
+
+## Quality gates
+
+When root scripts exist, run them before opening a PR:
+
+```bash
+pnpm format
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+CI (GitHub Actions) should run the same set. Do not use floating dependency versions; the lockfile is the pin.
+
+## Commits and pull requests
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`). Describe why, not a file list.
+
+PRs should include a summary, a test plan, and any security notes (authz, tokens, document handling, migrations).
+
+## Security and compliance
+
+Report suspected vulnerabilities privately to the maintainers; do not file public issues with exploits or customer documents.
+
+Technical controls (hashing tokens, audit logs, TLS, and similar) do not by themselves constitute legal, regulatory, or cryptographic compliance. Do not state that they do.
+
+## Documentation
+
+Lasting decisions go in `docs/` as Architecture Decision Records. Operational steps go in runbooks. Public HTTP is described with OpenAPI. Update those documents in the same change as the behavior they describe.

@@ -1,0 +1,31 @@
+---
+description: Vitest, Playwright, fixtures, and evidence-based test reporting
+globs: "**/*.{test,spec}.{ts,tsx},packages/test-utils/**,**/e2e/**,**/vitest.config.*,**/playwright.config.*"
+alwaysApply: false
+---
+
+# Testing
+
+Vitest for unit and integration tests. Playwright for end-to-end tests. Put shared builders and fixtures in `packages/test-utils`; do not duplicate setup in individual specs.
+
+Every feature change includes tests plus error handling, logging, and documentation. Prefer:
+
+- Unit tests for domain invariants and pure application logic
+- Integration tests for Prisma repositories, HTTP adapters, and worker handlers against real Postgres/MinIO where the repo provides them
+- E2E tests for critical signer and sender journeys
+
+Do not hit production services. Do not assert on secrets, raw tokens, or full PII in logs or snapshots.
+
+```typescript
+// ❌ BAD — untested claim, hidden clock, sequential IDs
+it('sends', async () => { await sendEnvelope(input); });
+
+// ✅ GOOD — fixture + frozen clock + opaque ids
+it('records an append-only audit event on send', async () => {
+  const envelope = envelopeBuilder().readyToSend().build();
+  const result = await sendEnvelope(envelope, { clock: frozenClock });
+  expect(result.audit).toHaveLength(1);
+});
+```
+
+Never claim tests passed unless the exact command was executed in this session. Report the command, outcome, and anything not covered.

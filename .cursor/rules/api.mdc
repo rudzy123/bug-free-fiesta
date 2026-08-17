@@ -1,0 +1,33 @@
+---
+description: Express API and worker adapters, validation, errors, and logging
+globs: apps/api/**,apps/worker/**
+alwaysApply: false
+---
+
+# API and worker
+
+`apps/api` is Express + TypeScript. `apps/worker` processes documents asynchronously. Both are composition roots: wire config, logger, repositories, and storage ports. Controllers and job handlers contain no business rules and do not call object storage directly.
+
+Validate every external payload with Zod schemas from `packages/contracts` at the HTTP or queue boundary. Reject unknown fields where it does not break documented clients. Document public HTTP with OpenAPI under `docs`.
+
+Use a consistent error taxonomy (validation, not found, forbidden, conflict, idempotency replay, internal). Map domain errors in the adapter; do not leak stack traces or secret values.
+
+Pino logs go through `packages/logger` with a correlation ID per request or job. Mutations require idempotency keys. Worker retries must be safe.
+
+```typescript
+// ❌ BAD — logic and storage in the controller
+app.post('/envelopes/:id/sign', async (req, res) => {
+  await s3.putObject({ Body: req.body.pdf });
+});
+
+// ✅ GOOD
+app.post('/envelopes/:id/sign', requireAuth, validate(signContract), async (req, res, next) => {
+  try {
+    res.json(await signEnvelope(mapSignRequest(req)));
+  } catch (error) {
+    next(error);
+  }
+});
+```
+
+pdf-lib and other PDF work belong in the worker or infrastructure services, never inline in a route handler. Treat PDF input as untrusted.

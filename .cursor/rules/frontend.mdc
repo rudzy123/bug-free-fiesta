@@ -1,0 +1,27 @@
+---
+description: Next.js App Router UI, accessibility, and server-trusted document state
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Frontend
+
+`apps/web` is a Next.js App Router app with React and Tailwind CSS. It is a presentation layer: call the API, render state, collect input. No Prisma, no object-storage SDKs, no domain writes, no `process.env` except Next.js public keys sourced through `packages/config`.
+
+Send user intent only (clicks, typed fields). The API reloads and authorizes envelope state; the browser is not a source of truth.
+
+Named exports except where Next.js requires a default export (pages, layouts, route files). Keep data-fetching and mutations in small modules or server actions that delegate to the API.
+
+UI must be responsive and accessible: keyboard operable, visible focus, `label`/`name`/`aria-*` for controls, meaningful alt text, sufficient contrast.
+
+```tsx
+// ❌ BAD — hidden control, trusted client coordinates
+<div onClick={() => sign({ x, y, envelopeId })} />
+
+// ✅ GOOD
+<button type="button" aria-label="Start signing" onClick={() => void startSigning()}>
+  Start signing
+</button>
+```
+
+Never render or log raw signing tokens, full document bytes, or complete personal data in the browser console.

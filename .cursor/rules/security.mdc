@@ -1,0 +1,28 @@
+---
+description: Secrets, authz, untrusted input, audit, tokens, and safe logging
+alwaysApply: true
+---
+
+# Security
+
+Deny by default. Authenticate and authorize on the server for every sensitive operation. Do not trust document IDs, signer IDs, signature placement coordinates, or document state supplied by the browser; load authoritative state from persistence after authorization.
+
+Never hardcode secrets, credentials, signing tokens, API keys, private URLs, or environment-specific values.
+
+Treat uploaded documents, PDFs, images, headers, and client metadata as untrusted. Validate all external input at the system boundary with Zod (`packages/contracts`). Sanitize filenames and content types; do not execute or fetch from document content.
+
+Public identifiers must be opaque (UUIDv7 or equivalent), never sequential. Store only hashes of signing bearer tokens, never the raw token. Use content-addressed or otherwise immutable object keys where practical.
+
+Audit records are append-only; never update or delete them in application code. Use idempotency keys for mutation endpoints and retryable worker jobs.
+
+Never log passwords, authorization headers, cookies, signing tokens, raw signatures, private document contents, or complete personal data. Log correlation IDs and opaque resource IDs only.
+
+```typescript
+// ❌ BAD
+logger.info('signer auth', { token: bearer, email, pdfBytes });
+
+// ✅ GOOD
+logger.info('signer session authorized', { correlationId, envelopeId, signerId });
+```
+
+Retryable work must be idempotent. Do not claim legal or compliance status from these controls alone.

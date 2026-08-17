@@ -1,0 +1,30 @@
+---
+description: Prisma, migrations, short transactions, and append-only audit data
+globs: "packages/database/**,**/*.prisma,**/prisma/**"
+alwaysApply: false
+---
+
+# Database
+
+PostgreSQL with Prisma lives only in `packages/database`. Other packages depend on that client or on repository ports; React code must never import Prisma.
+
+Add a new migration for every schema change. Never edit a migration that may already have been applied.
+
+Use transactions for envelope and signature state transitions. Keep transactions short: no HTTP, no object-storage I/O, no PDF rendering inside a transaction. Perform storage work first or after, with idempotent reconciliation.
+
+Audit tables are append-only. Persist timestamps in UTC. Public IDs are opaque, not serial integers.
+
+```prisma
+// ❌ BAD — sequential public id
+model Envelope {
+  id Int @id @default(autoincrement())
+}
+
+// ✅ GOOD — opaque id generated in application code (prefer UUIDv7)
+model Envelope {
+  id        String   @id
+  createdAt DateTime @default(now()) @db.Timestamptz
+}
+```
+
+Do not put business invariants only in the database if the domain must enforce them; keep checks in domain/application code and add constraints where they prevent corruption.
