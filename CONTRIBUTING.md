@@ -26,7 +26,7 @@ Use only the placeholders in `.env.example`. Never commit real credentials or cu
 apps/web          Next.js frontend
 apps/api          Express API
 apps/worker       document-processing worker
-packages/*        database, contracts, config, logger, eslint, typescript, test-utils
+packages/*        domain, application, database, contracts, config, logger, eslint, typescript, test-utils
 docs/             ADRs, threat model, runbooks, OpenAPI
 ```
 

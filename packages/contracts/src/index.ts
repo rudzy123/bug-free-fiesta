@@ -2,12 +2,15 @@ import { z } from 'zod';
 
 export const errorCodeSchema = z.enum([
   'validation',
+  'authentication',
   'not_found',
   'forbidden',
   'conflict',
   'idempotency_replay',
   'payload_too_large',
+  'rate_limited',
   'not_ready',
+  'external_service',
   'internal',
 ]);
 

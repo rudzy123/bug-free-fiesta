@@ -11,6 +11,10 @@
     "./factories": {
       "types": "./dist/factories.d.ts",
       "import": "./dist/factories.js"
+    },
+    "./infrastructure": {
+      "types": "./dist/infrastructure/index.d.ts",
+      "import": "./dist/infrastructure/index.js"
     }
   },
   "files": [
@@ -34,6 +38,7 @@
     "db:migrate:diff": "prisma migrate diff --from-url \"${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign}\" --to-schema-datamodel prisma/schema.prisma --exit-code"
   },
   "dependencies": {
+    "@esign/domain": "workspace:*",
     "@prisma/client": "6.8.2"
   },
   "devDependencies": {

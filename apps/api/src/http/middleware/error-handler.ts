@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
 import type { Logger } from '@esign/logger';
-import { errorEnvelope, type ErrorCode } from '@esign/contracts';
+import { errorEnvelope } from '@esign/contracts';
+import { PUBLIC_ERROR_MESSAGES, toHttpError } from '@esign/application';
 
 type BodyParserError = {
   type?: string;
@@ -19,45 +20,21 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
     if (isBodyParserError(err) && err.type === 'entity.too.large') {
       res
         .status(413)
-        .json(errorEnvelope('payload_too_large', 'The request body is too large.', correlationId));
+        .json(
+          errorEnvelope(
+            'payload_too_large',
+            PUBLIC_ERROR_MESSAGES.payload_too_large,
+            correlationId,
+          ),
+        );
       return;
     }
 
-    const status = readStatus(err);
-    if (status !== undefined && status >= 400 && status < 500) {
-      const code: ErrorCode = status === 404 ? 'not_found' : 'validation';
-      res.status(status).json(errorEnvelope(code, clientMessage(err), correlationId));
-      return;
+    const mapped = toHttpError(err);
+    logger[mapped.logLevel]({ correlationId, ...mapped.log }, mapped.logMessage);
+    if (mapped.retryAfterSeconds !== undefined) {
+      res.setHeader('Retry-After', String(mapped.retryAfterSeconds));
     }
-
-    logger.error(
-      {
-        correlationId,
-        errorName: err instanceof Error ? err.name : 'unknown',
-        errorMessage: err instanceof Error ? err.message : 'unknown',
-      },
-      'unhandled request error',
-    );
-
-    res.status(500).json(errorEnvelope('internal', 'An unexpected error occurred.', correlationId));
+    res.status(mapped.status).json(errorEnvelope(mapped.code, mapped.publicMessage, correlationId));
   };
-}
-
-function readStatus(error: unknown): number | undefined {
-  if (typeof error === 'object' && error !== null) {
-    if ('status' in error && typeof error.status === 'number') {
-      return error.status;
-    }
-    if ('statusCode' in error && typeof error.statusCode === 'number') {
-      return error.statusCode;
-    }
-  }
-  return undefined;
-}
-
-function clientMessage(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0 && error.message.length < 200) {
-    return error.message;
-  }
-  return 'The request was invalid.';
 }

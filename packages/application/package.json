@@ -1,0 +1,38 @@
+{
+  "name": "@esign/application",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run --coverage",
+    "test:integration": "vitest run --passWithNoTests integration.test"
+  },
+  "dependencies": {
+    "@esign/contracts": "workspace:*",
+    "@esign/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@esign/eslint-config": "workspace:*",
+    "@esign/typescript-config": "workspace:*",
+    "@types/node": "22.15.18",
+    "eslint": "9.27.0",
+    "typescript-eslint": "8.32.1",
+    "typescript": "5.8.3",
+    "vitest": "3.2.7",
+    "@vitest/coverage-v8": "3.2.7"
+  }
+}

@@ -17,5 +17,6 @@ Numbered Architecture Decision Records. Status is Accepted unless a later ADR su
 | [0011](0011-outbox-pattern.md)                        | Outbox pattern for reliable background jobs          |
 | [0012](0012-utc-timestamp-handling.md)                | UTC timestamp handling                               |
 | [0013](0013-multi-tenancy-isolation.md)               | Multi-tenancy isolation strategy                     |
+| [0014](0014-typed-exceptions.md)                      | Typed exceptions at the application boundary         |
 
 Index and risks: [decision summary](../decision-summary.md).

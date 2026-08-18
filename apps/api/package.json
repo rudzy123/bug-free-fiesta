@@ -11,13 +11,15 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "test:unit": "vitest run --coverage src/application",
+    "test:unit": "vitest run --coverage --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run integration.test"
   },
   "dependencies": {
+    "@esign/application": "workspace:*",
     "@esign/config": "workspace:*",
     "@esign/contracts": "workspace:*",
     "@esign/database": "workspace:*",
+    "@esign/domain": "workspace:*",
     "@esign/logger": "workspace:*",
     "cors": "2.8.5",
     "express": "5.1.0",

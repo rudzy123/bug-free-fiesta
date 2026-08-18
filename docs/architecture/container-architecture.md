@@ -21,6 +21,8 @@ flowchart TB
   subgraph shared [Packages]
     contracts[contracts]
     config[config]
+    domain[domain]
+    application[application]
     db[database]
     logger[logger]
   end
@@ -33,12 +35,17 @@ flowchart TB
   worker --> obj
   api --> contracts
   api --> config
+  api --> domain
+  api --> application
   api --> db
   api --> logger
   worker --> contracts
   worker --> config
   worker --> db
   worker --> logger
+  application --> domain
+  application --> contracts
+  db --> domain
   web --> contracts
   web --> config
 ```
@@ -62,15 +69,17 @@ Each of API and worker is a composition root: construct config, logger, reposito
 
 ## Packages
 
-| Package                      | Contents                                                                    |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| `packages/database`          | Prisma schema, migrations, client. Only package that speaks SQL via Prisma. |
-| `packages/contracts`         | Zod request/response schemas shared by web, API, and worker payloads.       |
-| `packages/config`            | Typed environment. The only `process.env` reader.                           |
-| `packages/logger`            | Pino structured logging with redaction defaults.                            |
-| `packages/eslint-config`     | Shared lint.                                                                |
-| `packages/typescript-config` | Strict TypeScript, including `noUncheckedIndexedAccess`.                    |
-| `packages/test-utils`        | Builders and fixtures.                                                      |
+| Package                      | Contents                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `packages/domain`            | Entities, repository and service ports, typed errors. No frameworks or Prisma.      |
+| `packages/application`       | Use cases, authorization policy, HTTP error mapping, Node clock/hash/token helpers. |
+| `packages/database`          | Prisma schema, migrations, client, and tenant-scoped repository adapters.           |
+| `packages/contracts`         | Zod request/response schemas shared by web, API, and worker payloads.               |
+| `packages/config`            | Typed environment. The only `process.env` reader.                                   |
+| `packages/logger`            | Pino structured logging with redaction defaults.                                    |
+| `packages/eslint-config`     | Shared lint, including forbidden imports for domain/application.                    |
+| `packages/typescript-config` | Strict TypeScript, including `noUncheckedIndexedAccess`.                            |
+| `packages/test-utils`        | Builders and fixtures.                                                              |
 
 ## Data stores
 

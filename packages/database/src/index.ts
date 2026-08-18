@@ -47,3 +47,17 @@ export function createPrismaPinger(client: PrismaClient): DatabasePinger {
     },
   };
 }
+
+export {
+  createPrismaAuditWriter,
+  createPrismaDocumentRepository,
+  createPrismaJobPublisher,
+  createPrismaMembershipRepository,
+  createPrismaOrganizationRepository,
+  createPrismaSignerRepository,
+  createPrismaSigningTokenLookup,
+  createPrismaTenantRepositories,
+  createPrismaUnitOfWork,
+  createPrismaUserRepository,
+} from './infrastructure/index.js';
+export type { PrismaClientOrTx } from './infrastructure/index.js';

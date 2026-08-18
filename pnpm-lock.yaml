@@ -24,6 +24,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@esign/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@esign/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -33,6 +36,9 @@ importers:
       '@esign/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@esign/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@esign/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -193,6 +199,40 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@22.15.18)(jiti@2.4.2)(tsx@4.19.4)(yaml@2.9.0)
 
+  packages/application:
+    dependencies:
+      '@esign/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@esign/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@esign/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@esign/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 22.15.18
+        version: 22.15.18
+      '@vitest/coverage-v8':
+        specifier: 3.2.7
+        version: 3.2.7(vitest@3.2.7(@types/node@22.15.18)(jiti@2.4.2)(tsx@4.19.4)(yaml@2.9.0))
+      eslint:
+        specifier: 9.27.0
+        version: 9.27.0(jiti@2.4.2)
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      typescript-eslint:
+        specifier: 8.32.1
+        version: 8.32.1(eslint@9.27.0(jiti@2.4.2))(typescript@5.8.3)
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.15.18)(jiti@2.4.2)(tsx@4.19.4)(yaml@2.9.0)
+
   packages/config:
     dependencies:
       zod:
@@ -257,6 +297,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@esign/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@prisma/client':
         specifier: 6.8.2
         version: 6.8.2(prisma@6.8.2(typescript@5.8.3))(typescript@5.8.3)
@@ -279,6 +322,33 @@ importers:
       tsx:
         specifier: 4.19.4
         version: 4.19.4
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      typescript-eslint:
+        specifier: 8.32.1
+        version: 8.32.1(eslint@9.27.0(jiti@2.4.2))(typescript@5.8.3)
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.15.18)(jiti@2.4.2)(tsx@4.19.4)(yaml@2.9.0)
+
+  packages/domain:
+    devDependencies:
+      '@esign/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@esign/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 22.15.18
+        version: 22.15.18
+      '@vitest/coverage-v8':
+        specifier: 3.2.7
+        version: 3.2.7(vitest@3.2.7(@types/node@22.15.18)(jiti@2.4.2)(tsx@4.19.4)(yaml@2.9.0))
+      eslint:
+        specifier: 9.27.0
+        version: 9.27.0(jiti@2.4.2)
       typescript:
         specifier: 5.8.3
         version: 5.8.3

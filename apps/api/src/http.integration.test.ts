@@ -3,11 +3,22 @@ import request from 'supertest';
 import { loadApiConfig } from '@esign/config';
 import { createLogger } from '@esign/logger';
 import { apiEnv } from '@esign/test-utils';
+import { PUBLIC_ERROR_MESSAGES } from '@esign/application';
 import {
   errorEnvelopeSchema,
   livenessResponseSchema,
   readinessResponseSchema,
 } from '@esign/contracts';
+import {
+  AuthenticationError,
+  AuthorizationError,
+  ConflictError,
+  IntegrityError,
+  InvalidStateTransitionError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+} from '@esign/domain';
 import { createHealthService } from './application/health-service.js';
 import { createApiApp } from './create-app.js';
 import type { DatabasePinger } from '@esign/database';
@@ -137,5 +148,58 @@ describe('error response envelope', () => {
     expect(body.error.code).toBe('internal');
     expect(body.error.message).toBe('An unexpected error occurred.');
     expect(JSON.stringify(response.body)).not.toContain('secret internals');
+  });
+
+  it('maps typed application errors to stable public envelopes', async () => {
+    const { app } = testApp(true, (expressApp) => {
+      expressApp.get('/validation', () => {
+        throw new ValidationError({ field: 'title' });
+      });
+      expressApp.get('/authentication', () => {
+        throw new AuthenticationError({ reason: 'missing_session' });
+      });
+      expressApp.get('/forbidden', () => {
+        throw new AuthorizationError({ reason: 'role_denied' });
+      });
+      expressApp.get('/missing', () => {
+        throw new NotFoundError({ resource: 'document' });
+      });
+      expressApp.get('/conflict', () => {
+        throw new ConflictError({ version: 2 });
+      });
+      expressApp.get('/state', () => {
+        throw new InvalidStateTransitionError({ from: 'finalized', to: 'draft' });
+      });
+      expressApp.get('/rate', () => {
+        throw new RateLimitError({ retryAfterSeconds: 15 });
+      });
+      expressApp.get('/integrity', () => {
+        throw new IntegrityError({ reason: 'audit_hash_mismatch' });
+      });
+    });
+
+    const cases = [
+      ['/validation', 400, 'validation'],
+      ['/authentication', 401, 'authentication'],
+      ['/forbidden', 403, 'forbidden'],
+      ['/missing', 404, 'not_found'],
+      ['/conflict', 409, 'conflict'],
+      ['/state', 409, 'conflict'],
+      ['/rate', 429, 'rate_limited'],
+      ['/integrity', 500, 'internal'],
+    ] as const;
+
+    for (const [path, status, code] of cases) {
+      const response = await request(app).get(path);
+      expect(response.status).toBe(status);
+      const body = errorEnvelopeSchema.parse(response.body);
+      expect(body.error.code).toBe(code);
+      expect(body.error.message).toBe(PUBLIC_ERROR_MESSAGES[code]);
+      expect(JSON.stringify(response.body)).not.toContain('audit_hash_mismatch');
+      expect(JSON.stringify(response.body)).not.toContain('title');
+    }
+
+    const rateLimited = await request(app).get('/rate');
+    expect(rateLimited.headers['retry-after']).toBe('15');
   });
 });

@@ -10,7 +10,7 @@ alwaysApply: false
 
 Validate every external payload with Zod schemas from `packages/contracts` at the HTTP or queue boundary. Reject unknown fields where it does not break documented clients. Document public HTTP with OpenAPI under `docs`.
 
-Use a consistent error taxonomy (validation, not found, forbidden, conflict, idempotency replay, internal). Map domain errors in the adapter; do not leak stack traces or secret values.
+Use a consistent error taxonomy mapped by `@esign/application` (`toHttpError`). Public messages are stable; `details` belong only in structured logs. Do not leak stack traces or secret values.
 
 Pino logs go through `packages/logger` with a correlation ID per request or job. Mutations require idempotency keys. Worker retries must be safe.
 

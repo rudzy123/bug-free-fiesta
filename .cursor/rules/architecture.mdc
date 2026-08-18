@@ -12,7 +12,9 @@ Production Electronic Signature SaaS. Prefer Node.js 22 LTS unless `package.json
 - `apps/web`: Next.js App Router UI
 - `apps/api`: Express HTTP adapter and composition root
 - `apps/worker`: asynchronous document-processing worker
-- `packages/database`: Prisma schema, migrations, client
+- `packages/domain`: entities, ports, typed errors
+- `packages/application`: use cases, authorization, HTTP error mapping
+- `packages/database`: Prisma schema, migrations, client, and infrastructure adapters
 - `packages/contracts`: shared Zod request/response schemas
 - `packages/config`: typed environment configuration (the only `process.env` reader)
 - `packages/logger`: Pino structured logging
