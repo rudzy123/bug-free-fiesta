@@ -6,7 +6,8 @@ State machine for the **Document** aggregate. The API is the only authority. The
 
 | State                 | Meaning                                                              | Signing allowed  | Terminal        |
 | --------------------- | -------------------------------------------------------------------- | ---------------- | --------------- |
-| `draft`               | Owner configures revision, fields, and signers.                      | No               | No              |
+| `draft`               | Owner uploads a source PDF.                                          | No               | No              |
+| `prepared`            | Signers, signing mode, and server-owned fields are valid.            | No               | No              |
 | `sent`                | Frozen for signing; no signatures yet.                               | Yes, per routing | No              |
 | `in_progress`         | At least one required signer has signed; others remain.              | Yes, per routing | No              |
 | `completed`           | All required signers signed; artifact not yet stored.                | No               | No              |
@@ -30,8 +31,12 @@ The inspector is an application port (malware scanning and advanced PDF checks).
 ```mermaid
 stateDiagram-v2
   [*] --> draft
+  draft --> prepared: signers and fields valid
+  prepared --> draft: preparation no longer complete
   draft --> sent: owner sends
+  prepared --> sent: owner sends
   draft --> voided: owner discards
+  prepared --> voided: owner discards
   sent --> in_progress: first signature
   sent --> completed: sole signer signs
   sent --> voided: authorized void
@@ -54,33 +59,34 @@ stateDiagram-v2
 
 Without the diagram, only these transitions are legal. Anything else is a conflict error.
 
-| From                   | To                    | Actor / trigger                    | Guards                                                                                                                                                                     |
-| ---------------------- | --------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `draft`                | `sent`                | Document owner or admin            | At least one signer; all required fields assigned; current revision present; inspection `accepted`; `expiresAt` in the future (UTC). Freeze fields, routing, and revision. |
-| `draft`                | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                                                                                            |
-| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                                                                                       |
-| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                                                                                          |
-| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                                                                                          |
-| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                                                                                  |
-| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                                                                                |
-| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                                                                                |
-| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                                                                                 |
-| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                                                                               |
-| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                                                                                         |
-| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                                                                                       |
-| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                                                                                    |
+| From                   | To                    | Actor / trigger                    | Guards                                                                                                        |
+| ---------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `draft`                | `prepared`            | Owner or member                    | Inspection `accepted`; at least one signer; each signer has a field; routing matches `ordered` or `parallel`. |
+| `prepared`             | `draft`               | Owner or member                    | Signers or fields no longer satisfy send guards.                                                              |
+| `draft` / `prepared`   | `sent`                | Document owner, admin, member      | Same send guards; freeze fields, routing, revision, and signing mode. Issue hashed sessions.                  |
+| `draft` / `prepared`   | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                               |
+| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                          |
+| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                             |
+| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                             |
+| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                     |
+| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                   |
+| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                   |
+| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                    |
+| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                  |
+| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                            |
+| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                          |
+| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                       |
 
 **v1 rule:** `completed`, `finalizing`, and `finalized` cannot move to `voided`. Changing that is **legal review required** (already-captured signatures).
 
 ## Multiple signers
 
-Each **Signer** has `routingOrder` (unsigned integer, starting at 1) and `status`: `pending`, `signed`, `declined`.
+Each **Signer** has `routingOrder` (unsigned integer, starting at 1) and `status`: `pending`, `signed`, `declined`. The document `signingMode` is `ordered` or `parallel`.
 
-- **Ordered signing:** signers with different `routingOrder` act in ascending order. A signer may sign only when every required signer with a lower order is `signed`, and the document is `sent` or `in_progress`.
-- **Parallel signing:** signers who share the same `routingOrder` may sign in any sequence, including concurrently. Completions use per-signer row updates and transactions so two parallel signers cannot corrupt routing.
-- Mixed: order 1 (two parallel signers) then order 2 (one signer) is allowed.
+- **Ordered:** routing orders are unique and consecutive starting at 1. A signer may sign only when every required signer with a lower order is `signed`, and the document is `sent` or `in_progress`.
+- **Parallel:** every signer has `routingOrder = 1` and may sign in any sequence, including concurrently.
 
-The API ignores client-supplied “it is my turn” flags. It recomputes turn from persisted signer rows.
+v1 does not mix ordered groups with parallel groups on the same document. The API ignores client-supplied “it is my turn” flags.
 
 ## Voided documents
 

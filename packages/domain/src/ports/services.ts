@@ -86,3 +86,18 @@ export type JobPublishInput = {
 export type JobPublisher = {
   publish: (input: JobPublishInput) => Promise<OutboxEvent>;
 };
+
+export type SigningInvitation = {
+  readonly organizationId: string;
+  readonly documentId: string;
+  readonly signerId: string;
+  readonly sessionId: string;
+  readonly to: string | null;
+  readonly expiresAt: Date;
+  /** Present only in memory for first delivery. Never persist or log in production. */
+  readonly rawToken?: string;
+};
+
+export type Notifier = {
+  sendSigningInvitation: (message: SigningInvitation) => Promise<void>;
+};

@@ -60,4 +60,4 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 
 ## API
 
-Health, authentication, and document ingestion are described in [docs/api/openapi.yaml](api/openapi.yaml). Signing mutations are not implemented yet.
+Health, authentication, document ingestion, preparation, and send are described in [docs/api/openapi.yaml](api/openapi.yaml).

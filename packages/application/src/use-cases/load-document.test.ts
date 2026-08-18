@@ -21,6 +21,7 @@ function document(organizationId = ORG): Document {
     ownerMembershipId: '77777777-7777-4777-8777-777777777777',
     title: 'NDA',
     state: 'draft',
+    signingMode: 'ordered',
     inspectionStatus: 'pending',
     sourceDisplayName: null,
     expiresAt: null,
@@ -42,6 +43,9 @@ function repo(findById: DocumentRepository['findById']): DocumentRepository {
     create: vi.fn(),
     attachSourceRevision: vi.fn(),
     setInspectionStatus: vi.fn(),
+    setSigningMode: vi.fn(),
+    setPreparationState: vi.fn(),
+    markSent: vi.fn(),
   };
 }
 

@@ -2,6 +2,7 @@ import type { MembershipRole } from './request-actor.js';
 
 export const DOCUMENT_STATES = [
   'draft',
+  'prepared',
   'sent',
   'in_progress',
   'completed',
@@ -27,8 +28,19 @@ export const SIGNING_SESSION_STATUSES = [
 ] as const;
 export type SigningSessionStatus = (typeof SIGNING_SESSION_STATUSES)[number];
 
-export const SIGNATURE_FIELD_TYPES = ['signature', 'initials', 'date_signed'] as const;
+export const SIGNATURE_FIELD_TYPES = [
+  'signature',
+  'initials',
+  'date_signed',
+  'signer_name',
+] as const;
 export type SignatureFieldType = (typeof SIGNATURE_FIELD_TYPES)[number];
+
+export const SIGNING_MODES = ['ordered', 'parallel'] as const;
+export type SigningMode = (typeof SIGNING_MODES)[number];
+
+export const FIELD_OVERLAP_POLICIES = ['prohibit', 'allow'] as const;
+export type FieldOverlapPolicy = (typeof FIELD_OVERLAP_POLICIES)[number];
 
 export const DOCUMENT_REVISION_KINDS = ['source', 'intermediate'] as const;
 export type DocumentRevisionKind = (typeof DOCUMENT_REVISION_KINDS)[number];
@@ -40,6 +52,7 @@ export const UPLOAD_SESSION_STATUSES = ['issued', 'completed', 'expired', 'aband
 export type UploadSessionStatus = (typeof UPLOAD_SESSION_STATUSES)[number];
 
 export const INSPECT_DOCUMENT_JOB_TYPE = 'inspect_document';
+export const NOTIFY_SIGNER_JOB_TYPE = 'notify_signer';
 
 export const AUDIT_ACTOR_TYPES = ['account_user', 'signer', 'worker', 'system'] as const;
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
@@ -142,6 +155,7 @@ export type Document = {
   readonly ownerMembershipId: string;
   readonly title: string;
   readonly state: DocumentState;
+  readonly signingMode: SigningMode;
   readonly inspectionStatus: DocumentInspectionStatus;
   readonly sourceDisplayName: string | null;
   readonly expiresAt: Date | null;
@@ -165,6 +179,7 @@ export type DocumentRevision = {
   readonly sizeBytes: bigint;
   readonly sha256Digest: string;
   readonly displayName: string;
+  readonly pageCount: number;
   readonly createdAt: Date;
 };
 

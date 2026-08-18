@@ -29,10 +29,21 @@ import {
   createMemoryObjectStorage,
   createMemoryPreviewGrantStore,
   createMemoryRateLimiter,
+  createMemorySignatureFieldStore,
+  createMemorySignerStore,
+  createMemorySigningSessionStore,
+  createMemoryNotifier,
   createMemoryUnitOfWork,
   createMemoryUploadSessionStore,
   createMemoryUserRepository,
+  createReplaceDocumentFields,
+  createReplaceDocumentSigners,
   createResolveAccountSession,
+  createResolveOrganizationActor,
+  createResolveSigningSession,
+  createRevokeSigningSession,
+  createRotateSigningSession,
+  createSendDocument,
   createResolveOrganizationActor,
   createRevokeAccountSession,
   createSha256Hashing,
@@ -47,6 +58,8 @@ import {
   createDocumentResponseSchema,
   errorEnvelopeSchema,
   publicDocumentSchema,
+  sendDocumentResponseSchema,
+  signerSessionResponseSchema,
 } from '@esign/contracts';
 import type { AccountUser, Clock, OrganizationMembership } from '@esign/domain';
 import { createHealthService } from './application/health-service.js';
@@ -158,6 +171,10 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
   const revisions = createMemoryDocumentRevisionRepository();
   const uploadSessions = createMemoryUploadSessionStore();
   const previewGrants = createMemoryPreviewGrantStore();
+  const signers = createMemorySignerStore();
+  const signatureFields = createMemorySignatureFieldStore();
+  const signingSessions = createMemorySigningSessionStore();
+  const notifier = createMemoryNotifier();
   const idempotency = createMemoryIdempotencyRecordRepository();
   const documentAudit = createMemoryAuditWriter();
   const jobs = createMemoryJobPublisher();
@@ -170,6 +187,9 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
       idempotencyRecords: idempotency,
       audit: documentAudit,
       jobs,
+      signers,
+      signatureFields,
+      signingSessions,
     }),
   );
   const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), MAX_BYTES);
@@ -260,7 +280,13 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
         unitOfWork,
         maxUploadBytes: config.DOCUMENT_MAX_UPLOAD_BYTES,
       }),
-      getDocument: createGetOrganizationDocument({ authorization, documents, revisions }),
+      getDocument: createGetOrganizationDocument({
+        authorization,
+        documents,
+        revisions,
+        signers,
+        fields: signatureFields,
+      }),
       issuePreview: createIssueDocumentPreview({
         authorization,
         documents,
@@ -277,6 +303,72 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
         grants: previewGrants,
         revisions,
         storage,
+        hasher,
+        clock,
+      }),
+      replaceSigners: createReplaceDocumentSigners({
+        authorization,
+        documents,
+        revisions,
+        signers,
+        fields: signatureFields,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      replaceFields: createReplaceDocumentFields({
+        authorization,
+        documents,
+        revisions,
+        signers,
+        fields: signatureFields,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      sendDocument: createSendDocument({
+        authorization,
+        documents,
+        revisions,
+        signers,
+        fields: signatureFields,
+        idempotency,
+        unitOfWork,
+        notifier,
+        ids,
+        clock,
+        hashing,
+        tokens,
+        hasher,
+        sessionTtlMs: config.SIGNING_SESSION_TTL_SECONDS * 1000,
+        idempotencyTtlMs: config.IDEMPOTENCY_TTL_SECONDS * 1000,
+      }),
+      rotateSession: createRotateSigningSession({
+        authorization,
+        documents,
+        signers,
+        sessions: signingSessions,
+        unitOfWork,
+        notifier,
+        ids,
+        clock,
+        tokens,
+        hasher,
+        sessionTtlMs: config.SIGNING_SESSION_TTL_SECONDS * 1000,
+      }),
+      revokeSession: createRevokeSigningSession({
+        authorization,
+        documents,
+        sessions: signingSessions,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      resolveSigningSession: createResolveSigningSession({
+        tokens: signingSessions,
+        documents,
+        fields: signatureFields,
+        sessions: signingSessions,
         hasher,
         clock,
       }),
@@ -461,5 +553,132 @@ describe('secure document ingestion', () => {
       .get(`/organizations/${ORG_NORTH}/documents/${body.documentId}`)
       .set('Cookie', session.cookies);
     expect(publicDocumentSchema.parse(loaded.body).availableForSigning).toBe(false);
+  });
+
+  it('prepares, sends, and binds signer identity to the token', async () => {
+    const { app, inspect } = testIngestionApp();
+    const session = await loginAs(app, 'ada@example.test');
+    const created = await request(app)
+      .post(`/organizations/${ORG_NORTH}/documents`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .set('Idempotency-Key', 'prep-send')
+      .send({ title: 'NDA', filename: 'a.pdf' });
+    const draft = createDocumentResponseSchema.parse(created.body);
+    const uploaded = await request(app)
+      .put(draft.upload.url)
+      .set(draft.upload.tokenHeader, draft.upload.token ?? '')
+      .set('Content-Type', 'application/pdf')
+      .send(pdfBytes());
+    const revisionId = publicDocumentSchema.parse(uploaded.body).currentRevision?.revisionId ?? '';
+    await inspect({
+      organizationId: ORG_NORTH,
+      documentId: draft.documentId,
+      revisionId,
+      jobId: 'job-prep',
+      requestId: 'req-prep',
+    });
+    const signers = await request(app)
+      .put(`/organizations/${ORG_NORTH}/documents/${draft.documentId}/signers`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .send({
+        signingMode: 'ordered',
+        signers: [{ email: 'alex@example.test', displayName: 'Alex', routingOrder: 1 }],
+      });
+    expect(signers.status).toBe(200);
+    const signerId = publicDocumentSchema.parse(signers.body).signers[0]?.signerId ?? '';
+    const fields = await request(app)
+      .put(`/organizations/${ORG_NORTH}/documents/${draft.documentId}/fields`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .send({
+        fields: [
+          {
+            signerId,
+            type: 'signature',
+            pageNumber: 1,
+            x: 0.1,
+            y: 0.1,
+            width: 0.25,
+            height: 0.1,
+          },
+        ],
+      });
+    expect(fields.status).toBe(200);
+    expect(publicDocumentSchema.parse(fields.body).state).toBe('prepared');
+    const sent = await request(app)
+      .post(`/organizations/${ORG_NORTH}/documents/${draft.documentId}/send`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .set('Idempotency-Key', 'send-prep')
+      .send({});
+    expect(sent.status).toBe(200);
+    const sentBody = sendDocumentResponseSchema.parse(sent.body);
+    expect(sentBody.state).toBe('sent');
+    const token = sentBody.invitations[0]?.token ?? '';
+    const opened = await request(app)
+      .post('/signing/session')
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
+    expect(opened.status).toBe(200);
+    expect(signerSessionResponseSchema.parse(opened.body).signerId).toBe(signerId);
+
+    const mismatch = await request(app)
+      .post('/signing/session')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ signerId: USER_BEAU });
+    expect(mismatch.status).toBe(401);
+
+    const moved = await request(app)
+      .put(`/organizations/${ORG_NORTH}/documents/${draft.documentId}/fields`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .send({
+        fields: [
+          {
+            signerId,
+            type: 'signature',
+            pageNumber: 1,
+            x: 0.6,
+            y: 0.6,
+            width: 0.2,
+            height: 0.1,
+          },
+        ],
+      });
+    expect(moved.status).toBe(409);
+
+    const revoked = await request(app)
+      .post(
+        `/organizations/${ORG_NORTH}/documents/${draft.documentId}/sessions/${sentBody.invitations[0]?.sessionId}/revoke`,
+      )
+      .set('Origin', ORIGIN)
+      .set('Cookie', session.cookies)
+      .set('x-csrf-token', session.csrf)
+      .send({});
+    expect(revoked.status).toBe(200);
+    const afterRevoke = await request(app)
+      .post('/signing/session')
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
+    expect(afterRevoke.status).toBe(401);
+
+    const beau = await loginAs(app, 'beau@example.test');
+    const crossPrepare = await request(app)
+      .put(`/organizations/${ORG_NORTH}/documents/${draft.documentId}/signers`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', beau.cookies)
+      .set('x-csrf-token', beau.csrf)
+      .send({
+        signingMode: 'parallel',
+        signers: [{ email: 'beau@example.test', displayName: 'Beau', routingOrder: 1 }],
+      });
+    expect(crossPrepare.status).toBe(403);
   });
 });

@@ -21,15 +21,23 @@ import {
   type UploadSessionRepository,
   type UserRepository,
 } from '@esign/domain';
-import { OutboxStatus, UploadSessionStatus } from '../generated/client/index.js';
+import {
+  OutboxStatus,
+  SigningSessionStatus,
+  UploadSessionStatus,
+} from '../generated/client/index.js';
 import type { PrismaClientOrTx } from './prisma-client.js';
 import {
   AUDIT_ACTOR_TYPE_TO_PRISMA,
   AUDIT_EVENT_TYPE_TO_PRISMA,
   DOCUMENT_INSPECTION_STATUS_TO_PRISMA,
   DOCUMENT_STATE_TO_PRISMA,
+  FIELD_TYPE_TO_PRISMA,
   IDEMPOTENCY_PRINCIPAL_TO_PRISMA,
   REVISION_KIND_TO_PRISMA,
+  SESSION_STATUS_TO_PRISMA,
+  SIGNER_STATUS_TO_PRISMA,
+  SIGNING_MODE_TO_PRISMA,
   UPLOAD_SESSION_STATUS_TO_PRISMA,
   toDomainArtifact,
   toDomainAuditEvent,
@@ -130,6 +138,7 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
           ownerMembershipId: input.document.ownerMembershipId,
           title: input.document.title,
           state: DOCUMENT_STATE_TO_PRISMA[input.document.state],
+          signingMode: SIGNING_MODE_TO_PRISMA[input.document.signingMode],
           inspectionStatus: DOCUMENT_INSPECTION_STATUS_TO_PRISMA[input.document.inspectionStatus],
           sourceDisplayName: input.document.sourceDisplayName,
           expiresAt: input.document.expiresAt,
@@ -188,6 +197,71 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
       }
       return toDomainDocument(row);
     },
+    async setSigningMode(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: { organizationId, id: documentId, version: input.expectedVersion },
+        data: {
+          signingMode: SIGNING_MODE_TO_PRISMA[input.signingMode],
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
+    async setPreparationState(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: { organizationId, id: documentId, version: input.expectedVersion },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA[input.state],
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
+    async markSent(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: { organizationId, id: documentId, version: input.expectedVersion },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.sent,
+          signingRevisionId: input.signingRevisionId,
+          expiresAt: input.expiresAt,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
   };
 }
 
@@ -224,6 +298,7 @@ export function createPrismaDocumentRevisionRepository(
           sizeBytes: input.revision.sizeBytes,
           sha256Digest: input.revision.sha256Digest,
           displayName: input.revision.displayName,
+          pageCount: input.revision.pageCount,
           createdAt: input.revision.createdAt,
         },
       });
@@ -353,6 +428,48 @@ export function createPrismaSignerRepository(prisma: PrismaClientOrTx): SignerRe
       });
       return rows.map(toDomainSigner);
     },
+    async replaceAll(input) {
+      assertSameOrganization(input.organizationId, input.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const nextIds = input.signers.map((signer) => signer.id);
+      await prisma.signatureField.deleteMany({
+        where: { organizationId, documentId, signerId: { notIn: nextIds } },
+      });
+      await prisma.signer.deleteMany({
+        where: { organizationId, documentId, id: { notIn: nextIds } },
+      });
+      const stored = [];
+      for (const signer of input.signers) {
+        assertSameOrganization(organizationId, signer.organizationId);
+        const row = await prisma.signer.upsert({
+          where: tenantCompoundWhere(organizationId, signer.id, 'signerId'),
+          create: {
+            id: signer.id,
+            organizationId,
+            documentId,
+            accountUserId: signer.accountUserId,
+            routingOrder: signer.routingOrder,
+            status: SIGNER_STATUS_TO_PRISMA[signer.status],
+            email: signer.email,
+            displayName: signer.displayName,
+            version: signer.version,
+            completedAt: signer.completedAt,
+            declinedAt: signer.declinedAt,
+            createdAt: signer.createdAt,
+            updatedAt: signer.updatedAt,
+          },
+          update: {
+            routingOrder: signer.routingOrder,
+            email: signer.email,
+            displayName: signer.displayName,
+            updatedAt: signer.updatedAt,
+          },
+        });
+        stored.push(toDomainSigner(row));
+      }
+      return stored;
+    },
   };
 }
 
@@ -375,6 +492,142 @@ export function createPrismaSigningSessionRepository(
       });
       return rows.map(toDomainSigningSession);
     },
+    async listByDocument(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const rows = await prisma.signingSession.findMany({
+        where: { organizationId, documentId },
+        orderBy: { createdAt: 'desc' },
+      });
+      return rows.map(toDomainSigningSession);
+    },
+    async listOpenBySigner(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const signerId = requireOpaqueId(input.signerId, 'signerId');
+      const rows = await prisma.signingSession.findMany({
+        where: {
+          organizationId,
+          signerId,
+          status: { in: [SigningSessionStatus.issued, SigningSessionStatus.active] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      return rows.map(toDomainSigningSession);
+    },
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.session.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.signingSession.create({
+        data: {
+          id: input.session.id,
+          organizationId,
+          documentId: input.session.documentId,
+          signerId: input.session.signerId,
+          tokenHash: input.session.tokenHash,
+          status: SESSION_STATUS_TO_PRISMA[input.session.status],
+          expiresAt: input.session.expiresAt,
+          consumedAt: input.session.consumedAt,
+          completedAt: input.session.completedAt,
+          revokedAt: input.session.revokedAt,
+          presentationAttemptCount: input.session.presentationAttemptCount,
+          failedPresentationCount: input.session.failedPresentationCount,
+          lastPresentedAt: input.session.lastPresentedAt,
+          requestId: input.session.requestId,
+          version: input.session.version,
+          createdAt: input.session.createdAt,
+          updatedAt: input.session.updatedAt,
+        },
+      });
+      return toDomainSigningSession(row);
+    },
+    async revoke(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const result = await prisma.signingSession.updateMany({
+        where: {
+          organizationId,
+          id: sessionId,
+          status: { in: [SigningSessionStatus.issued, SigningSessionStatus.active] },
+        },
+        data: {
+          status: SigningSessionStatus.revoked,
+          revokedAt: input.revokedAt,
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'session_not_open' });
+      }
+      const row = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      return toDomainSigningSession(row);
+    },
+    async markPresented(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const result = await prisma.signingSession.updateMany({
+        where: { organizationId, id: sessionId, status: SigningSessionStatus.issued },
+        data: {
+          status: SigningSessionStatus.active,
+          consumedAt: input.presentedAt,
+          lastPresentedAt: input.presentedAt,
+        },
+      });
+      if (result.count !== 1) {
+        const existing = await prisma.signingSession.findUnique({
+          where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+        });
+        if (!existing) {
+          throw new NotFoundError({ resource: 'signing_session' });
+        }
+        if (existing.status === SigningSessionStatus.active) {
+          await prisma.signingSession.updateMany({
+            where: { organizationId, id: sessionId },
+            data: { lastPresentedAt: input.presentedAt },
+          });
+          const row = await prisma.signingSession.findUnique({
+            where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+          });
+          if (!row) {
+            throw new NotFoundError({ resource: 'signing_session' });
+          }
+          return toDomainSigningSession(row);
+        }
+        throw new ConflictError({ reason: 'session_not_presentable', status: existing.status });
+      }
+      const row = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      return toDomainSigningSession(row);
+    },
+    async markExpired(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const result = await prisma.signingSession.updateMany({
+        where: {
+          organizationId,
+          id: sessionId,
+          status: { in: [SigningSessionStatus.issued, SigningSessionStatus.active] },
+        },
+        data: { status: SigningSessionStatus.expired },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'session_not_open' });
+      }
+      const row = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      return toDomainSigningSession(row);
+    },
   };
 }
 
@@ -396,6 +649,39 @@ export function createPrismaSignatureFieldRepository(
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toDomainSignatureField);
+    },
+    async replaceAll(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      await prisma.signatureField.deleteMany({ where: { organizationId, documentId } });
+      const stored = [];
+      for (const field of input.fields) {
+        assertSameOrganization(organizationId, field.organizationId);
+        const row = await prisma.signatureField.create({
+          data: {
+            id: field.id,
+            organizationId,
+            documentId,
+            signerId: field.signerId,
+            type: FIELD_TYPE_TO_PRISMA[field.type],
+            pageNumber: field.pageNumber,
+            x: field.x,
+            y: field.y,
+            width: field.width,
+            height: field.height,
+            required: field.required,
+            completedAt: field.completedAt,
+            completionObjectKey: field.completionObjectKey,
+            completionContentType: field.completionContentType,
+            completionSizeBytes: field.completionSizeBytes,
+            completionSha256Digest: field.completionSha256Digest,
+            createdAt: field.createdAt,
+            updatedAt: field.updatedAt,
+          },
+        });
+        stored.push(toDomainSignatureField(row));
+      }
+      return stored;
     },
   };
 }

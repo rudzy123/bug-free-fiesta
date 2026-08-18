@@ -21,6 +21,7 @@ import {
   assertedPdfContentType,
 } from './pdf.js';
 import { toPublicDocument, type PublicDocument } from './public-document.js';
+import { extractPdfPageCount } from './pdf-pages.js';
 
 export type CompleteSourceUploadInput = {
   readonly organizationId: string;
@@ -124,6 +125,7 @@ export function createCompleteSourceUpload(deps: {
           sizeBytes,
           sha256Digest,
           displayName: session.displayName,
+          pageCount: extractPdfPageCount(input.body),
           createdAt: now,
         },
       });

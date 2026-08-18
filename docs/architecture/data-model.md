@@ -33,7 +33,7 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 
 ## Ordered and parallel signing
 
-`signers.routingOrder` is a nonnegative integer. Distinct orders are sequential (ascending). Equal orders may sign in parallel. The API recomputes turn from these rows; it does not trust the browser.
+`signers.routingOrder` is a positive integer. Document `signingMode` is `ordered` (unique consecutive orders from 1) or `parallel` (every order is 1). The API recomputes turn from these rows; it does not trust the browser.
 
 ## Indexes and target queries
 

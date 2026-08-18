@@ -8,13 +8,29 @@ import {
   organizationIdParamSchema,
   previewGrantIdParamSchema,
   publicDocumentSchema,
+  replaceFieldsRequestSchema,
+  replaceSignersRequestSchema,
+  rotateSessionResponseSchema,
+  revokeSessionResponseSchema,
+  sendDocumentRequestSchema,
+  sendDocumentResponseSchema,
+  sessionIdParamSchema,
+  signerIdParamSchema,
+  signerSessionClaimSchema,
+  signerSessionResponseSchema,
 } from '@esign/contracts';
-import { ValidationError } from '@esign/domain';
+import { AuthenticationError, ValidationError } from '@esign/domain';
 import type {
   CompleteSourceUpload,
   CreateDraftDocument,
   GetOrganizationDocument,
   IssueDocumentPreview,
+  ReplaceDocumentFields,
+  ReplaceDocumentSigners,
+  ResolveSigningSession,
+  RevokeSigningSession,
+  RotateSigningSession,
+  SendDocument,
   StreamDocumentPreview,
   AssertAccountAction,
 } from '@esign/application';
@@ -39,6 +55,12 @@ export type DocumentIngestionRouterDeps = {
   getDocument: GetOrganizationDocument;
   issuePreview: IssueDocumentPreview;
   streamPreview: StreamDocumentPreview;
+  replaceSigners: ReplaceDocumentSigners;
+  replaceFields: ReplaceDocumentFields;
+  sendDocument: SendDocument;
+  rotateSession: RotateSigningSession;
+  revokeSession: RevokeSigningSession;
+  resolveSigningSession: ResolveSigningSession;
 };
 
 export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps): Router {
@@ -168,6 +190,148 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
     }),
   );
 
+  router.put(
+    '/organizations/:organizationId/documents/:documentId/signers',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.write' });
+      const parsed = replaceSignersRequestSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError({ reason: 'invalid_signers' });
+      }
+      const result = await deps.replaceSigners({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        signingMode: parsed.data.signingMode,
+        signers: parsed.data.signers,
+        requestId: req.correlationId,
+      });
+      res.status(200).json(publicDocumentSchema.parse(result));
+    }),
+  );
+
+  router.put(
+    '/organizations/:organizationId/documents/:documentId/fields',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.write' });
+      const parsed = replaceFieldsRequestSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError({ reason: 'invalid_fields' });
+      }
+      const result = await deps.replaceFields({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        overlapPolicy: deps.config.DOCUMENT_FIELD_OVERLAP_POLICY,
+        fields: parsed.data.fields,
+        requestId: req.correlationId,
+      });
+      res.status(200).json(publicDocumentSchema.parse(result));
+    }),
+  );
+
+  router.post(
+    '/organizations/:organizationId/documents/:documentId/send',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.send' });
+      const parsed = sendDocumentRequestSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError({ reason: 'invalid_send' });
+      }
+      const result = await deps.sendDocument({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        expiresAt: parsed.data.expiresAt,
+        idempotencyKey: headerValue(req, 'idempotency-key') ?? '',
+        requestId: req.correlationId,
+      });
+      res.status(200).json(sendDocumentResponseSchema.parse(result));
+    }),
+  );
+
+  router.post(
+    '/organizations/:organizationId/documents/:documentId/signers/:signerId/sessions/rotate',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.send' });
+      const result = await deps.rotateSession({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        signerId: parseSignerId(req.params.signerId),
+        requestId: req.correlationId,
+      });
+      res.status(201).json(rotateSessionResponseSchema.parse(result));
+    }),
+  );
+
+  router.post(
+    '/organizations/:organizationId/documents/:documentId/sessions/:sessionId/revoke',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.send' });
+      const result = await deps.revokeSession({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        sessionId: parseSessionId(req.params.sessionId),
+        requestId: req.correlationId,
+      });
+      res.status(200).json(revokeSessionResponseSchema.parse(result));
+    }),
+  );
+
+  router.post(
+    '/signing/session',
+    asyncRoute(async (req, res) => {
+      const token = bearerToken(req);
+      const claimed = signerSessionClaimSchema.safeParse(req.body ?? {});
+      if (!claimed.success) {
+        throw new ValidationError({ reason: 'invalid_signer_claim' });
+      }
+      const result = await deps.resolveSigningSession({
+        rawToken: token,
+        claimedDocumentId: claimed.data.documentId,
+        claimedSignerId: claimed.data.signerId,
+      });
+      res.status(200).json(signerSessionResponseSchema.parse(result));
+    }),
+  );
+
   return router;
 }
 
@@ -193,6 +357,34 @@ function parseGrantId(value: string | string[] | undefined): string {
     throw new ValidationError({ field: 'grantId', reason: 'invalid' });
   }
   return parsed.data;
+}
+
+function parseSignerId(value: string | string[] | undefined): string {
+  const parsed = signerIdParamSchema.safeParse(singleParam(value));
+  if (!parsed.success) {
+    throw new ValidationError({ field: 'signerId', reason: 'invalid' });
+  }
+  return parsed.data;
+}
+
+function parseSessionId(value: string | string[] | undefined): string {
+  const parsed = sessionIdParamSchema.safeParse(singleParam(value));
+  if (!parsed.success) {
+    throw new ValidationError({ field: 'sessionId', reason: 'invalid' });
+  }
+  return parsed.data;
+}
+
+function bearerToken(req: { header: (name: string) => string | undefined }): string {
+  const value = req.header('authorization');
+  if (value === undefined || !value.toLowerCase().startsWith('bearer ')) {
+    throw new AuthenticationError({ reason: 'signing_token' });
+  }
+  const token = value.slice('bearer '.length).trim();
+  if (token === '') {
+    throw new AuthenticationError({ reason: 'signing_token' });
+  }
+  return token;
 }
 
 function singleParam(value: string | string[] | undefined): string | undefined {

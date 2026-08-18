@@ -100,6 +100,34 @@ export {
   createMemoryIdempotencyRecordRepository,
   createMemoryJobPublisher,
   createMemoryPreviewGrantStore,
+  createMemorySignatureFieldStore,
+  createMemorySignerStore,
+  createMemorySigningSessionStore,
   createMemoryUnitOfWork,
   createMemoryUploadSessionStore,
 } from './documents/memory-adapters.js';
+export {
+  createReplaceDocumentFields,
+  createReplaceDocumentSigners,
+  type ReplaceDocumentFields,
+  type ReplaceDocumentSigners,
+} from './documents/replace-preparation.js';
+export {
+  SEND_DOCUMENT_ROUTE,
+  createSendDocument,
+  type SendDocument,
+} from './documents/send-document.js';
+export {
+  createResolveSigningSession,
+  createRevokeSigningSession,
+  createRotateSigningSession,
+  type ResolveSigningSession,
+  type RevokeSigningSession,
+  type RotateSigningSession,
+} from './documents/signing-sessions.js';
+export {
+  createFailClosedNotifier,
+  createLocalDevelopmentNotifier,
+  createMemoryNotifier,
+  createNotifier,
+} from './documents/notifications.js';

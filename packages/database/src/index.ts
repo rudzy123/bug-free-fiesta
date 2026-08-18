@@ -13,6 +13,7 @@ export {
   Prisma,
   SignatureFieldType,
   SignerStatus,
+  SigningMode,
   SigningSessionStatus,
 } from './generated/client/index.js';
 

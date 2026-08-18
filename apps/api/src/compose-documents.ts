@@ -10,6 +10,13 @@ import {
   createIssueDocumentPreview,
   createMembershipAuthorizationPolicy,
   createMemoryObjectStorage,
+  createNotifier,
+  createReplaceDocumentFields,
+  createReplaceDocumentSigners,
+  createResolveSigningSession,
+  createRevokeSigningSession,
+  createRotateSigningSession,
+  createSendDocument,
   createSha256Hashing,
   createSigningTokenGenerator,
   createSizeLimitedObjectStorage,
@@ -19,6 +26,7 @@ import {
 } from '@esign/application';
 import {
   createPrismaPreviewGrantLookup,
+  createPrismaSigningTokenLookup,
   createPrismaTenantRepositories,
   createPrismaUnitOfWork,
   createPrismaUploadSessionLookup,
@@ -56,6 +64,7 @@ export function createDocumentIngestionFromPrisma(input: {
   const unitOfWork = createPrismaUnitOfWork(input.prisma);
   const uploadLookup = createPrismaUploadSessionLookup(input.prisma);
   const previewLookup = createPrismaPreviewGrantLookup(input.prisma);
+  const signingLookup = createPrismaSigningTokenLookup(input.prisma);
   const storage = createSizeLimitedObjectStorage(
     createMemoryObjectStorage(),
     input.config.DOCUMENT_MAX_UPLOAD_BYTES,
@@ -64,6 +73,12 @@ export function createDocumentIngestionFromPrisma(input: {
     name: input.config.DOCUMENT_INSPECTOR,
     nodeEnv: input.config.NODE_ENV,
   });
+  const notifier = createNotifier({
+    name: input.config.NOTIFICATION_ADAPTER,
+    nodeEnv: input.config.NODE_ENV,
+    directory: input.config.NOTIFICATION_PREVIEW_DIR,
+  });
+  const sessionTtlMs = input.config.SIGNING_SESSION_TTL_SECONDS * 1000;
 
   return {
     router: createDocumentIngestionRouter({
@@ -102,6 +117,8 @@ export function createDocumentIngestionFromPrisma(input: {
         authorization,
         documents: repos.documents,
         revisions: repos.revisions,
+        signers: repos.signers,
+        fields: repos.signatureFields,
       }),
       issuePreview: createIssueDocumentPreview({
         authorization,
@@ -119,6 +136,72 @@ export function createDocumentIngestionFromPrisma(input: {
         grants: previewLookup,
         revisions: repos.revisions,
         storage,
+        hasher,
+        clock,
+      }),
+      replaceSigners: createReplaceDocumentSigners({
+        authorization,
+        documents: repos.documents,
+        revisions: repos.revisions,
+        signers: repos.signers,
+        fields: repos.signatureFields,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      replaceFields: createReplaceDocumentFields({
+        authorization,
+        documents: repos.documents,
+        revisions: repos.revisions,
+        signers: repos.signers,
+        fields: repos.signatureFields,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      sendDocument: createSendDocument({
+        authorization,
+        documents: repos.documents,
+        revisions: repos.revisions,
+        signers: repos.signers,
+        fields: repos.signatureFields,
+        idempotency: repos.idempotencyRecords,
+        unitOfWork,
+        notifier,
+        ids,
+        clock,
+        hashing,
+        tokens,
+        hasher,
+        sessionTtlMs,
+        idempotencyTtlMs: input.config.IDEMPOTENCY_TTL_SECONDS * 1000,
+      }),
+      rotateSession: createRotateSigningSession({
+        authorization,
+        documents: repos.documents,
+        signers: repos.signers,
+        sessions: repos.signingSessions,
+        unitOfWork,
+        notifier,
+        ids,
+        clock,
+        tokens,
+        hasher,
+        sessionTtlMs,
+      }),
+      revokeSession: createRevokeSigningSession({
+        authorization,
+        documents: repos.documents,
+        sessions: repos.signingSessions,
+        unitOfWork,
+        ids,
+        clock,
+      }),
+      resolveSigningSession: createResolveSigningSession({
+        tokens: signingLookup,
+        documents: repos.documents,
+        fields: repos.signatureFields,
+        sessions: repos.signingSessions,
         hasher,
         clock,
       }),

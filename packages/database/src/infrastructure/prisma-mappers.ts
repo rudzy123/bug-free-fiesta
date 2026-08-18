@@ -24,6 +24,7 @@ import type {
   SignatureFieldType as DomainSignatureFieldType,
   Signer,
   SignerStatus as DomainSignerStatus,
+  SigningMode as DomainSigningMode,
   SigningSession,
   SigningSessionStatus as DomainSigningSessionStatus,
   UploadSession,
@@ -64,6 +65,7 @@ import {
   Prisma,
   SignatureFieldType,
   SignerStatus,
+  SigningMode,
   SigningSessionStatus,
   UploadSessionStatus,
 } from '../generated/client/index.js';
@@ -87,6 +89,7 @@ export const ACCOUNT_SECURITY_EVENT_TYPE_TO_PRISMA: Record<
 
 export const DOCUMENT_STATE_TO_PRISMA: Record<DomainDocumentState, DocumentState> = {
   draft: DocumentState.draft,
+  prepared: DocumentState.prepared,
   sent: DocumentState.sent,
   in_progress: DocumentState.inProgress,
   completed: DocumentState.completed,
@@ -100,6 +103,7 @@ export const DOCUMENT_STATE_TO_PRISMA: Record<DomainDocumentState, DocumentState
 
 export const DOCUMENT_STATE_TO_DOMAIN: Record<DocumentState, DomainDocumentState> = {
   [DocumentState.draft]: 'draft',
+  [DocumentState.prepared]: 'prepared',
   [DocumentState.sent]: 'sent',
   [DocumentState.inProgress]: 'in_progress',
   [DocumentState.completed]: 'completed',
@@ -164,6 +168,38 @@ const FIELD_TYPE_TO_DOMAIN: Record<SignatureFieldType, DomainSignatureFieldType>
   [SignatureFieldType.signature]: 'signature',
   [SignatureFieldType.initials]: 'initials',
   [SignatureFieldType.dateSigned]: 'date_signed',
+  [SignatureFieldType.signerName]: 'signer_name',
+};
+
+export const FIELD_TYPE_TO_PRISMA: Record<DomainSignatureFieldType, SignatureFieldType> = {
+  signature: SignatureFieldType.signature,
+  initials: SignatureFieldType.initials,
+  date_signed: SignatureFieldType.dateSigned,
+  signer_name: SignatureFieldType.signerName,
+};
+
+export const SIGNING_MODE_TO_PRISMA: Record<DomainSigningMode, SigningMode> = {
+  ordered: SigningMode.ordered,
+  parallel: SigningMode.parallel,
+};
+
+export const SIGNING_MODE_TO_DOMAIN: Record<SigningMode, DomainSigningMode> = {
+  [SigningMode.ordered]: 'ordered',
+  [SigningMode.parallel]: 'parallel',
+};
+
+export const SESSION_STATUS_TO_PRISMA: Record<DomainSigningSessionStatus, SigningSessionStatus> = {
+  issued: SigningSessionStatus.issued,
+  active: SigningSessionStatus.active,
+  completed: SigningSessionStatus.completed,
+  expired: SigningSessionStatus.expired,
+  revoked: SigningSessionStatus.revoked,
+};
+
+export const SIGNER_STATUS_TO_PRISMA: Record<DomainSignerStatus, SignerStatus> = {
+  pending: SignerStatus.pending,
+  signed: SignerStatus.signed,
+  declined: SignerStatus.declined,
 };
 
 const REVISION_KIND_TO_DOMAIN: Record<DocumentRevisionKind, DomainDocumentRevisionKind> = {
@@ -322,6 +358,7 @@ export function toDomainDocument(row: PrismaDocument): Document {
     ownerMembershipId: row.ownerMembershipId,
     title: row.title,
     state: DOCUMENT_STATE_TO_DOMAIN[row.state],
+    signingMode: SIGNING_MODE_TO_DOMAIN[row.signingMode],
     inspectionStatus: DOCUMENT_INSPECTION_STATUS_TO_DOMAIN[row.inspectionStatus],
     sourceDisplayName: row.sourceDisplayName,
     expiresAt: row.expiresAt,
@@ -347,6 +384,7 @@ export function toDomainRevision(row: PrismaDocumentRevision): DocumentRevision 
     sizeBytes: row.sizeBytes,
     sha256Digest: row.sha256Digest,
     displayName: row.displayName,
+    pageCount: row.pageCount,
     createdAt: row.createdAt,
   };
 }

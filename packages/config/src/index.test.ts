@@ -16,6 +16,8 @@ describe('environment validation', () => {
     expect(config.CORRELATION_ID_HEADER).toBe('x-correlation-id');
     expect(config.DOCUMENT_MAX_UPLOAD_BYTES).toBe(26_214_400);
     expect(config.DOCUMENT_INSPECTOR).toBe('local');
+    expect(config.SIGNING_SESSION_TTL_SECONDS).toBe(604_800);
+    expect(config.DOCUMENT_FIELD_OVERLAP_POLICY).toBe('prohibit');
   });
 
   it('rejects the local document inspector in production', () => {

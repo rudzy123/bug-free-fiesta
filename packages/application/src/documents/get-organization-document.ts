@@ -5,6 +5,8 @@ import {
   type AuthorizationPolicy,
   type DocumentRepository,
   type DocumentRevisionRepository,
+  type SignatureFieldRepository,
+  type SignerRepository,
 } from '@esign/domain';
 import { toPublicDocument, type PublicDocument } from './public-document.js';
 
@@ -17,6 +19,8 @@ export function createGetOrganizationDocument(deps: {
   authorization: AuthorizationPolicy;
   documents: DocumentRepository;
   revisions: DocumentRevisionRepository;
+  signers: SignerRepository;
+  fields: SignatureFieldRepository;
 }) {
   return async function getOrganizationDocument(
     input: GetOrganizationDocumentInput,
@@ -40,7 +44,11 @@ export function createGetOrganizationDocument(deps: {
             organizationId,
             revisionId: document.currentRevisionId,
           });
-    return toPublicDocument(document, revision);
+    const [signers, fields] = await Promise.all([
+      deps.signers.listByDocument({ organizationId, documentId: document.id }),
+      deps.fields.listByDocument({ organizationId, documentId: document.id }),
+    ]);
+    return toPublicDocument(document, revision, { signers, fields });
   };
 }
 

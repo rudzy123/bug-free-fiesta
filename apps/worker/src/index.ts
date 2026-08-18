@@ -13,6 +13,7 @@ import {
   createDocumentInspector,
   createInspectDocument,
   createMemoryObjectStorage,
+  createNotifier,
   createSizeLimitedObjectStorage,
   createSystemClock,
   createUuidIdGenerator,
@@ -20,6 +21,7 @@ import {
 import { createJobPoller } from './poller.js';
 import { createWorkerHealthServer } from './health-server.js';
 import { processDocumentIngestionJobs } from './process-ingestion.js';
+import { processSignerNotificationJobs } from './process-notifications.js';
 
 async function main(): Promise<void> {
   const config = loadWorkerConfig();
@@ -53,13 +55,18 @@ async function main(): Promise<void> {
     clock,
     limit: 50,
   });
+  const notifier = createNotifier({
+    name: config.NOTIFICATION_ADAPTER,
+    nodeEnv: config.NODE_ENV,
+    directory: config.NOTIFICATION_PREVIEW_DIR,
+  });
   const claimer = createPrismaOutboxClaimer(prisma);
 
   const poller = createJobPoller({
     intervalMs: config.WORKER_POLL_INTERVAL_MS,
     logger,
     poll: async () => {
-      const result = await processDocumentIngestionJobs({
+      const ingestion = await processDocumentIngestionJobs({
         claimer,
         inspect,
         cleanup,
@@ -67,7 +74,14 @@ async function main(): Promise<void> {
         logger,
         workerId: 'document-ingestion',
       });
-      return { jobsClaimed: result.inspected + result.abandoned };
+      const notifications = await processSignerNotificationJobs({
+        claimer,
+        notifier,
+        clock,
+        logger,
+        workerId: 'signer-notifications',
+      });
+      return { jobsClaimed: ingestion.inspected + ingestion.abandoned + notifications.notified };
     },
   });
 

@@ -16,6 +16,13 @@ import {
   type PreviewGrant,
   type PreviewGrantLookup,
   type PreviewGrantRepository,
+  type SignatureField,
+  type SignatureFieldRepository,
+  type Signer,
+  type SignerRepository,
+  type SigningSession,
+  type SigningSessionRepository,
+  type SigningTokenLookup,
   type TransactionScope,
   type UnitOfWork,
   type UploadSession,
@@ -87,7 +94,50 @@ export function createMemoryDocumentRepository(
       records[index] = updated;
       return updated;
     },
+    async setSigningMode(input) {
+      return bumpDocument(records, input, (current) => ({
+        ...current,
+        signingMode: input.signingMode,
+      }));
+    },
+    async setPreparationState(input) {
+      return bumpDocument(records, input, (current) => ({
+        ...current,
+        state: input.state,
+      }));
+    },
+    async markSent(input) {
+      return bumpDocument(records, input, (current) => ({
+        ...current,
+        state: 'sent',
+        signingRevisionId: input.signingRevisionId,
+        expiresAt: input.expiresAt,
+      }));
+    },
   };
+}
+
+function bumpDocument(
+  records: Document[],
+  input: { organizationId: string; documentId: string; expectedVersion: number },
+  update: (current: Document) => Document,
+): Document {
+  const index = records.findIndex(
+    (row) => row.organizationId === input.organizationId && row.id === input.documentId,
+  );
+  const current = records[index];
+  if (index === -1 || current === undefined) {
+    throw new NotFoundError({ resource: 'document' });
+  }
+  if (current.version !== input.expectedVersion) {
+    throw new ConflictError({ reason: 'document_version' });
+  }
+  const updated: Document = {
+    ...update(current),
+    version: current.version + 1,
+  };
+  records[index] = updated;
+  return updated;
 }
 
 export type MemoryDocumentRevisionRepository = DocumentRevisionRepository & {
@@ -324,6 +374,209 @@ export function createMemoryJobPublisher(): MemoryJobPublisher {
   };
 }
 
+export type MemorySignerStore = SignerRepository & { records: Signer[] };
+
+export function createMemorySignerStore(signers: Signer[] = []): MemorySignerStore {
+  const records = [...signers];
+  return {
+    records,
+    async findById(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.id === input.signerId,
+        ) ?? null
+      );
+    },
+    async listByDocument(input) {
+      return records
+        .filter(
+          (row) =>
+            row.organizationId === input.organizationId && row.documentId === input.documentId,
+        )
+        .sort((left, right) => left.routingOrder - right.routingOrder);
+    },
+    async replaceAll(input) {
+      const nextIds = new Set(input.signers.map((signer) => signer.id));
+      for (let index = records.length - 1; index >= 0; index -= 1) {
+        const row = records[index];
+        if (
+          row &&
+          row.organizationId === input.organizationId &&
+          row.documentId === input.documentId &&
+          !nextIds.has(row.id)
+        ) {
+          records.splice(index, 1);
+        }
+      }
+      const stored: Signer[] = [];
+      for (const signer of input.signers) {
+        const index = records.findIndex(
+          (row) => row.organizationId === input.organizationId && row.id === signer.id,
+        );
+        if (index === -1) {
+          records.push(signer);
+          stored.push(signer);
+        } else {
+          records[index] = signer;
+          stored.push(signer);
+        }
+      }
+      return stored;
+    },
+  };
+}
+
+export type MemorySignatureFieldStore = SignatureFieldRepository & { records: SignatureField[] };
+
+export function createMemorySignatureFieldStore(
+  fields: SignatureField[] = [],
+): MemorySignatureFieldStore {
+  const records = [...fields];
+  return {
+    records,
+    async findById(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.id === input.fieldId,
+        ) ?? null
+      );
+    },
+    async listByDocument(input) {
+      return records.filter(
+        (row) => row.organizationId === input.organizationId && row.documentId === input.documentId,
+      );
+    },
+    async replaceAll(input) {
+      for (let index = records.length - 1; index >= 0; index -= 1) {
+        const row = records[index];
+        if (
+          row &&
+          row.organizationId === input.organizationId &&
+          row.documentId === input.documentId
+        ) {
+          records.splice(index, 1);
+        }
+      }
+      records.push(...input.fields);
+      return [...input.fields];
+    },
+  };
+}
+
+export type MemorySigningSessionStore = SigningSessionRepository &
+  SigningTokenLookup & {
+    records: SigningSession[];
+  };
+
+export function createMemorySigningSessionStore(
+  sessions: SigningSession[] = [],
+): MemorySigningSessionStore {
+  const records = [...sessions];
+  return {
+    records,
+    async findById(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+        ) ?? null
+      );
+    },
+    async listBySigner(input) {
+      return records.filter(
+        (row) => row.organizationId === input.organizationId && row.signerId === input.signerId,
+      );
+    },
+    async listByDocument(input) {
+      return records.filter(
+        (row) => row.organizationId === input.organizationId && row.documentId === input.documentId,
+      );
+    },
+    async listOpenBySigner(input) {
+      return records.filter(
+        (row) =>
+          row.organizationId === input.organizationId &&
+          row.signerId === input.signerId &&
+          (row.status === 'issued' || row.status === 'active'),
+      );
+    },
+    async create(input) {
+      const open = records.find(
+        (row) =>
+          row.organizationId === input.organizationId &&
+          row.signerId === input.session.signerId &&
+          (row.status === 'issued' || row.status === 'active'),
+      );
+      if (open) {
+        throw new ConflictError({ reason: 'duplicate_open_session' });
+      }
+      records.push(input.session);
+      return input.session;
+    },
+    async revoke(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      if (current.status !== 'issued' && current.status !== 'active') {
+        throw new ConflictError({ reason: 'session_not_open' });
+      }
+      const updated: SigningSession = {
+        ...current,
+        status: 'revoked',
+        revokedAt: input.revokedAt,
+      };
+      records[index] = updated;
+      return updated;
+    },
+    async markPresented(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      if (current.status === 'active') {
+        const updated: SigningSession = { ...current, lastPresentedAt: input.presentedAt };
+        records[index] = updated;
+        return updated;
+      }
+      if (current.status !== 'issued') {
+        throw new ConflictError({ reason: 'session_not_presentable', status: current.status });
+      }
+      const updated: SigningSession = {
+        ...current,
+        status: 'active',
+        consumedAt: input.presentedAt,
+        lastPresentedAt: input.presentedAt,
+      };
+      records[index] = updated;
+      return updated;
+    },
+    async markExpired(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      if (current.status !== 'issued' && current.status !== 'active') {
+        throw new ConflictError({ reason: 'session_not_open' });
+      }
+      const updated: SigningSession = { ...current, status: 'expired' };
+      records[index] = updated;
+      return updated;
+    },
+    async findByTokenHash(tokenHash) {
+      return records.find((row) => row.tokenHash === tokenHash) ?? null;
+    },
+  };
+}
+
 export function createMemoryUnitOfWork(scope: TransactionScope): UnitOfWork {
   return {
     async run(work) {
@@ -344,6 +597,9 @@ export function createMemoryDocumentScope(input: {
   idempotencyRecords: IdempotencyRecordRepository;
   audit: AuditWriter;
   jobs: JobPublisher;
+  signers?: SignerRepository;
+  signatureFields?: SignatureFieldRepository;
+  signingSessions?: SigningSessionRepository;
 }): TransactionScope {
   return {
     organizations: { findById: unusedMemoryRepo },
@@ -352,9 +608,26 @@ export function createMemoryDocumentScope(input: {
     revisions: input.revisions,
     uploadSessions: input.uploadSessions,
     previewGrants: input.previewGrants,
-    signers: { findById: unusedMemoryRepo, listByDocument: unusedMemoryRepo },
-    signingSessions: { findById: unusedMemoryRepo, listBySigner: unusedMemoryRepo },
-    signatureFields: { findById: unusedMemoryRepo, listByDocument: unusedMemoryRepo },
+    signers: input.signers ?? {
+      findById: unusedMemoryRepo,
+      listByDocument: unusedMemoryRepo,
+      replaceAll: unusedMemoryRepo,
+    },
+    signingSessions: input.signingSessions ?? {
+      findById: unusedMemoryRepo,
+      listBySigner: unusedMemoryRepo,
+      listByDocument: unusedMemoryRepo,
+      listOpenBySigner: unusedMemoryRepo,
+      create: unusedMemoryRepo,
+      revoke: unusedMemoryRepo,
+      markPresented: unusedMemoryRepo,
+      markExpired: unusedMemoryRepo,
+    },
+    signatureFields: input.signatureFields ?? {
+      findById: unusedMemoryRepo,
+      listByDocument: unusedMemoryRepo,
+      replaceAll: unusedMemoryRepo,
+    },
     consentRecords: { findById: unusedMemoryRepo, listByDocument: unusedMemoryRepo },
     finalizedArtifacts: { findByDocument: unusedMemoryRepo },
     auditLogs: {

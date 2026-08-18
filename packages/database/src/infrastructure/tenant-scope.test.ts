@@ -30,6 +30,7 @@ function document(organizationId = ORG): Document {
     ownerMembershipId: MEMBERSHIP,
     title: 'NDA',
     state: 'draft',
+    signingMode: 'ordered',
     inspectionStatus: 'pending',
     sourceDisplayName: null,
     expiresAt: null,

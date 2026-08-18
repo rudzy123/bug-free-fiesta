@@ -142,6 +142,13 @@ const apiEnvSchema = z
       'x-preview-token',
     ).default('x-preview-token'),
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
+    SIGNING_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
+    DOCUMENT_FIELD_OVERLAP_POLICY: z.enum(['prohibit', 'allow']).default('prohibit'),
+    NOTIFICATION_ADAPTER: z.enum(['local', 'fail_closed']).default('local'),
+    NOTIFICATION_PREVIEW_DIR: requiredString(
+      'NOTIFICATION_PREVIEW_DIR',
+      'tmp/signing-notifications',
+    ).default('tmp/signing-notifications'),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && data.AUTH_PROVIDER === 'local') {
@@ -210,6 +217,10 @@ const apiEnvSchema = z
     AUTH_CSRF_HEADER_NAME: data.AUTH_CSRF_HEADER_NAME.toLowerCase(),
     DOCUMENT_UPLOAD_TOKEN_HEADER: data.DOCUMENT_UPLOAD_TOKEN_HEADER.toLowerCase(),
     DOCUMENT_PREVIEW_TOKEN_HEADER: data.DOCUMENT_PREVIEW_TOKEN_HEADER.toLowerCase(),
+    SIGNING_SESSION_TTL_SECONDS: data.SIGNING_SESSION_TTL_SECONDS,
+    DOCUMENT_FIELD_OVERLAP_POLICY: data.DOCUMENT_FIELD_OVERLAP_POLICY,
+    NOTIFICATION_ADAPTER: data.NOTIFICATION_ADAPTER,
+    NOTIFICATION_PREVIEW_DIR: data.NOTIFICATION_PREVIEW_DIR,
   }));
 
 const workerEnvSchema = z
@@ -239,6 +250,11 @@ const workerEnvSchema = z
       .max(104_857_600)
       .default(26_214_400),
     DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed']).default('local'),
+    NOTIFICATION_ADAPTER: z.enum(['local', 'fail_closed']).default('local'),
+    NOTIFICATION_PREVIEW_DIR: requiredString(
+      'NOTIFICATION_PREVIEW_DIR',
+      'tmp/signing-notifications',
+    ).default('tmp/signing-notifications'),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && data.DOCUMENT_INSPECTOR === 'local') {

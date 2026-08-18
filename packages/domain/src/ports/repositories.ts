@@ -14,6 +14,7 @@ import type {
   PreviewGrant,
   SignatureField,
   Signer,
+  SigningMode,
   SigningSession,
   UploadSession,
 } from '../entities.js';
@@ -56,6 +57,25 @@ export type DocumentRepository = {
     documentId: string;
     expectedVersion: number;
     inspectionStatus: DocumentInspectionStatus;
+  }) => Promise<Document>;
+  setSigningMode: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    signingMode: SigningMode;
+  }) => Promise<Document>;
+  setPreparationState: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    state: 'draft' | 'prepared';
+  }) => Promise<Document>;
+  markSent: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    signingRevisionId: string;
+    expiresAt: Date | null;
   }) => Promise<Document>;
 };
 
@@ -113,6 +133,11 @@ export type SignerRepository = {
     organizationId: string;
     documentId: string;
   }) => Promise<readonly Signer[]>;
+  replaceAll: (input: {
+    organizationId: string;
+    documentId: string;
+    signers: readonly Signer[];
+  }) => Promise<readonly Signer[]>;
 };
 
 export type SigningSessionRepository = {
@@ -124,6 +149,30 @@ export type SigningSessionRepository = {
     organizationId: string;
     signerId: string;
   }) => Promise<readonly SigningSession[]>;
+  listByDocument: (input: {
+    organizationId: string;
+    documentId: string;
+  }) => Promise<readonly SigningSession[]>;
+  listOpenBySigner: (input: {
+    organizationId: string;
+    signerId: string;
+  }) => Promise<readonly SigningSession[]>;
+  create: (input: { organizationId: string; session: SigningSession }) => Promise<SigningSession>;
+  revoke: (input: {
+    organizationId: string;
+    sessionId: string;
+    revokedAt: Date;
+  }) => Promise<SigningSession>;
+  markPresented: (input: {
+    organizationId: string;
+    sessionId: string;
+    presentedAt: Date;
+  }) => Promise<SigningSession>;
+  markExpired: (input: {
+    organizationId: string;
+    sessionId: string;
+    expiredAt: Date;
+  }) => Promise<SigningSession>;
 };
 
 export type SigningTokenLookup = {
@@ -135,6 +184,11 @@ export type SignatureFieldRepository = {
   listByDocument: (input: {
     organizationId: string;
     documentId: string;
+  }) => Promise<readonly SignatureField[]>;
+  replaceAll: (input: {
+    organizationId: string;
+    documentId: string;
+    fields: readonly SignatureField[];
   }) => Promise<readonly SignatureField[]>;
 };
 

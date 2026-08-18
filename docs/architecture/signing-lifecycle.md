@@ -12,10 +12,11 @@ sequenceDiagram
   participant Signer
   participant Worker
 
-  Owner->>API: Send document
-  API->>API: Freeze fields and routing; hash no tokens yet
-  API->>API: Create signers and outbox
-  API->>Mail: Invitation containing signing URL
+  Owner->>API: Prepare signers, mode, and fields
+  Owner->>API: Send document (idempotent)
+  API->>API: Freeze preparation; store only token hashes
+  API->>API: Audit + outbox notify_signer atomically
+  API->>Mail: Invitation (raw token only in transit)
   Signer->>API: Open link (bearer token)
   API->>API: Lookup token hash; start session
   Signer->>API: Record consent
@@ -24,7 +25,11 @@ sequenceDiagram
   API->>Worker: Outbox finalization
 ```
 
-Without the diagram: send freezes the document and emits invitations. The signer opens a URL that carries a secret bearer token. The API hashes the token, loads the session, records consent, then records field completions. Final PDF work happens asynchronously.
+Without the diagram: owners add server-owned fields and signers while the document is `draft` or `prepared`. Send freezes preparation, stores SHA-256 hashes of cryptographically random bearer tokens, appends audit, and writes `notify_signer` outbox events in one transaction. The raw token is given to a provider-agnostic notifier for first delivery and is never persisted. Signer APIs load identity from the token hash, not from client-supplied document or signer ids.
+
+Field types: `signature`, `initials`, `date_signed`, `signer_name`. Coordinates are normalized to the page (0–1). Page numbers must exist on the stored PDF. Overlap is rejected when `DOCUMENT_FIELD_OVERLAP_POLICY=prohibit`.
+
+Signing session expiry uses `SIGNING_SESSION_TTL_SECONDS`. A second open session for the same signer is rejected unless an authorized rotate revokes the previous issued/active session first.
 
 ## Signing session lifecycle
 

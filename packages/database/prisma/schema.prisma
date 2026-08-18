@@ -25,6 +25,7 @@ enum MembershipRole {
 
 enum DocumentState {
   draft
+  prepared
   sent
   inProgress            @map("in_progress")
   completed
@@ -60,8 +61,16 @@ enum SignatureFieldType {
   signature
   initials
   dateSigned            @map("date_signed")
+  signerName            @map("signer_name")
 
   @@map("signature_field_type")
+}
+
+enum SigningMode {
+  ordered
+  parallel
+
+  @@map("signing_mode")
 }
 
 enum DocumentRevisionKind {
@@ -255,6 +264,7 @@ model Document {
   ownerMembershipId         String        @db.Uuid
   title                     String
   state                     DocumentState @default(draft)
+  signingMode               SigningMode   @default(ordered)
   inspectionStatus          DocumentInspectionStatus @default(pending)
   sourceDisplayName         String?
   expiresAt                 DateTime?     @db.Timestamptz
@@ -301,6 +311,7 @@ model DocumentRevision {
   sizeBytes      BigInt
   sha256Digest   String               @db.Char(64)
   displayName    String
+  pageCount      Int                  @default(1)
   createdAt      DateTime             @default(now()) @db.Timestamptz
 
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
