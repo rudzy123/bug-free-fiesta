@@ -4,12 +4,12 @@ How the system is intended to run. No production cluster exists yet.
 
 ## Environments
 
-| Environment | Purpose | Data |
-| --- | --- | --- |
-| Local | Docker Compose: API, web, worker, PostgreSQL, MinIO | Fake tenants only |
-| CI | GitHub Actions: format, lint, typecheck, test, build | Ephemeral DB; no customer data |
-| Staging (future) | Integration with managed Postgres and object storage | Synthetic documents |
-| Production (future) | Customer traffic | Restricted; access audited |
+| Environment         | Purpose                                              | Data                           |
+| ------------------- | ---------------------------------------------------- | ------------------------------ |
+| Local               | Docker Compose: API, web, worker, PostgreSQL, MinIO  | Fake tenants only              |
+| CI                  | GitHub Actions: format, lint, typecheck, test, build | Ephemeral DB; no customer data |
+| Staging (future)    | Integration with managed Postgres and object storage | Synthetic documents            |
+| Production (future) | Customer traffic                                     | Restricted; access audited     |
 
 Do not copy production PDFs into local or CI.
 
@@ -30,13 +30,13 @@ GitHub Actions on pull requests and `main`. Same quality gates as [CONTRIBUTING.
 
 ## Runtime configuration
 
-| Concern | Approach |
-| --- | --- |
-| Secrets | Platform secret store; never committed |
-| Node | 22 LTS unless `engines` says otherwise |
-| Migrations | Prisma migrate in a controlled release step, not from random app instances racing |
-| Worker replicas | Horizontal; correctness via leases and idempotency, not “only one replica” |
-| Web and API | Separate processes ([ADR-0002](adrs/0002-express-api-separate-from-nextjs.md)) |
+| Concern         | Approach                                                                          |
+| --------------- | --------------------------------------------------------------------------------- |
+| Secrets         | Platform secret store; never committed                                            |
+| Node            | 22 LTS unless `engines` says otherwise                                            |
+| Migrations      | Prisma migrate in a controlled release step, not from random app instances racing |
+| Worker replicas | Horizontal; correctness via leases and idempotency, not “only one replica”        |
+| Web and API     | Separate processes ([ADR-0002](adrs/0002-express-api-separate-from-nextjs.md))    |
 
 ## Object storage
 

@@ -200,14 +200,14 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 ## STRIDE summary
 
-| STRIDE | Examples in this product |
-| --- | --- |
-| Spoofing | Stolen links, forged headers |
-| Tampering | Client field coordinates, audit edits, PDF content |
-| Repudiation | Missing consent/audit — mitigated technically, not legally |
-| Information disclosure | IDOR, public buckets, logs |
-| Denial of service | Oversize PDF, worker hang |
-| Elevation of privilege | Client signer id, tenant header |
+| STRIDE                 | Examples in this product                                   |
+| ---------------------- | ---------------------------------------------------------- |
+| Spoofing               | Stolen links, forged headers                               |
+| Tampering              | Client field coordinates, audit edits, PDF content         |
+| Repudiation            | Missing consent/audit — mitigated technically, not legally |
+| Information disclosure | IDOR, public buckets, logs                                 |
+| Denial of service      | Oversize PDF, worker hang                                  |
+| Elevation of privilege | Client signer id, tenant header                            |
 
 ## Related documents
 

@@ -30,13 +30,13 @@ At-least-once delivery is expected. Handlers must tolerate duplicates ([ADR-0008
 
 ## Idempotency
 
-| Operation | Key | Replay behavior |
-| --- | --- | --- |
-| HTTP mutations (send, sign, void, decline) | `Idempotency-Key` + tenant + principal + route | Return stored response if key exists and body hash matches; 409 if same key different body |
-| Session issue | `(documentId, signerId)` active session | Return existing active session or revoke+replace per policy, never two actives |
-| Sign complete | Unique `(documentId, signerId)` signed | Second success is a no-op |
-| Finalize | Conditional state + unique artifact per document | Second worker exits |
-| Email send | Outbox id | Provider idempotency key = outbox id |
+| Operation                                  | Key                                              | Replay behavior                                                                            |
+| ------------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| HTTP mutations (send, sign, void, decline) | `Idempotency-Key` + tenant + principal + route   | Return stored response if key exists and body hash matches; 409 if same key different body |
+| Session issue                              | `(documentId, signerId)` active session          | Return existing active session or revoke+replace per policy, never two actives             |
+| Sign complete                              | Unique `(documentId, signerId)` signed           | Second success is a no-op                                                                  |
+| Finalize                                   | Conditional state + unique artifact per document | Second worker exits                                                                        |
+| Email send                                 | Outbox id                                        | Provider idempotency key = outbox id                                                       |
 
 ## Retries and backoff
 
@@ -54,15 +54,15 @@ All comparisons use server UTC ([ADR-0012](adrs/0012-utc-timestamp-handling.md))
 
 ## Failure modes
 
-| Failure | Detection | Recovery |
-| --- | --- | --- |
-| API crash after commit, before response | Client retries with same idempotency key | Stored result |
-| Worker crash after upload, before `finalized` | Lease expires; object exists | Retry upload is same key; then DB transition |
-| Worker crash before upload | Lease expires | Another worker claims |
-| Duplicate outbox delivery | Handler sees `finalized` or processed outbox | No-op |
-| Email provider timeout | Outbox not processed | Retry; may duplicate email — signing remains token-hash safe; **Legal review required** for duplicate notices |
-| Postgres unavailable | API 5xx | No partial commit |
-| Object storage misconfigured | Upload errors; auth failures | Do not mark finalized; [runbook](../runbooks/document-finalization-failure.md) |
+| Failure                                       | Detection                                    | Recovery                                                                                                      |
+| --------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| API crash after commit, before response       | Client retries with same idempotency key     | Stored result                                                                                                 |
+| Worker crash after upload, before `finalized` | Lease expires; object exists                 | Retry upload is same key; then DB transition                                                                  |
+| Worker crash before upload                    | Lease expires                                | Another worker claims                                                                                         |
+| Duplicate outbox delivery                     | Handler sees `finalized` or processed outbox | No-op                                                                                                         |
+| Email provider timeout                        | Outbox not processed                         | Retry; may duplicate email — signing remains token-hash safe; **Legal review required** for duplicate notices |
+| Postgres unavailable                          | API 5xx                                      | No partial commit                                                                                             |
+| Object storage misconfigured                  | Upload errors; auth failures                 | Do not mark finalized; [runbook](../runbooks/document-finalization-failure.md)                                |
 
 ## Related documents
 

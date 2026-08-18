@@ -4,18 +4,18 @@ State machine for the **Document** aggregate. The API is the only authority. The
 
 ## States
 
-| State | Meaning | Signing allowed | Terminal |
-| --- | --- | --- | --- |
-| `draft` | Owner configures revision, fields, and signers. | No | No |
-| `sent` | Frozen for signing; no signatures yet. | Yes, per routing | No |
-| `in_progress` | At least one required signer has signed; others remain. | Yes, per routing | No |
-| `completed` | All required signers signed; artifact not yet stored. | No | No |
-| `finalizing` | A worker holds a lease to build the artifact. | No | No |
-| `finalized` | Artifact digest stored; document immutable for signing. | No | Yes for signing |
-| `voided` | Cancelled by an authorized tenant member. | No | Yes |
-| `expired` | `expiresAt` passed before completion. | No | Yes |
-| `declined` | A signer declined; remaining signers cannot complete. | No | Yes |
-| `finalization_failed` | Lease released after failed attempts; waiting for retry or operator. | No | No |
+| State                 | Meaning                                                              | Signing allowed  | Terminal        |
+| --------------------- | -------------------------------------------------------------------- | ---------------- | --------------- |
+| `draft`               | Owner configures revision, fields, and signers.                      | No               | No              |
+| `sent`                | Frozen for signing; no signatures yet.                               | Yes, per routing | No              |
+| `in_progress`         | At least one required signer has signed; others remain.              | Yes, per routing | No              |
+| `completed`           | All required signers signed; artifact not yet stored.                | No               | No              |
+| `finalizing`          | A worker holds a lease to build the artifact.                        | No               | No              |
+| `finalized`           | Artifact digest stored; document immutable for signing.              | No               | Yes for signing |
+| `voided`              | Cancelled by an authorized tenant member.                            | No               | Yes             |
+| `expired`             | `expiresAt` passed before completion.                                | No               | Yes             |
+| `declined`            | A signer declined; remaining signers cannot complete.                | No               | Yes             |
+| `finalization_failed` | Lease released after failed attempts; waiting for retry or operator. | No               | No              |
 
 `finalization_failed` is operational, not a signer-facing success state. Operators may re-queue finalization if the document is still complete and not voided.
 
@@ -48,21 +48,21 @@ stateDiagram-v2
 
 Without the diagram, only these transitions are legal. Anything else is a conflict error.
 
-| From | To | Actor / trigger | Guards |
-| --- | --- | --- | --- |
-| `draft` | `sent` | Document owner or admin | At least one signer; all required fields assigned; current revision present; `expiresAt` in the future (UTC). Freeze fields, routing, and revision. |
-| `draft` | `voided` | Owner or admin | Optional; equivalent to abandoning a draft. Still append audit. |
-| `sent` | `in_progress` | Sign mutation | First successful required signature. |
-| `sent` | `completed` | Sign mutation | Document had one required signer who just signed. |
-| `sent` / `in_progress` | `voided` | Owner or admin | Not `completed` or later. Revoke active sessions. |
-| `sent` / `in_progress` | `expired` | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions. |
-| `sent` / `in_progress` | `declined` | Assigned signer | Decline is explicit. Revoke other sessions. |
-| `in_progress` | `in_progress` | Sign mutation | Additional signer completed; others remain. |
-| `in_progress` | `completed` | Sign mutation | Last required signer completed. Write finalization outbox. |
-| `completed` | `finalizing` | Worker | Conditional update: `state = completed` AND lease empty. Exactly one winner. |
-| `finalizing` | `finalized` | Worker | Artifact uploaded; digest persisted in the same short transaction as state change. |
-| `finalizing` | `finalization_failed` | Worker or lease watchdog | Attempts exceeded or lease expired without artifact. |
-| `finalization_failed` | `finalizing` | Worker retry | Same claim pattern as from `completed`. |
+| From                   | To                    | Actor / trigger                    | Guards                                                                                                                                              |
+| ---------------------- | --------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `draft`                | `sent`                | Document owner or admin            | At least one signer; all required fields assigned; current revision present; `expiresAt` in the future (UTC). Freeze fields, routing, and revision. |
+| `draft`                | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                                                                     |
+| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                                                                |
+| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                                                                   |
+| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                                                                   |
+| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                                                           |
+| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                                                         |
+| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                                                         |
+| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                                                          |
+| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                                                        |
+| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                                                                  |
+| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                                                                |
+| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                                                             |
 
 **v1 rule:** `completed`, `finalizing`, and `finalized` cannot move to `voided`. Changing that is **legal review required** (already-captured signatures).
 

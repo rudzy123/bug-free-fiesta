@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: Electronic signature API
+  version: 0.0.0
+  description: >
+    Public HTTP surface. Scaffold includes health only. This document is not a
+    legal or compliance statement.
+servers:
+  - url: http://localhost:4000
+paths:
+  /health:
+    get:
+      summary: Liveness alias
+      operationId: getHealth
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Liveness'
+  /health/live:
+    get:
+      summary: Liveness
+      operationId: getHealthLive
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Liveness'
+  /health/ready:
+    get:
+      summary: Readiness
+      operationId: getHealthReady
+      responses:
+        '200':
+          description: Ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    Liveness:
+      type: object
+      additionalProperties: false
+      required: [status, service, correlationId]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+        correlationId:
+          type: string
+    Readiness:
+      type: object
+      additionalProperties: false
+      required: [status, service, checks, correlationId]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        service:
+          type: string
+        checks:
+          type: object
+          additionalProperties: false
+          required: [database]
+          properties:
+            database:
+              type: string
+              enum: [up, down]
+        correlationId:
+          type: string
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, correlationId]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            correlationId:
+              type: string

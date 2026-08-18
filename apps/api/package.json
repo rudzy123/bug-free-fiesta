@@ -1,0 +1,41 @@
+{
+  "name": "@esign/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run src/application",
+    "test:integration": "vitest run src/http.integration.test.ts"
+  },
+  "dependencies": {
+    "@esign/config": "workspace:*",
+    "@esign/contracts": "workspace:*",
+    "@esign/database": "workspace:*",
+    "@esign/logger": "workspace:*",
+    "cors": "2.8.5",
+    "express": "5.1.0",
+    "helmet": "8.1.0"
+  },
+  "devDependencies": {
+    "@esign/eslint-config": "workspace:*",
+    "@esign/test-utils": "workspace:*",
+    "@esign/typescript-config": "workspace:*",
+    "@types/cors": "2.8.18",
+    "@types/express": "5.0.2",
+    "@types/node": "22.15.18",
+    "@types/supertest": "6.0.3",
+    "eslint": "9.27.0",
+    "typescript-eslint": "8.32.1",
+    "supertest": "7.1.1",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.1.4"
+  }
+}

@@ -12,12 +12,12 @@ How we see the system without leaking Restricted data. Pino is the log library; 
 
 Structured JSON. UTC timestamps. Level policy:
 
-| Level | Use |
-| --- | --- |
+| Level   | Use                                                                |
+| ------- | ------------------------------------------------------------------ |
 | `error` | Operation failed; includes error code, not stack traces to clients |
-| `warn` | Recoverable: lease steal, idempotency conflict, rejected PDF |
-| `info` | State transitions by type (sent, signed, finalized) |
-| `debug` | Local only; still no Restricted fields |
+| `warn`  | Recoverable: lease steal, idempotency conflict, rejected PDF       |
+| `info`  | State transitions by type (sent, signed, finalized)                |
+| `debug` | Local only; still no Restricted fields                             |
 
 Redact by default: headers named `authorization`, `cookie`, `set-cookie`; keys matching `token`, `password`, `secret`, `signature`; raw buffers.
 

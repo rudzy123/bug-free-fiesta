@@ -26,13 +26,13 @@ This control is not a legal certification. **Legal review required** before tell
 3. Check application logs around `occurredAt` of the failing event for deploys, migrations, or manual SQL.
 4. Classify:
 
-| Observation | Likely cause |
-| --- | --- |
-| Canonicalization bug after deploy | Code change; old rows vs new algorithm without `chainVersion` |
-| Single document gap | Failed insert + client retry that skipped sequence (application bug) |
-| Many documents, same time | Admin script, ORM misuse, compromised credentials |
-| Hash mismatch, row contents look edited | Direct table UPDATE or backup tampering |
-| Verification fails only in one replica | Replica lag or corrupt replica |
+| Observation                             | Likely cause                                                         |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| Canonicalization bug after deploy       | Code change; old rows vs new algorithm without `chainVersion`        |
+| Single document gap                     | Failed insert + client retry that skipped sequence (application bug) |
+| Many documents, same time               | Admin script, ORM misuse, compromised credentials                    |
+| Hash mismatch, row contents look edited | Direct table UPDATE or backup tampering                              |
+| Verification fails only in one replica  | Replica lag or corrupt replica                                       |
 
 ## Remediation
 

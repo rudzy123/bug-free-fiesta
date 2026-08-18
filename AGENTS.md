@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents working in this Electronic Signature SaaS monorepo. Humans should also read [CONTRIBUTING.md](CONTRIBUTING.md). Product features are not implemented yet; do not scaffold the app unless explicitly asked.
+Guidance for coding agents working in this Electronic Signature SaaS monorepo. Humans should also read [CONTRIBUTING.md](CONTRIBUTING.md). The workspace is scaffolded. Do not implement electronic-signature business logic unless explicitly asked.
 
 ## Before changing code
 
@@ -10,14 +10,14 @@ Guidance for coding agents working in this Electronic Signature SaaS monorepo. H
 
 ## Rules index (do not duplicate)
 
-| Area | File | When |
-| --- | --- | --- |
-| Layout, layering, DI, config, TypeScript | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc) | Always |
-| Secrets, authz, tokens, audit, logging | [`.cursor/rules/security.mdc`](.cursor/rules/security.mdc) | Always |
-| Vitest, Playwright, fixtures | [`.cursor/rules/testing.mdc`](.cursor/rules/testing.mdc) | Tests and `packages/test-utils` |
-| Prisma, migrations, transactions | [`.cursor/rules/database.mdc`](.cursor/rules/database.mdc) | `packages/database` |
-| Next.js UI | [`.cursor/rules/frontend.mdc`](.cursor/rules/frontend.mdc) | `apps/web` |
-| Express API and worker | [`.cursor/rules/api.mdc`](.cursor/rules/api.mdc) | `apps/api`, `apps/worker` |
+| Area                                     | File                                                               | When                            |
+| ---------------------------------------- | ------------------------------------------------------------------ | ------------------------------- |
+| Layout, layering, DI, config, TypeScript | [`.cursor/rules/architecture.mdc`](.cursor/rules/architecture.mdc) | Always                          |
+| Secrets, authz, tokens, audit, logging   | [`.cursor/rules/security.mdc`](.cursor/rules/security.mdc)         | Always                          |
+| Vitest, Playwright, fixtures             | [`.cursor/rules/testing.mdc`](.cursor/rules/testing.mdc)           | Tests and `packages/test-utils` |
+| Prisma, migrations, transactions         | [`.cursor/rules/database.mdc`](.cursor/rules/database.mdc)         | `packages/database`             |
+| Next.js UI                               | [`.cursor/rules/frontend.mdc`](.cursor/rules/frontend.mdc)         | `apps/web`                      |
+| Express API and worker                   | [`.cursor/rules/api.mdc`](.cursor/rules/api.mdc)                   | `apps/api`, `apps/worker`       |
 
 While those packages do not exist yet, still follow the matching rule when creating them.
 

@@ -1,0 +1,36 @@
+{
+  "name": "@esign/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "3.24.4"
+  },
+  "devDependencies": {
+    "@esign/eslint-config": "workspace:*",
+    "@esign/typescript-config": "workspace:*",
+    "@types/node": "22.15.18",
+    "eslint": "9.27.0",
+    "typescript-eslint": "8.32.1",
+    "typescript": "5.8.3",
+    "vitest": "3.1.4"
+  }
+}

@@ -25,14 +25,14 @@ Application code does not exist yet; follow this when the worker is live.
 3. Check object storage for `tenants/{tenantId}/artifacts/{digest}` if a digest was already written.
 4. Classify:
 
-| Observation | Likely cause |
-| --- | --- |
-| `finalizing` and lease in the future | Worker still running or hung |
-| `finalizing` and lease in the past | Crash; watchdog should move to `finalization_failed` |
-| `finalization_failed`, PDF validation error | Malformed or rejected PDF |
-| Storage 403/404 | Bucket policy or wrong credentials |
-| Repeated success logs but state `completed` | Transaction after upload failed |
-| Two artifact objects, one document | Concurrent upload; DB unique constraint should keep one digest |
+| Observation                                 | Likely cause                                                   |
+| ------------------------------------------- | -------------------------------------------------------------- |
+| `finalizing` and lease in the future        | Worker still running or hung                                   |
+| `finalizing` and lease in the past          | Crash; watchdog should move to `finalization_failed`           |
+| `finalization_failed`, PDF validation error | Malformed or rejected PDF                                      |
+| Storage 403/404                             | Bucket policy or wrong credentials                             |
+| Repeated success logs but state `completed` | Transaction after upload failed                                |
+| Two artifact objects, one document          | Concurrent upload; DB unique constraint should keep one digest |
 
 ## Remediation
 

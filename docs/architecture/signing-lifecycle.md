@@ -28,13 +28,13 @@ Without the diagram: send freezes the document and emits invitations. The signer
 
 ## Signing session lifecycle
 
-| Session state | Meaning |
-| --- | --- |
-| `issued` | Token hash stored; not yet used. |
-| `active` | Token presented successfully; within `expiresAt`. |
-| `completed` | This signer finished signing (or declining) in this session. |
-| `expired` | `nowUtc >= expiresAt` or document expired. |
-| `revoked` | Void, re-issue, or security revoke. |
+| Session state | Meaning                                                      |
+| ------------- | ------------------------------------------------------------ |
+| `issued`      | Token hash stored; not yet used.                             |
+| `active`      | Token presented successfully; within `expiresAt`.            |
+| `completed`   | This signer finished signing (or declining) in this session. |
+| `expired`     | `nowUtc >= expiresAt` or document expired.                   |
+| `revoked`     | Void, re-issue, or security revoke.                          |
 
 Transitions: `issued` → `active` → `completed`; `issued`/`active` → `expired` or `revoked`. No return to `active` from `completed`. Re-issue creates a **new** session and revokes the previous active one.
 

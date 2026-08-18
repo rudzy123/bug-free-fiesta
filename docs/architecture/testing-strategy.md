@@ -6,12 +6,12 @@ Do not hit production services. Do not assert on secrets, raw tokens, or full PI
 
 ## Layers
 
-| Layer | What | Where |
-| --- | --- | --- |
-| Unit | Domain invariants: transitions, routing order, hash chain append, idempotent complete-signer | Pure functions; frozen clock |
-| Integration | Prisma repositories, HTTP adapters, worker handlers, outbox poller | Real PostgreSQL; MinIO when storage is involved |
-| Contract | Zod schemas in `packages/contracts` reject extra fields and oversize payloads | Vitest |
-| E2E | Owner sends → signer consents and signs → artifact downloadable by owner, not by other tenant | Playwright against local compose |
+| Layer       | What                                                                                          | Where                                           |
+| ----------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Unit        | Domain invariants: transitions, routing order, hash chain append, idempotent complete-signer  | Pure functions; frozen clock                    |
+| Integration | Prisma repositories, HTTP adapters, worker handlers, outbox poller                            | Real PostgreSQL; MinIO when storage is involved |
+| Contract    | Zod schemas in `packages/contracts` reject extra fields and oversize payloads                 | Vitest                                          |
+| E2E         | Owner sends → signer consents and signs → artifact downloadable by owner, not by other tenant | Playwright against local compose                |
 
 ## Required scenarios (v1)
 

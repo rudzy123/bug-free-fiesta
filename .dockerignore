@@ -1,0 +1,34 @@
+# Dependencies and build output
+node_modules
+.pnpm-store
+dist
+build
+.next
+out
+coverage
+.turbo
+*.tsbuildinfo
+packages/database/src/generated
+
+# Local secrets and data
+.env
+.env.*
+!.env.example
+docker-data
+minio-data
+postgres-data
+playwright-report
+test-results
+
+# Git and docs
+.git
+.gitignore
+docs
+*.md
+!README.md
+
+# Tests
+**/*.test.ts
+**/*.integration.test.ts
+e2e
+playwright.config.ts

@@ -8,19 +8,19 @@ Security-relevant actions are stored as **Audit events**: append-only and hash-c
 
 Each event contains:
 
-| Field | Purpose |
-| --- | --- |
-| `id` | Opaque event id (UUIDv7). |
-| `tenantId` | Isolation key. |
-| `documentId` | Chain is per document. |
-| `sequence` | Monotonic integer per document, starting at 0 (genesis). |
-| `type` | Stable enum (see below). |
-| `actorType` | `account_user`, `signer`, `worker`, `system`. |
-| `actorId` | Opaque id or `system`. Never a raw email as the only identifier. |
-| `occurredAt` | UTC instant from the server clock. |
-| `payload` | JSON with opaque ids and non-sensitive metadata only. |
-| `prevHash` | Hex digest of the previous event (`genesis` sentinel for sequence 0). |
-| `thisHash` | Digest of canonical payload + `prevHash` + sequence metadata. |
+| Field        | Purpose                                                               |
+| ------------ | --------------------------------------------------------------------- |
+| `id`         | Opaque event id (UUIDv7).                                             |
+| `tenantId`   | Isolation key.                                                        |
+| `documentId` | Chain is per document.                                                |
+| `sequence`   | Monotonic integer per document, starting at 0 (genesis).              |
+| `type`       | Stable enum (see below).                                              |
+| `actorType`  | `account_user`, `signer`, `worker`, `system`.                         |
+| `actorId`    | Opaque id or `system`. Never a raw email as the only identifier.      |
+| `occurredAt` | UTC instant from the server clock.                                    |
+| `payload`    | JSON with opaque ids and non-sensitive metadata only.                 |
+| `prevHash`   | Hex digest of the previous event (`genesis` sentinel for sequence 0). |
+| `thisHash`   | Digest of canonical payload + `prevHash` + sequence metadata.         |
 
 `thisHash = H(canonical(prevHash, sequence, type, actorType, actorId, occurredAt, payload))`.
 
@@ -37,24 +37,24 @@ Verification walks the chain from 0 and recomputes hashes. A mismatch is an inci
 
 ## Event types (v1)
 
-| Type | When |
-| --- | --- |
-| `document_created` | Draft created. |
-| `revision_added` | New source PDF stored. |
-| `fields_updated` | Draft field set changed. |
-| `signers_updated` | Draft routing changed. |
-| `document_sent` | Transition to `sent`. |
-| `session_issued` | Signing session created (store session id, not token). |
-| `session_revoked` | Void, re-issue, or security revoke. |
-| `consent_recorded` | Consent row written (`consentCopyId`, not full PII). |
-| `signer_signed` | Signer completed required fields. |
-| `signer_declined` | Decline. |
-| `document_voided` | Void. |
-| `document_expired` | Expiry. |
-| `finalization_started` | Lease acquired. |
-| `document_finalized` | Artifact digest recorded. |
-| `finalization_failed` | Lease released without artifact. |
-| `artifact_downloaded` | Authorized download of finalized bytes. |
+| Type                   | When                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| `document_created`     | Draft created.                                         |
+| `revision_added`       | New source PDF stored.                                 |
+| `fields_updated`       | Draft field set changed.                               |
+| `signers_updated`      | Draft routing changed.                                 |
+| `document_sent`        | Transition to `sent`.                                  |
+| `session_issued`       | Signing session created (store session id, not token). |
+| `session_revoked`      | Void, re-issue, or security revoke.                    |
+| `consent_recorded`     | Consent row written (`consentCopyId`, not full PII).   |
+| `signer_signed`        | Signer completed required fields.                      |
+| `signer_declined`      | Decline.                                               |
+| `document_voided`      | Void.                                                  |
+| `document_expired`     | Expiry.                                                |
+| `finalization_started` | Lease acquired.                                        |
+| `document_finalized`   | Artifact digest recorded.                              |
+| `finalization_failed`  | Lease released without artifact.                       |
+| `artifact_downloaded`  | Authorized download of finalized bytes.                |
 
 Do not put raw tokens, passwords, authorization headers, signature image bytes, or full PDF contents in `payload`.
 

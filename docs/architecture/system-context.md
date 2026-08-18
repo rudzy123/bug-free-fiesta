@@ -31,23 +31,23 @@ Without the diagram: account users and signers use the web app. The web app call
 
 ## People
 
-| Person | Goal | Trust |
-| --- | --- | --- |
-| Account user | Manage tenant documents | Authenticated to the SaaS; still untrusted for authorization (must be a member of the tenant). |
-| Signer | Review and sign a specific document | Authenticated only to a signing session; not a tenant member unless separately invited. |
-| Operator | Restore service, verify audit chains | Highly privileged; insider threat in [threat model](../security/threat-model.md). |
-| Attacker | Steal documents, forge signatures, disrupt service | Untrusted. Every upload, URL, header, and PDF is attacker-controlled until proven otherwise. |
+| Person       | Goal                                               | Trust                                                                                          |
+| ------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Account user | Manage tenant documents                            | Authenticated to the SaaS; still untrusted for authorization (must be a member of the tenant). |
+| Signer       | Review and sign a specific document                | Authenticated only to a signing session; not a tenant member unless separately invited.        |
+| Operator     | Restore service, verify audit chains               | Highly privileged; insider threat in [threat model](../security/threat-model.md).              |
+| Attacker     | Steal documents, forge signatures, disrupt service | Untrusted. Every upload, URL, header, and PDF is attacker-controlled until proven otherwise.   |
 
 ## Software systems
 
-| System | Role | Notes |
-| --- | --- | --- |
-| Web (`apps/web`) | Presentation | Next.js. No Prisma. No object-storage SDKs. |
-| API (`apps/api`) | HTTP boundary | Express. Validates input, authorizes, runs application services. |
-| Worker (`apps/worker`) | Async PDF and finalization | Consumes outbox-backed jobs. Retries must be idempotent. |
-| PostgreSQL | Metadata, sessions, audit, outbox | No PDF bytes. |
-| Object storage | Document revisions and finalized artifacts | S3-compatible or Azure Blob; MinIO locally. Private buckets only. |
-| Email delivery | Signing invitations and notifications | Contents are sensitive; do not put raw signing tokens in logs. Provider is a subprocessor. **Legal review required** for notification content and international transfer. |
+| System                 | Role                                       | Notes                                                                                                                                                                     |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web (`apps/web`)       | Presentation                               | Next.js. No Prisma. No object-storage SDKs.                                                                                                                               |
+| API (`apps/api`)       | HTTP boundary                              | Express. Validates input, authorizes, runs application services.                                                                                                          |
+| Worker (`apps/worker`) | Async PDF and finalization                 | Consumes outbox-backed jobs. Retries must be idempotent.                                                                                                                  |
+| PostgreSQL             | Metadata, sessions, audit, outbox          | No PDF bytes.                                                                                                                                                             |
+| Object storage         | Document revisions and finalized artifacts | S3-compatible or Azure Blob; MinIO locally. Private buckets only.                                                                                                         |
+| Email delivery         | Signing invitations and notifications      | Contents are sensitive; do not put raw signing tokens in logs. Provider is a subprocessor. **Legal review required** for notification content and international transfer. |
 
 Identity providers, SMS, and customer SSO are not in v1 context. If added later, they become additional trust boundaries (see [ADR-0009](adrs/0009-authentication-boundaries.md)).
 

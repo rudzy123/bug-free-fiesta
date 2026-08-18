@@ -10,7 +10,15 @@ Agent-specific operating rules live in [AGENTS.md](AGENTS.md) and `.cursor/rules
 - [pnpm](https://pnpm.io) as the only package manager
 - Docker and Docker Compose for local Postgres (and MinIO when object storage is needed)
 
-Until the workspace is scaffolded, there is nothing to install beyond Git.
+```bash
+cp .env.example .env
+cp packages/database/.env.example packages/database/.env
+pnpm install
+pnpm infrastructure:up
+pnpm db:migrate
+```
+
+Use only the placeholders in `.env.example`. Never commit real credentials or customer documents.
 
 ## Intended layout
 
@@ -32,7 +40,7 @@ docs/             ADRs, threat model, runbooks, OpenAPI
 
 ## Quality gates
 
-When root scripts exist, run them before opening a PR:
+Run these root scripts before opening a PR:
 
 ```bash
 pnpm format

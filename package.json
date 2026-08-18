@@ -1,0 +1,42 @@
+{
+  "name": "esign",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.14.0 <23",
+    "pnpm": ">=9.15.9"
+  },
+  "scripts": {
+    "dev": "turbo dev --filter=@esign/web --filter=@esign/api --filter=@esign/worker",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:unit": "turbo test:unit",
+    "test:integration": "turbo test:integration",
+    "test:e2e": "turbo test:e2e --filter=@esign/web",
+    "db:generate": "pnpm --filter @esign/database db:generate",
+    "db:migrate": "pnpm --filter @esign/database db:migrate",
+    "db:reset": "pnpm --filter @esign/database db:reset",
+    "db:seed": "pnpm --filter @esign/database db:seed",
+    "infrastructure:up": "docker compose up -d --wait",
+    "infrastructure:down": "docker compose down"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3",
+    "turbo": "2.5.4",
+    "typescript": "5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "sharp"
+    ]
+  }
+}

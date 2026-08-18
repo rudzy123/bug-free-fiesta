@@ -6,13 +6,13 @@ How personal data is expected to flow. This is not a privacy policy, not a DPA, 
 
 ## Roles (engineering view)
 
-| Role | Personal data involved |
-| --- | --- |
-| Account user | Email, authentication secrets (hashed), tenant membership |
-| Tenant member | Role, actions on documents |
-| Document owner | Link to account user inside a tenant |
-| Signer | Email, display name, signature image/strokes, consent action, optional IP/UA |
-| Operator | Access to Restricted data during incidents |
+| Role           | Personal data involved                                                       |
+| -------------- | ---------------------------------------------------------------------------- |
+| Account user   | Email, authentication secrets (hashed), tenant membership                    |
+| Tenant member  | Role, actions on documents                                                   |
+| Document owner | Link to account user inside a tenant                                         |
+| Signer         | Email, display name, signature image/strokes, consent action, optional IP/UA |
+| Operator       | Access to Restricted data during incidents                                   |
 
 A signer is often not an account user. Do not add them to the tenant directory just because they signed.
 
@@ -25,12 +25,12 @@ A signer is often not an account user. Do not add them to the tenant directory j
 
 ## Purpose limitation (intended)
 
-| Purpose | Data |
-| --- | --- |
-| Authenticate account users | Credentials |
-| Send and sign documents | Titles, PDFs, fields, signer contact, signatures |
-| Security and fraud debugging | Opaque ids, correlation ids, coarse error codes |
-| Integrity | Audit events without raw tokens or PDF bytes |
+| Purpose                      | Data                                             |
+| ---------------------------- | ------------------------------------------------ |
+| Authenticate account users   | Credentials                                      |
+| Send and sign documents      | Titles, PDFs, fields, signer contact, signatures |
+| Security and fraud debugging | Opaque ids, correlation ids, coarse error codes  |
+| Integrity                    | Audit events without raw tokens or PDF bytes     |
 
 Using signer data for advertising or model training is out of scope and should remain forbidden until a reviewed change.
 

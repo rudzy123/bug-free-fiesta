@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+// Prisma CLI reads DATABASE_URL. Application code must receive the URL from
+// @esign/config and pass it into createPrismaClient — never via process.env.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

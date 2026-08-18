@@ -42,14 +42,14 @@ This document describes intended product behavior. It is not a contract, not leg
 
 ## Actors
 
-| Actor | Meaning |
-| --- | --- |
-| Account user | Person who can log into the SaaS. |
-| Tenant member | Account user acting inside an organization with a role. |
-| Document owner | Tenant member responsible for a given document. |
-| Signer | Party invited to sign; may or may not have an account. |
-| Operator | Internal engineer or on-call responding to incidents. |
-| Platform | API, worker, and data stores enforcing invariants. |
+| Actor          | Meaning                                                 |
+| -------------- | ------------------------------------------------------- |
+| Account user   | Person who can log into the SaaS.                       |
+| Tenant member  | Account user acting inside an organization with a role. |
+| Document owner | Tenant member responsible for a given document.         |
+| Signer         | Party invited to sign; may or may not have an account.  |
+| Operator       | Internal engineer or on-call responding to incidents.   |
+| Platform       | API, worker, and data stores enforcing invariants.      |
 
 See [domain model](../architecture/domain-model.md) for precise entity definitions.
 

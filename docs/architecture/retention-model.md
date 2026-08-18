@@ -13,15 +13,15 @@ Technical capabilities for keeping or deleting data. This is **not** a records-r
 
 ## Intended v1 behavior
 
-| Record | While document is active | After terminal state (`finalized`, `voided`, `expired`, `declined`) |
-| --- | --- | --- |
-| Draft revisions superseded in `draft` | Keep until send or explicit replace policy (keep last N revisions) | Frozen revision kept |
-| Signing sessions / token hashes | Keep until expiry + short grace for idempotent retries | Keep hashes until the retention job says otherwise; raw tokens never stored |
-| Consent records | Keep | Keep; do not delete because the document voided |
-| Audit events | Keep forever at the application layer | Keep; no application `DELETE` |
-| Finalized artifacts | N/A | Keep in private storage |
-| Outbox / job rows | Keep until processed + short operational window | May purge processed outbox after a configurable UTC interval (operational, not legal archive) |
-| Idempotency keys | TTL from first request (e.g. 24h) | Expire |
+| Record                                | While document is active                                           | After terminal state (`finalized`, `voided`, `expired`, `declined`)                           |
+| ------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Draft revisions superseded in `draft` | Keep until send or explicit replace policy (keep last N revisions) | Frozen revision kept                                                                          |
+| Signing sessions / token hashes       | Keep until expiry + short grace for idempotent retries             | Keep hashes until the retention job says otherwise; raw tokens never stored                   |
+| Consent records                       | Keep                                                               | Keep; do not delete because the document voided                                               |
+| Audit events                          | Keep forever at the application layer                              | Keep; no application `DELETE`                                                                 |
+| Finalized artifacts                   | N/A                                                                | Keep in private storage                                                                       |
+| Outbox / job rows                     | Keep until processed + short operational window                    | May purge processed outbox after a configurable UTC interval (operational, not legal archive) |
+| Idempotency keys                      | TTL from first request (e.g. 24h)                                  | Expire                                                                                        |
 
 Exact TTLs are configuration in `packages/config`, not hardcoded.
 
