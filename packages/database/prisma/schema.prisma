@@ -9,3 +9,466 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// Organization is the tenant. ADR-0013 `tenantId` is this table's id
+// (organizationId on child rows). PostgreSQL RLS is not used in this
+// iteration; see docs/architecture/data-model.md.
+
+enum MembershipRole {
+  owner
+  admin
+  member
+
+  @@map("membership_role")
+}
+
+enum DocumentState {
+  draft
+  sent
+  inProgress            @map("in_progress")
+  completed
+  finalizing
+  finalized
+  voided
+  expired
+  declined
+  finalizationFailed    @map("finalization_failed")
+
+  @@map("document_state")
+}
+
+enum SignerStatus {
+  pending
+  signed
+  declined
+
+  @@map("signer_status")
+}
+
+enum SigningSessionStatus {
+  issued
+  active
+  completed
+  expired
+  revoked
+
+  @@map("signing_session_status")
+}
+
+enum SignatureFieldType {
+  signature
+  initials
+  dateSigned            @map("date_signed")
+
+  @@map("signature_field_type")
+}
+
+enum DocumentRevisionKind {
+  source
+  intermediate
+
+  @@map("document_revision_kind")
+}
+
+enum AuditActorType {
+  accountUser           @map("account_user")
+  signer
+  worker
+  system
+
+  @@map("audit_actor_type")
+}
+
+enum AuditEventType {
+  documentCreated       @map("document_created")
+  revisionAdded         @map("revision_added")
+  fieldsUpdated         @map("fields_updated")
+  signersUpdated        @map("signers_updated")
+  documentSent          @map("document_sent")
+  sessionIssued         @map("session_issued")
+  sessionRevoked        @map("session_revoked")
+  consentRecorded       @map("consent_recorded")
+  signerSigned          @map("signer_signed")
+  signerDeclined        @map("signer_declined")
+  documentVoided        @map("document_voided")
+  documentExpired       @map("document_expired")
+  finalizationStarted   @map("finalization_started")
+  documentFinalized     @map("document_finalized")
+  finalizationFailed    @map("finalization_failed")
+  artifactDownloaded    @map("artifact_downloaded")
+
+  @@map("audit_event_type")
+}
+
+enum OutboxStatus {
+  pending
+  processing
+  processed
+  failed
+
+  @@map("outbox_status")
+}
+
+enum BackgroundJobStatus {
+  pending
+  leased
+  succeeded
+  failed
+  cancelled
+
+  @@map("background_job_status")
+}
+
+enum IdempotencyPrincipalType {
+  accountUser           @map("account_user")
+  signer
+  worker
+  system
+
+  @@map("idempotency_principal_type")
+}
+
+model Organization {
+  id        String   @id @db.Uuid
+  name      String
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  memberships         OrganizationMembership[]
+  documents           Document[]
+  documentRevisions   DocumentRevision[]
+  signers             Signer[]
+  signingSessions     SigningSession[]
+  signatureFields     SignatureField[]
+  consentRecords      ConsentRecord[]
+  finalizedArtifacts  FinalizedArtifact[]
+  auditLogs           AuditLog[]
+  outboxEvents        OutboxEvent[]
+  backgroundJobs      BackgroundJob[]
+  idempotencyRecords  IdempotencyRecord[]
+
+  @@map("organizations")
+}
+
+/// Account user. Not tenant-scoped; access is via OrganizationMembership.
+model User {
+  id          String   @id @db.Uuid
+  email       String   @unique
+  displayName String
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  memberships OrganizationMembership[]
+  signerLinks Signer[]
+
+  @@map("users")
+}
+
+model OrganizationMembership {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  userId         String         @db.Uuid
+  role           MembershipRole
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  updatedAt      DateTime       @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ownedDocuments Document[]
+
+  @@unique([organizationId, userId], map: "organization_memberships_organization_id_user_id_key")
+  @@unique([organizationId, id], map: "organization_memberships_organization_id_id_key")
+  @@index([userId], map: "organization_memberships_user_id_idx")
+  @@map("organization_memberships")
+}
+
+model Document {
+  id                        String        @id @db.Uuid
+  organizationId            String        @db.Uuid
+  ownerMembershipId         String        @db.Uuid
+  title                     String
+  state                     DocumentState @default(draft)
+  expiresAt                 DateTime?     @db.Timestamptz
+  currentRevisionId         String?       @db.Uuid
+  signingRevisionId         String?       @db.Uuid
+  version                   Int           @default(1)
+  leaseOwner                String?
+  leaseUntil                DateTime?     @db.Timestamptz
+  finalizationAttemptCount  Int           @default(0)
+  createdAt                 DateTime      @default(now()) @db.Timestamptz
+  updatedAt                 DateTime      @updatedAt @db.Timestamptz
+
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ownerMembership OrganizationMembership   @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict)
+  currentRevision DocumentRevision?        @relation("DocumentCurrentRevision", fields: [organizationId, currentRevisionId], references: [organizationId, id], onDelete: Restrict)
+  signingRevision DocumentRevision?        @relation("DocumentSigningRevision", fields: [organizationId, signingRevisionId], references: [organizationId, id], onDelete: Restrict)
+  revisions       DocumentRevision[]       @relation("DocumentRevisions")
+  signers         Signer[]
+  signingSessions SigningSession[]
+  signatureFields SignatureField[]
+  consentRecords  ConsentRecord[]
+  artifacts       FinalizedArtifact[]
+  auditLogs       AuditLog[]
+  outboxEvents    OutboxEvent[]
+  backgroundJobs  BackgroundJob[]
+
+  @@unique([organizationId, id], map: "documents_organization_id_id_key")
+  @@index([organizationId, state], map: "documents_organization_id_state_idx")
+  @@index([organizationId, createdAt], map: "documents_organization_id_created_at_idx")
+  @@index([state, expiresAt], map: "documents_state_expires_at_idx")
+  @@index([state, leaseUntil], map: "documents_state_lease_until_idx")
+  @@map("documents")
+}
+
+model DocumentRevision {
+  id             String               @id @db.Uuid
+  organizationId String               @db.Uuid
+  documentId     String               @db.Uuid
+  kind           DocumentRevisionKind
+  objectKey      String
+  contentType    String
+  sizeBytes      BigInt
+  sha256Digest   String               @db.Char(64)
+  createdAt      DateTime             @default(now()) @db.Timestamptz
+
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document             Document     @relation("DocumentRevisions", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  currentForDocuments  Document[]   @relation("DocumentCurrentRevision")
+  signingForDocuments  Document[]   @relation("DocumentSigningRevision")
+
+  @@unique([organizationId, id], map: "document_revisions_organization_id_id_key")
+  @@index([organizationId, documentId], map: "document_revisions_organization_id_document_id_idx")
+  @@index([sha256Digest], map: "document_revisions_sha256_digest_idx")
+  @@map("document_revisions")
+}
+
+model Signer {
+  id             String       @id @db.Uuid
+  organizationId String       @db.Uuid
+  documentId     String       @db.Uuid
+  accountUserId  String?      @db.Uuid
+  routingOrder   Int
+  status         SignerStatus @default(pending)
+  email          String?
+  displayName    String
+  version        Int          @default(1)
+  completedAt    DateTime?    @db.Timestamptz
+  declinedAt     DateTime?    @db.Timestamptz
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @db.Timestamptz
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document        Document         @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  accountUser     User?            @relation(fields: [accountUserId], references: [id], onDelete: Restrict)
+  sessions        SigningSession[]
+  fields          SignatureField[]
+  consentRecords  ConsentRecord[]
+
+  @@unique([organizationId, id], map: "signers_organization_id_id_key")
+  @@index([organizationId, documentId, routingOrder], map: "signers_organization_id_document_id_routing_order_idx")
+  @@index([accountUserId], map: "signers_account_user_id_idx")
+  @@map("signers")
+}
+
+model SigningSession {
+  id                       String                @id @db.Uuid
+  organizationId           String                @db.Uuid
+  documentId               String                @db.Uuid
+  signerId                 String                @db.Uuid
+  tokenHash                String                @unique @db.Char(64)
+  status                   SigningSessionStatus  @default(issued)
+  expiresAt                DateTime              @db.Timestamptz
+  consumedAt               DateTime?             @db.Timestamptz
+  completedAt              DateTime?             @db.Timestamptz
+  revokedAt                DateTime?             @db.Timestamptz
+  presentationAttemptCount Int                   @default(0)
+  failedPresentationCount  Int                   @default(0)
+  lastPresentedAt          DateTime?             @db.Timestamptz
+  requestId                String?               @db.Uuid
+  version                  Int                   @default(1)
+  createdAt                DateTime              @default(now()) @db.Timestamptz
+  updatedAt                DateTime              @updatedAt @db.Timestamptz
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document       Document        @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  signer         Signer          @relation(fields: [organizationId, signerId], references: [organizationId, id], onDelete: Restrict)
+  consentRecords ConsentRecord[]
+
+  @@unique([organizationId, id], map: "signing_sessions_organization_id_id_key")
+  @@index([organizationId, documentId, signerId], map: "signing_sessions_organization_id_document_id_signer_id_idx")
+  @@index([signerId, status], map: "signing_sessions_signer_id_status_idx")
+  @@index([expiresAt, status], map: "signing_sessions_expires_at_status_idx")
+  @@map("signing_sessions")
+}
+
+model SignatureField {
+  id                       String             @id @db.Uuid
+  organizationId           String             @db.Uuid
+  documentId               String             @db.Uuid
+  signerId                 String             @db.Uuid
+  type                     SignatureFieldType
+  pageNumber               Int
+  x                        Decimal            @db.Decimal(8, 7)
+  y                        Decimal            @db.Decimal(8, 7)
+  width                    Decimal            @db.Decimal(8, 7)
+  height                   Decimal            @db.Decimal(8, 7)
+  required                 Boolean            @default(true)
+  completedAt              DateTime?          @db.Timestamptz
+  completionObjectKey      String?
+  completionContentType    String?
+  completionSizeBytes      BigInt?
+  completionSha256Digest   String?            @db.Char(64)
+  createdAt                DateTime           @default(now()) @db.Timestamptz
+  updatedAt                DateTime           @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  signer       Signer       @relation(fields: [organizationId, signerId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id], map: "signature_fields_organization_id_id_key")
+  @@index([organizationId, documentId, signerId], map: "signature_fields_organization_id_document_id_signer_id_idx")
+  @@map("signature_fields")
+}
+
+model ConsentRecord {
+  id                   String   @id @db.Uuid
+  organizationId       String   @db.Uuid
+  documentId           String   @db.Uuid
+  signerId             String   @db.Uuid
+  sessionId            String   @unique @db.Uuid
+  consentCopyId        String
+  acceptedAt           DateTime @db.Timestamptz
+  requestId            String?  @db.Uuid
+  untrustedClientIp    String?
+  untrustedUserAgent   String?
+  createdAt            DateTime @default(now()) @db.Timestamptz
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document      @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  signer       Signer        @relation(fields: [organizationId, signerId], references: [organizationId, id], onDelete: Restrict)
+  session      SigningSession @relation(fields: [organizationId, sessionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, documentId], map: "consent_records_organization_id_document_id_idx")
+  @@map("consent_records")
+}
+
+model FinalizedArtifact {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  documentId     String   @unique @db.Uuid
+  objectKey      String
+  contentType    String
+  sizeBytes      BigInt
+  sha256Digest   String   @db.Char(64)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([sha256Digest], map: "finalized_artifacts_sha256_digest_idx")
+  @@map("finalized_artifacts")
+}
+
+model AuditLog {
+  id                 String         @id @db.Uuid
+  organizationId     String         @db.Uuid
+  documentId         String         @db.Uuid
+  sequence           Int
+  type               AuditEventType
+  actorType          AuditActorType
+  actorId            String
+  occurredAt         DateTime       @db.Timestamptz
+  payload            Json
+  previousEventHash  String         @db.Char(64)
+  eventHash          String         @db.Char(64)
+  requestId          String?        @db.Uuid
+  chainVersion       Int            @default(1)
+  createdAt          DateTime       @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([documentId, sequence], map: "audit_logs_document_id_sequence_key")
+  @@index([organizationId, documentId, sequence], map: "audit_logs_organization_id_document_id_sequence_idx")
+  @@index([requestId], map: "audit_logs_request_id_idx")
+  @@map("audit_logs")
+}
+
+model OutboxEvent {
+  id             String       @id @db.Uuid
+  organizationId String       @db.Uuid
+  documentId     String?      @db.Uuid
+  type           String
+  status         OutboxStatus @default(pending)
+  payload        Json
+  requestId      String?      @db.Uuid
+  attemptCount   Int          @default(0)
+  leaseOwner     String?
+  leaseUntil     DateTime?    @db.Timestamptz
+  availableAt    DateTime     @default(now()) @db.Timestamptz
+  processedAt    DateTime?    @db.Timestamptz
+  lastErrorCode  String?
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @db.Timestamptz
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document       Document?       @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  backgroundJobs BackgroundJob[]
+
+  @@index([status, availableAt], map: "outbox_events_status_available_at_idx")
+  @@index([organizationId, documentId], map: "outbox_events_organization_id_document_id_idx")
+  @@index([requestId], map: "outbox_events_request_id_idx")
+  @@map("outbox_events")
+}
+
+model BackgroundJob {
+  id             String              @id @db.Uuid
+  organizationId String              @db.Uuid
+  documentId     String?             @db.Uuid
+  outboxEventId  String?             @db.Uuid
+  type           String
+  status         BackgroundJobStatus @default(pending)
+  attemptCount   Int                 @default(0)
+  maxAttempts    Int                 @default(8)
+  leaseOwner     String?
+  leaseUntil     DateTime?           @db.Timestamptz
+  availableAt    DateTime            @default(now()) @db.Timestamptz
+  lastErrorCode  String?
+  requestId      String?             @db.Uuid
+  version        Int                 @default(1)
+  createdAt      DateTime            @default(now()) @db.Timestamptz
+  updatedAt      DateTime            @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document?    @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+  outboxEvent  OutboxEvent? @relation(fields: [outboxEventId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt], map: "background_jobs_status_available_at_idx")
+  @@index([organizationId, documentId], map: "background_jobs_organization_id_document_id_idx")
+  @@index([outboxEventId], map: "background_jobs_outbox_event_id_idx")
+  @@map("background_jobs")
+}
+
+model IdempotencyRecord {
+  id             String                    @id @db.Uuid
+  organizationId String                    @db.Uuid
+  principalType  IdempotencyPrincipalType
+  principalId    String                    @db.Uuid
+  route          String
+  key            String
+  requestHash    String                    @db.Char(64)
+  requestId      String?                   @db.Uuid
+  responseStatus Int?
+  responseBody   Json?
+  expiresAt      DateTime                  @db.Timestamptz
+  createdAt      DateTime                  @default(now()) @db.Timestamptz
+  updatedAt      DateTime                  @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, principalId, route, key], map: "idempotency_records_org_principal_route_key_key")
+  @@index([expiresAt], map: "idempotency_records_expires_at_idx")
+  @@index([requestId], map: "idempotency_records_request_id_idx")
+  @@map("idempotency_records")
+}

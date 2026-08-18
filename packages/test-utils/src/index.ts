@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export type Clock = {
   nowUtc: () => Date;
 };
@@ -20,6 +22,21 @@ export function systemClock(): Clock {
 
 export function newOpaqueId(): string {
   return crypto.randomUUID();
+}
+
+/** SHA-256 hex of a synthetic label. Never a digest of a customer PDF. */
+export function syntheticSha256(label: string): string {
+  return createHash('sha256').update(`esign-synthetic:${label}`).digest('hex');
+}
+
+export function organizationAttrs(overrides: { id?: string; name?: string } = {}): {
+  id: string;
+  name: string;
+} {
+  return {
+    id: overrides.id ?? newOpaqueId(),
+    name: overrides.name ?? 'Example Organization',
+  };
 }
 
 export function apiEnv(overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {

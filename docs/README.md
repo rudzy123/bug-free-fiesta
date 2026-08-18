@@ -19,6 +19,7 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 | [System context](architecture/system-context.md)                 | Actors, external systems, trust boundaries |
 | [Container architecture](architecture/container-architecture.md) | Apps, packages, data stores                |
 | [Domain model](architecture/domain-model.md)                     | Entities and invariants                    |
+| [Data model](architecture/data-model.md)                         | Prisma/PostgreSQL tables, indexes, RLS     |
 | [Document lifecycle](architecture/document-lifecycle.md)         | Document states and transitions            |
 | [Signing lifecycle](architecture/signing-lifecycle.md)           | Sessions, tokens, consent, fields          |
 | [Audit model](architecture/audit-model.md)                       | Hash-chained append-only events            |

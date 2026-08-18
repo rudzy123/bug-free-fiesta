@@ -20,7 +20,7 @@ Capstone for the v1 architecture. Application code is not implemented; these dec
 | UTC instants only                               | [0012](adrs/0012-utc-timestamp-handling.md)                | Expiry and audit use the server clock                 |
 | Shared DB with `tenantId` predicates            | [0013](adrs/0013-multi-tenancy-isolation.md)               | Deny-by-default isolation, not silo                   |
 
-Supporting models: [domain](domain-model.md), [document lifecycle](document-lifecycle.md), [signing lifecycle](signing-lifecycle.md), [reliability](reliability-model.md), [threat model](../security/threat-model.md).
+Supporting models: [domain](domain-model.md), [data model](data-model.md), [document lifecycle](document-lifecycle.md), [signing lifecycle](signing-lifecycle.md), [reliability](reliability-model.md), [threat model](../security/threat-model.md).
 
 ## Prioritized risk register
 

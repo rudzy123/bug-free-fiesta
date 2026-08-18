@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./factories": {
+      "types": "./dist/factories.d.ts",
+      "import": "./dist/factories.js"
     }
   },
   "files": [
@@ -18,9 +22,9 @@
     "typecheck": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate && tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests",
-    "test:integration": "vitest run --passWithNoTests",
+    "test": "vitest run --exclude **/*.integration.test.ts",
+    "test:unit": "vitest run --exclude **/*.integration.test.ts",
+    "test:integration": "vitest run integration.test",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
@@ -42,5 +46,9 @@
     "tsx": "4.19.4",
     "typescript": "5.8.3",
     "vitest": "3.2.7"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma",
+    "seed": "tsx src/seed.ts"
   }
 }

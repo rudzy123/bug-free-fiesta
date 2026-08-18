@@ -103,6 +103,8 @@ A row written in the **same database transaction** as a state transition, later 
 
 All public IDs are opaque (UUIDv7 or equivalent). Do not expose sequential integers. Do not use email as a primary key.
 
+The tenant row is **Organization**. Columns named `organizationId` are the ADR-0013 `tenantId`. See [data model](data-model.md).
+
 ## Related documents
 
 [Document lifecycle](document-lifecycle.md), [Signing lifecycle](signing-lifecycle.md), [ADR-0007](adrs/0007-server-owned-signature-placement.md), [ADR-0013](adrs/0013-multi-tenancy-isolation.md).
