@@ -59,6 +59,10 @@ function originFromHeaders(
   }
 }
 
+export function hashesEqual(left: string, right: string): boolean {
+  return equalUtf8(left, right);
+}
+
 function equalUtf8(left: string, right: string): boolean {
   const leftBytes = Buffer.from(left);
   const rightBytes = Buffer.from(right);

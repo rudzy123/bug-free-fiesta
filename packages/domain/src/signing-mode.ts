@@ -45,3 +45,21 @@ export function assertSignerRouting(input: {
     }
   }
 }
+
+export function canSignerActNow(input: {
+  signingMode: SigningMode;
+  actor: Pick<Signer, 'id' | 'routingOrder' | 'status'>;
+  signers: readonly Pick<Signer, 'id' | 'routingOrder' | 'status'>[];
+}): boolean {
+  if (input.actor.status !== 'pending') {
+    return false;
+  }
+  if (input.signingMode === 'parallel') {
+    return true;
+  }
+  const pendingOrders = input.signers
+    .filter((signer) => signer.status === 'pending')
+    .map((signer) => signer.routingOrder);
+  const currentOrder = pendingOrders[0] === undefined ? undefined : Math.min(...pendingOrders);
+  return currentOrder === input.actor.routingOrder;
+}

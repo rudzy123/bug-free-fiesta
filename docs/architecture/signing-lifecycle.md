@@ -17,15 +17,21 @@ sequenceDiagram
   API->>API: Freeze preparation; store only token hashes
   API->>API: Audit + outbox notify_signer atomically
   API->>Mail: Invitation (raw token only in transit)
-  Signer->>API: Open link (bearer token)
+  Signer->>API: POST /signing/exchange (URL token)
+  API->>API: Hash token; rotate to HttpOnly cookie; consume URL token
+  Signer->>API: GET /signing/session (cookie)
   API->>API: Lookup token hash; start session
-  Signer->>API: Record consent
+  Signer->>API: Record viewed and consent
   Signer->>API: Submit signatures for assigned fields
   API->>API: Persist completions; maybe complete document
   API->>Worker: Outbox finalization
 ```
 
-Without the diagram: owners add server-owned fields and signers while the document is `draft` or `prepared`. Send freezes preparation, stores SHA-256 hashes of cryptographically random bearer tokens, appends audit, and writes `notify_signer` outbox events in one transaction. The raw token is given to a provider-agnostic notifier for first delivery and is never persisted. Signer APIs load identity from the token hash, not from client-supplied document or signer ids.
+Without the diagram: owners add server-owned fields and signers while the document is `draft` or `prepared`. Send freezes preparation, stores SHA-256 hashes of cryptographically random bearer tokens, appends audit, and writes `notify_signer` outbox events in one transaction. The raw token is given to a provider-agnostic notifier for first delivery and is never persisted.
+
+The signer-facing API does not require an account unless envelope policy requires one. `POST /signing/exchange` is the one-time landing: the URL token is hashed immediately, compared only as a hash (with a constant-time check against the stored digest), rotated into an HttpOnly `esign_sign` cookie plus a readable CSRF cookie, and consumed so replay fails. Later signer routes load identity from that hashed cookie (or the rotated bearer token). `signerId`, `organizationId`, and `documentId` in the body are not authorization evidence.
+
+Invalid, expired, revoked, and unknown tokens share the same public 401. Signing routes set `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and a restrictive Content-Security-Policy. Query strings are not logged; Pino redacts `req.query` and `req.url` because email links may carry tokens. Mutations that use the signer cookie require CSRF and an allowed Origin. IP and user agent are captured only through `ClientRequestMetadata`.
 
 Field types: `signature`, `initials`, `date_signed`, `signer_name`. Coordinates are normalized to the page (0–1). Page numbers must exist on the stored PDF. Overlap is rejected when `DOCUMENT_FIELD_OVERLAP_POLICY=prohibit`.
 
@@ -48,7 +54,18 @@ Transitions: `issued` → `active` → `completed`; `issued`/`active` → `expir
 - The signing URL contains a high-entropy bearer token (not the `signerId`, not the `documentId` alone).
 - Persist only a keyed hash (e.g. HMAC or password-hash of the token with a server secret from `packages/config`). Never store or log the raw token.
 - Token is bound to `tenantId + documentId + signerId + sessionId`.
-- Presentation: `Authorization: Bearer` or a one-time exchange for a short-lived session cookie scoped to signer routes. Prefer not placing the raw token in query strings after the first redirect. **Legal review required** if tokens remain in email query strings (leakage via logs and referrers).
+- Presentation after exchange: HttpOnly `esign_sign` cookie (path `/signing`) or `Authorization: Bearer` of the rotated token. CSRF for cookie mutations is `esign_sign_csrf` + `X-CSRF-Token`.
+- Prefer not placing the raw token in query strings after the first redirect. **Legal review required** if tokens remain in email query strings (leakage via logs and referrers).
+
+### Signing page headers (web)
+
+Signing HTML pages should send:
+
+- `Referrer-Policy: no-referrer` so the token is not leaked to third-party assets.
+- `Cache-Control: no-store` so the page and any token-bearing URL are not stored.
+- `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'` (tighten further if the page does not need images or fonts from `'self'`). The API additionally sends `default-src 'none'` on `/signing/*` JSON responses.
+
+The API never logs `req.url` query strings. Do not put the raw token in analytics, exception messages, or audit metadata.
 
 Stolen-link mitigations (technical, not a legal identity proof): short TTL, HTTPS only, revoke on void, optional email re-auth step (not v1 unless specified), rate limits, and showing the signer only their fields.
 

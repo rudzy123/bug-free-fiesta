@@ -84,7 +84,12 @@ export {
   isPreparationState,
   isSigningSessionStatus,
 } from './document-lifecycle.js';
-export { assertedSigningMode, assertSignerRouting, isSigningMode } from './signing-mode.js';
+export {
+  assertedSigningMode,
+  assertSignerRouting,
+  canSignerActNow,
+  isSigningMode,
+} from './signing-mode.js';
 export { assertFieldLayout, assertFieldOnPage, fieldsOverlap } from './field-geometry.js';
 export {
   isOpaqueId,
@@ -117,6 +122,9 @@ export type {
   Hashing,
   IdGenerator,
   AuditWriter,
+  ClientRequestMetadata,
+  ConsentDisclosure,
+  ConsentDisclosureCatalog,
   DocumentInspectionOutcome,
   DocumentInspector,
   JobPublishInput,
@@ -124,6 +132,7 @@ export type {
   NewAuditEvent,
   Notifier,
   ObjectStorage,
+  SigningEnvelopePolicy,
   SigningInvitation,
   SigningTokenGenerator,
   SigningTokenHasher,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AuthorizationError } from '@esign/domain';
 import { createSha256Hashing } from '../ports/node-crypto.js';
-import { assertCsrfToken, originIsAllowed } from './csrf.js';
+import { assertCsrfToken, hashesEqual, originIsAllowed } from './csrf.js';
 
 describe('CSRF helpers', () => {
   const hashing = createSha256Hashing();
@@ -35,6 +35,8 @@ describe('CSRF helpers', () => {
         hash: (value) => hashing.sha256Hex(value),
       }),
     ).not.toThrow();
+    expect(hashesEqual(hashing.sha256Hex('a'), hashing.sha256Hex('a'))).toBe(true);
+    expect(hashesEqual(hashing.sha256Hex('a'), hashing.sha256Hex('b'))).toBe(false);
   });
 
   it('allows only configured origins', () => {

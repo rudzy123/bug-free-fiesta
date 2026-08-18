@@ -107,6 +107,7 @@ export function createRotateSigningSession(deps: {
           documentId: document.id,
           signerId: signer.id,
           tokenHash: deps.hasher.hash(rawToken),
+          csrfTokenHash: null,
           status: 'issued',
           expiresAt,
           consumedAt: null,
@@ -220,8 +221,6 @@ export type RevokeSigningSession = ReturnType<typeof createRevokeSigningSession>
 
 export type ResolveSigningSessionInput = {
   readonly rawToken: string;
-  readonly claimedDocumentId?: string;
-  readonly claimedSignerId?: string;
 };
 
 export type SignerSessionView = {
@@ -252,14 +251,16 @@ export function createResolveSigningSession(deps: {
     input: ResolveSigningSessionInput,
   ): Promise<SignerSessionView> {
     const session = await deps.tokens.findByTokenHash(deps.hasher.hash(input.rawToken));
-    if (!session) {
+    if (
+      !session ||
+      session.status === 'revoked' ||
+      session.status === 'completed' ||
+      session.status === 'expired'
+    ) {
       throw new AuthenticationError({ reason: 'signing_token' });
     }
-    if (session.status === 'revoked') {
-      throw new AuthenticationError({ reason: 'signing_token_revoked' });
-    }
     const now = deps.clock.nowUtc();
-    if (session.status === 'expired' || session.expiresAt.getTime() <= now.getTime()) {
+    if (session.expiresAt.getTime() <= now.getTime()) {
       if (session.status === 'issued' || session.status === 'active') {
         await deps.sessions.markExpired({
           organizationId: session.organizationId,
@@ -267,16 +268,10 @@ export function createResolveSigningSession(deps: {
           expiredAt: now,
         });
       }
-      throw new AuthenticationError({ reason: 'signing_token_expired' });
+      throw new AuthenticationError({ reason: 'signing_token' });
     }
     if (session.status !== 'issued' && session.status !== 'active') {
       throw new AuthenticationError({ reason: 'signing_token' });
-    }
-    if (input.claimedDocumentId !== undefined && input.claimedDocumentId !== session.documentId) {
-      throw new AuthenticationError({ reason: 'document_mismatch' });
-    }
-    if (input.claimedSignerId !== undefined && input.claimedSignerId !== session.signerId) {
-      throw new AuthenticationError({ reason: 'signer_mismatch' });
     }
 
     const presented =

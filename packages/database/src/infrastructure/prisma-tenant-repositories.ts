@@ -262,6 +262,32 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
       }
       return toDomainDocument(row);
     },
+    async markDeclined(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          state: { in: [DOCUMENT_STATE_TO_PRISMA.sent, DOCUMENT_STATE_TO_PRISMA.in_progress] },
+        },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.declined,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
   };
 }
 
@@ -470,6 +496,33 @@ export function createPrismaSignerRepository(prisma: PrismaClientOrTx): SignerRe
       }
       return stored;
     },
+    async markDeclined(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const signerId = requireOpaqueId(input.signerId, 'signerId');
+      const result = await prisma.signer.updateMany({
+        where: {
+          organizationId,
+          id: signerId,
+          version: input.expectedVersion,
+          status: SIGNER_STATUS_TO_PRISMA.pending,
+        },
+        data: {
+          status: SIGNER_STATUS_TO_PRISMA.declined,
+          declinedAt: input.declinedAt,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'signer_version' });
+      }
+      const row = await prisma.signer.findUnique({
+        where: tenantCompoundWhere(organizationId, signerId, 'signerId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signer' });
+      }
+      return toDomainSigner(row);
+    },
   };
 }
 
@@ -524,6 +577,7 @@ export function createPrismaSigningSessionRepository(
           documentId: input.session.documentId,
           signerId: input.session.signerId,
           tokenHash: input.session.tokenHash,
+          csrfTokenHash: input.session.csrfTokenHash,
           status: SESSION_STATUS_TO_PRISMA[input.session.status],
           expiresAt: input.session.expiresAt,
           consumedAt: input.session.consumedAt,
@@ -572,7 +626,6 @@ export function createPrismaSigningSessionRepository(
         where: { organizationId, id: sessionId, status: SigningSessionStatus.issued },
         data: {
           status: SigningSessionStatus.active,
-          consumedAt: input.presentedAt,
           lastPresentedAt: input.presentedAt,
         },
       });
@@ -619,6 +672,37 @@ export function createPrismaSigningSessionRepository(
       });
       if (result.count !== 1) {
         throw new ConflictError({ reason: 'session_not_open' });
+      }
+      const row = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      return toDomainSigningSession(row);
+    },
+    async consumeAndRotate(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const result = await prisma.signingSession.updateMany({
+        where: {
+          organizationId,
+          id: sessionId,
+          version: input.expectedVersion,
+          consumedAt: null,
+          status: { in: [SigningSessionStatus.issued, SigningSessionStatus.active] },
+        },
+        data: {
+          tokenHash: input.tokenHash,
+          csrfTokenHash: input.csrfTokenHash,
+          consumedAt: input.consumedAt,
+          status: SigningSessionStatus.active,
+          lastPresentedAt: input.consumedAt,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'session_not_exchangeable' });
       }
       const row = await prisma.signingSession.findUnique({
         where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
@@ -699,6 +783,14 @@ export function createPrismaConsentRecordRepository(
       });
       return row ? toDomainConsent(row) : null;
     },
+    async findBySession(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const row = await prisma.consentRecord.findFirst({
+        where: { organizationId, sessionId },
+      });
+      return row ? toDomainConsent(row) : null;
+    },
     async listByDocument(input) {
       const organizationId = requireOrganizationId(input.organizationId);
       const documentId = requireOpaqueId(input.documentId, 'documentId');
@@ -707,6 +799,26 @@ export function createPrismaConsentRecordRepository(
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toDomainConsent);
+    },
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.consent.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.consentRecord.create({
+        data: {
+          id: input.consent.id,
+          organizationId,
+          documentId: input.consent.documentId,
+          signerId: input.consent.signerId,
+          sessionId: input.consent.sessionId,
+          consentCopyId: input.consent.consentCopyId,
+          acceptedAt: input.consent.acceptedAt,
+          requestId: input.consent.requestId,
+          untrustedClientIp: input.consent.untrustedClientIp,
+          untrustedUserAgent: input.consent.untrustedUserAgent,
+          createdAt: input.consent.createdAt,
+        },
+      });
+      return toDomainConsent(row);
     },
   };
 }

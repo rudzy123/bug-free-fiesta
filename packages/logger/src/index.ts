@@ -5,12 +5,19 @@ const REDACT_PATHS = [
   'req.headers.cookie',
   'req.headers["set-cookie"]',
   'res.headers["set-cookie"]',
+  'req.query',
+  'req.query.token',
+  'req.url',
+  'req.originalUrl',
+  'rawToken',
+  'token',
   '*.password',
   '*.token',
   '*.secret',
   '*.SECRET',
   '*.csrfToken',
   '*.sessionToken',
+  '*.rawToken',
   '*.signature',
   '*.authorization',
   '*.cookie',
@@ -19,11 +26,14 @@ const REDACT_PATHS = [
   'req.headers["x-csrf-token"]',
 ];
 
+import type { DestinationStream } from 'pino';
+
 export type { Logger };
 
 export type CreateLoggerOptions = {
   name: string;
   level: string;
+  destination?: DestinationStream;
 };
 
 export function createLogger(options: CreateLoggerOptions): Logger {
@@ -42,7 +52,9 @@ export function createLogger(options: CreateLoggerOptions): Logger {
     },
   };
 
-  return pino(loggerOptions);
+  return options.destination === undefined
+    ? pino(loggerOptions)
+    : pino(loggerOptions, options.destination);
 }
 
 export function withCorrelationId(logger: Logger, correlationId: string): Logger {

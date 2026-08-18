@@ -3,6 +3,8 @@ import {
   NotFoundError,
   type AuditEvent,
   type AuditWriter,
+  type ConsentRecord,
+  type ConsentRecordRepository,
   type Document,
   type DocumentRepository,
   type DocumentRevision,
@@ -113,6 +115,14 @@ export function createMemoryDocumentRepository(
         signingRevisionId: input.signingRevisionId,
         expiresAt: input.expiresAt,
       }));
+    },
+    async markDeclined(input) {
+      return bumpDocument(records, input, (current) => {
+        if (current.state !== 'sent' && current.state !== 'in_progress') {
+          throw new ConflictError({ reason: 'document_not_declinable' });
+        }
+        return { ...current, state: 'declined' };
+      });
     },
   };
 }
@@ -423,6 +433,26 @@ export function createMemorySignerStore(signers: Signer[] = []): MemorySignerSto
       }
       return stored;
     },
+    async markDeclined(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.signerId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signer' });
+      }
+      if (current.version !== input.expectedVersion || current.status !== 'pending') {
+        throw new ConflictError({ reason: 'signer_version' });
+      }
+      const updated: Signer = {
+        ...current,
+        status: 'declined',
+        declinedAt: input.declinedAt,
+        version: current.version + 1,
+      };
+      records[index] = updated;
+      return updated;
+    },
   };
 }
 
@@ -550,7 +580,6 @@ export function createMemorySigningSessionStore(
       const updated: SigningSession = {
         ...current,
         status: 'active',
-        consumedAt: input.presentedAt,
         lastPresentedAt: input.presentedAt,
       };
       records[index] = updated;
@@ -571,8 +600,76 @@ export function createMemorySigningSessionStore(
       records[index] = updated;
       return updated;
     },
+    async consumeAndRotate(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      if (
+        current.version !== input.expectedVersion ||
+        current.consumedAt !== null ||
+        (current.status !== 'issued' && current.status !== 'active')
+      ) {
+        throw new ConflictError({ reason: 'session_not_exchangeable' });
+      }
+      const updated: SigningSession = {
+        ...current,
+        tokenHash: input.tokenHash,
+        csrfTokenHash: input.csrfTokenHash,
+        consumedAt: input.consumedAt,
+        status: 'active',
+        lastPresentedAt: input.consumedAt,
+        version: current.version + 1,
+      };
+      records[index] = updated;
+      return updated;
+    },
     async findByTokenHash(tokenHash) {
       return records.find((row) => row.tokenHash === tokenHash) ?? null;
+    },
+  };
+}
+
+export type MemoryConsentStore = ConsentRecordRepository & { records: ConsentRecord[] };
+
+export function createMemoryConsentStore(consents: ConsentRecord[] = []): MemoryConsentStore {
+  const records = [...consents];
+  return {
+    records,
+    async findById(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.id === input.consentId,
+        ) ?? null
+      );
+    },
+    async findBySession(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.sessionId === input.sessionId,
+        ) ?? null
+      );
+    },
+    async listByDocument(input) {
+      return records.filter(
+        (row) => row.organizationId === input.organizationId && row.documentId === input.documentId,
+      );
+    },
+    async create(input) {
+      if (
+        records.some(
+          (row) =>
+            row.organizationId === input.organizationId &&
+            row.sessionId === input.consent.sessionId,
+        )
+      ) {
+        throw new ConflictError({ reason: 'consent_exists' });
+      }
+      records.push(input.consent);
+      return input.consent;
     },
   };
 }
@@ -600,6 +697,7 @@ export function createMemoryDocumentScope(input: {
   signers?: SignerRepository;
   signatureFields?: SignatureFieldRepository;
   signingSessions?: SigningSessionRepository;
+  consentRecords?: ConsentRecordRepository;
 }): TransactionScope {
   return {
     organizations: { findById: unusedMemoryRepo },
@@ -612,6 +710,7 @@ export function createMemoryDocumentScope(input: {
       findById: unusedMemoryRepo,
       listByDocument: unusedMemoryRepo,
       replaceAll: unusedMemoryRepo,
+      markDeclined: unusedMemoryRepo,
     },
     signingSessions: input.signingSessions ?? {
       findById: unusedMemoryRepo,
@@ -622,13 +721,19 @@ export function createMemoryDocumentScope(input: {
       revoke: unusedMemoryRepo,
       markPresented: unusedMemoryRepo,
       markExpired: unusedMemoryRepo,
+      consumeAndRotate: unusedMemoryRepo,
     },
     signatureFields: input.signatureFields ?? {
       findById: unusedMemoryRepo,
       listByDocument: unusedMemoryRepo,
       replaceAll: unusedMemoryRepo,
     },
-    consentRecords: { findById: unusedMemoryRepo, listByDocument: unusedMemoryRepo },
+    consentRecords: input.consentRecords ?? {
+      findById: unusedMemoryRepo,
+      findBySession: unusedMemoryRepo,
+      listByDocument: unusedMemoryRepo,
+      create: unusedMemoryRepo,
+    },
     finalizedArtifacts: { findByDocument: unusedMemoryRepo },
     auditLogs: {
       findLatest: unusedMemoryRepo,

@@ -461,12 +461,11 @@ describe('document preparation and send', () => {
       requestId: 'req-send',
     });
     const token = sent.invitations[0]?.token ?? '';
-    await expect(
-      h.resolve({ rawToken: token, claimedDocumentId: second.prepared.documentId }),
-    ).rejects.toBeInstanceOf(AuthenticationError);
-    await expect(
-      h.resolve({ rawToken: token, claimedSignerId: second.signerId }),
-    ).rejects.toBeInstanceOf(AuthenticationError);
+    const view = await h.resolve({ rawToken: token });
+    expect(view.documentId).toBe(first.prepared.documentId);
+    expect(view.signerId).toBe(first.signerId);
+    expect(view.documentId).not.toBe(second.prepared.documentId);
+    expect(view.signerId).not.toBe(second.signerId);
   });
 
   it('rejects revoked and expired tokens', async () => {

@@ -16,10 +16,8 @@ import {
   sendDocumentResponseSchema,
   sessionIdParamSchema,
   signerIdParamSchema,
-  signerSessionClaimSchema,
-  signerSessionResponseSchema,
 } from '@esign/contracts';
-import { AuthenticationError, ValidationError } from '@esign/domain';
+import { ValidationError } from '@esign/domain';
 import type {
   CompleteSourceUpload,
   CreateDraftDocument,
@@ -27,7 +25,6 @@ import type {
   IssueDocumentPreview,
   ReplaceDocumentFields,
   ReplaceDocumentSigners,
-  ResolveSigningSession,
   RevokeSigningSession,
   RotateSigningSession,
   SendDocument,
@@ -60,7 +57,6 @@ export type DocumentIngestionRouterDeps = {
   sendDocument: SendDocument;
   rotateSession: RotateSigningSession;
   revokeSession: RevokeSigningSession;
-  resolveSigningSession: ResolveSigningSession;
 };
 
 export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps): Router {
@@ -182,6 +178,9 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
       }
       const result = await deps.streamPreview({ grantId, rawToken: token });
       res.setHeader('Content-Type', result.contentType);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Referrer-Policy', 'no-referrer');
       res.setHeader(
         'Content-Disposition',
         `inline; filename="${result.displayName.replaceAll('"', '')}"`,
@@ -315,23 +314,6 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
     }),
   );
 
-  router.post(
-    '/signing/session',
-    asyncRoute(async (req, res) => {
-      const token = bearerToken(req);
-      const claimed = signerSessionClaimSchema.safeParse(req.body ?? {});
-      if (!claimed.success) {
-        throw new ValidationError({ reason: 'invalid_signer_claim' });
-      }
-      const result = await deps.resolveSigningSession({
-        rawToken: token,
-        claimedDocumentId: claimed.data.documentId,
-        claimedSignerId: claimed.data.signerId,
-      });
-      res.status(200).json(signerSessionResponseSchema.parse(result));
-    }),
-  );
-
   return router;
 }
 
@@ -373,18 +355,6 @@ function parseSessionId(value: string | string[] | undefined): string {
     throw new ValidationError({ field: 'sessionId', reason: 'invalid' });
   }
   return parsed.data;
-}
-
-function bearerToken(req: { header: (name: string) => string | undefined }): string {
-  const value = req.header('authorization');
-  if (value === undefined || !value.toLowerCase().startsWith('bearer ')) {
-    throw new AuthenticationError({ reason: 'signing_token' });
-  }
-  const token = value.slice('bearer '.length).trim();
-  if (token === '') {
-    throw new AuthenticationError({ reason: 'signing_token' });
-  }
-  return token;
 }
 
 function singleParam(value: string | string[] | undefined): string | undefined {

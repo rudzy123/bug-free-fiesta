@@ -10,6 +10,7 @@ declare global {
       accountSession?: AccountSession;
       accountActor?: AccountUserActor;
       organization?: OrganizationContext;
+      signingToken?: string;
     }
   }
 }

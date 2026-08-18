@@ -43,7 +43,7 @@ export {
   type LoadCurrentAccountUser,
   type ResolveOrganizationActor,
 } from './auth/organization-actor.js';
-export { assertCsrfToken, isCsrfSafeMethod, originIsAllowed } from './auth/csrf.js';
+export { assertCsrfToken, hashesEqual, isCsrfSafeMethod, originIsAllowed } from './auth/csrf.js';
 export {
   createMemoryAccountSecurityAuditWriter,
   createMemoryAccountSessionRepository,
@@ -94,6 +94,7 @@ export {
 } from './documents/cleanup-abandoned-uploads.js';
 export {
   createMemoryAuditWriter,
+  createMemoryConsentStore,
   createMemoryDocumentRepository,
   createMemoryDocumentRevisionRepository,
   createMemoryDocumentScope,
@@ -131,3 +132,32 @@ export {
   createMemoryNotifier,
   createNotifier,
 } from './documents/notifications.js';
+export { clientRequestMetadataFromHeaders } from './signing/request-metadata.js';
+export { createConsentDisclosureCatalog } from './signing/consent-catalog.js';
+export { createSigningEnvelopePolicy } from './signing/envelope-policy.js';
+export { createLoadSignerSession, type LoadSignerSession } from './signing/load-signer-session.js';
+export {
+  createExchangeSigningToken,
+  type ExchangeSigningToken,
+} from './signing/exchange-signing-token.js';
+export {
+  createGetSignerConsent,
+  createGetSignerDocument,
+  createGetSignerFields,
+  createGetSignerSession,
+  createIssueSignerPreview,
+  type GetSignerConsent,
+  type GetSignerDocument,
+  type GetSignerFields,
+  type GetSignerSession,
+  type IssueSignerPreview,
+} from './signing/signer-queries.js';
+export {
+  createDeclineToSign,
+  createRecordSignerConsent,
+  createRecordSignerViewed,
+  sanitizeDeclineReason,
+  type DeclineToSign,
+  type RecordSignerConsent,
+  type RecordSignerViewed,
+} from './signing/signer-mutations.js';

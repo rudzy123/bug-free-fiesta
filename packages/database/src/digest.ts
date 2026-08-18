@@ -12,6 +12,8 @@ export const AUDIT_EVENT_TYPE_DB: Record<AuditEventType, string> = {
   [AuditEventType.documentSent]: 'document_sent',
   [AuditEventType.sessionIssued]: 'session_issued',
   [AuditEventType.sessionRevoked]: 'session_revoked',
+  [AuditEventType.sessionExchanged]: 'session_exchanged',
+  [AuditEventType.documentViewed]: 'document_viewed',
   [AuditEventType.consentRecorded]: 'consent_recorded',
   [AuditEventType.signerSigned]: 'signer_signed',
   [AuditEventType.signerDeclined]: 'signer_declined',

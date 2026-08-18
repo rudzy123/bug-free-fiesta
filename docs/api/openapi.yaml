@@ -3,7 +3,8 @@ info:
   title: Electronic signature API
   version: 0.0.0
   description: >
-    Public HTTP surface. Health, account-user authentication, and document ingestion.
+    Public HTTP surface. Health, account-user authentication, document ingestion,
+    preparation, send, and the signer-facing session API.
     This document is not a legal or compliance statement.
 servers:
   - url: http://localhost:4000
@@ -532,29 +533,184 @@ paths:
       responses:
         '200':
           description: Session revoked
-  /signing/session:
+  /signing/exchange:
     post:
-      summary: Open a signer session from the bearer token
-      operationId: openSigningSession
+      summary: Exchange a URL signing token for a session cookie
+      operationId: exchangeSigningToken
       description: >
-        Document id and signer id in the body are untrusted claims. Identities
-        are loaded from the token hash. A mismatched claim is 401.
+        One-time exchange. The presented token is hashed immediately and looked
+        up by hash. A new HttpOnly cookie token is stored as a hash; the URL
+        token cannot be replayed. Invalid, expired, revoked, and unknown tokens
+        share the same 401. Query-string tokens are accepted only here so they
+        can be consumed; prefer the JSON body. Signer, document, and organization
+        ids in the body are not authorization evidence and are rejected.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional URL token from an email link. Consumed on success. Never log.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeSigningTokenRequest'
+      responses:
+        '200':
+          description: Cookie session issued. CSRF cookie is readable; session cookie is HttpOnly.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+            Referrer-Policy:
+              schema:
+                type: string
+                example: no-referrer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeSigningTokenResponse'
+        '401':
+          description: Missing, unknown, revoked, expired, or already exchanged token
+        '429':
+          description: Rate limited
+  /signing/session:
+    get:
+      summary: Resolve the current signing session
+      operationId: getSigningSession
+      description: Identity comes from the hashed cookie or bearer token, not from path or body ids.
+      security: []
+      responses:
+        '200':
+          description: Safe session metadata without tenant internals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignerSession'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+  /signing/document:
+    get:
+      summary: Safe document and signer metadata
+      operationId: getSigningDocument
+      security: []
+      responses:
+        '200':
+          description: Title, mode, page count, and this signer's display name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignerDocument'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+  /signing/fields:
+    get:
+      summary: Server-owned fields assigned to this signer
+      operationId: getSigningFields
+      security: []
+      responses:
+        '200':
+          description: Geometry for this signer only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignerFields'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+  /signing/consent:
+    get:
+      summary: Required consent disclosure and version
+      operationId: getSigningConsent
+      security: []
+      responses:
+        '200':
+          description: Current consent copy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignerConsent'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+    post:
+      summary: Record explicit consent
+      operationId: recordSigningConsent
+      description: Cookie-authenticated. Requires CSRF and an allowed Origin. copyId must match the current disclosure.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordSignerConsentRequest'
+      responses:
+        '200':
+          description: Consent recorded (idempotent per session)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordSignerConsentResponse'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+        '403':
+          description: CSRF rejected
+  /signing/previews:
+    post:
+      summary: Issue a short-lived document preview URL
+      operationId: issueSigningPreview
+      security: []
+      responses:
+        '201':
+          description: Preview grant for this session's document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuePreviewResponse'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+  /signing/viewed:
+    post:
+      summary: Record that the signer viewed the document
+      operationId: recordSigningViewed
+      security: []
+      responses:
+        '200':
+          description: View recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordSignerViewedResponse'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+  /signing/decline:
+    post:
+      summary: Decline to sign
+      operationId: declineToSign
+      description: Optional sanitized reason (max 500 characters). Does not expose tenant internals.
       security: []
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignerSessionClaim'
+              $ref: '#/components/schemas/DeclineToSignRequest'
       responses:
         '200':
-          description: Session bound to the token
+          description: Signer and document marked declined
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SignerSession'
+                $ref: '#/components/schemas/DeclineToSignResponse'
         '401':
-          description: Missing, unknown, revoked, expired, or mismatched token
+          description: Missing, unknown, revoked, or expired token
+        '409':
+          description: Signer cannot act now
 components:
   schemas:
     Liveness:
@@ -961,21 +1117,40 @@ components:
           format: date-time
         token:
           type: string
-    SignerSessionClaim:
+    ExchangeSigningTokenRequest:
       type: object
       additionalProperties: false
       properties:
-        documentId:
+        token:
+          type: string
+    ExchangeSigningTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [sessionId, expiresAt]
+      properties:
+        sessionId:
           type: string
           format: uuid
-        signerId:
+        expiresAt:
           type: string
-          format: uuid
+          format: date-time
     SignerSession:
       type: object
       additionalProperties: false
       required:
-        [documentId, signerId, sessionId, sessionStatus, title, signingMode, expiresAt, fields]
+        [
+          documentId,
+          signerId,
+          sessionId,
+          sessionStatus,
+          title,
+          signingMode,
+          expiresAt,
+          signerDisplayName,
+          signerStatus,
+          consentRequired,
+          consented,
+        ]
       properties:
         documentId:
           type: string
@@ -997,12 +1172,44 @@ components:
         expiresAt:
           type: string
           format: date-time
+        signerDisplayName:
+          type: string
+        signerStatus:
+          type: string
+          enum: [pending, signed, declined]
+        consentRequired:
+          type: boolean
+        consented:
+          type: boolean
+    SignerDocument:
+      type: object
+      additionalProperties: false
+      required: [documentId, title, signingMode, pageCount, signerDisplayName]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        signingMode:
+          type: string
+          enum: [ordered, parallel]
+        pageCount:
+          type: integer
+          nullable: true
+        signerDisplayName:
+          type: string
+    SignerFields:
+      type: object
+      additionalProperties: false
+      required: [fields]
+      properties:
         fields:
           type: array
           items:
             type: object
             additionalProperties: false
-            required: [fieldId, type, pageNumber, required]
+            required: [fieldId, type, pageNumber, x, y, width, height, required]
             properties:
               fieldId:
                 type: string
@@ -1011,5 +1218,83 @@ components:
                 type: string
               pageNumber:
                 type: integer
+              x:
+                type: number
+              y:
+                type: number
+              width:
+                type: number
+              height:
+                type: number
               required:
                 type: boolean
+    SignerConsent:
+      type: object
+      additionalProperties: false
+      required: [copyId, version, title, text, required, accepted]
+      properties:
+        copyId:
+          type: string
+        version:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        required:
+          type: boolean
+          enum: [true]
+        accepted:
+          type: boolean
+    RecordSignerConsentRequest:
+      type: object
+      additionalProperties: false
+      required: [copyId, accepted]
+      properties:
+        copyId:
+          type: string
+        accepted:
+          type: boolean
+          enum: [true]
+    RecordSignerConsentResponse:
+      type: object
+      additionalProperties: false
+      required: [consentId, copyId, acceptedAt]
+      properties:
+        consentId:
+          type: string
+          format: uuid
+        copyId:
+          type: string
+        acceptedAt:
+          type: string
+          format: date-time
+    RecordSignerViewedResponse:
+      type: object
+      additionalProperties: false
+      required: [viewed]
+      properties:
+        viewed:
+          type: boolean
+          enum: [true]
+    DeclineToSignRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+    DeclineToSignResponse:
+      type: object
+      additionalProperties: false
+      required: [documentId, signerId, status]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        signerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [declined]

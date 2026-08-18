@@ -65,6 +65,8 @@ export const AUDIT_EVENT_TYPES = [
   'document_sent',
   'session_issued',
   'session_revoked',
+  'session_exchanged',
+  'document_viewed',
   'consent_recorded',
   'signer_signed',
   'signer_declined',
@@ -231,6 +233,7 @@ export type SigningSession = {
   readonly documentId: string;
   readonly signerId: string;
   readonly tokenHash: string;
+  readonly csrfTokenHash: string | null;
   readonly status: SigningSessionStatus;
   readonly expiresAt: Date;
   readonly consumedAt: Date | null;

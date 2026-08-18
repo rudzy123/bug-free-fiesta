@@ -138,6 +138,7 @@ export function createSendDocument(deps: {
           documentId: document.id,
           signerId: signer.id,
           tokenHash: deps.hasher.hash(rawToken),
+          csrfTokenHash: null,
           status: 'issued',
           expiresAt: new Date(now.getTime() + deps.sessionTtlMs),
           consumedAt: null,

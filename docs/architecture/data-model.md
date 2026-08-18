@@ -60,6 +60,7 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 | `signers_organization_id_document_id_routing_order_idx`      | Routing checks: who may sign now (ordered vs parallel).                               |
 | `signers_account_user_id_idx`                                | Optional link from account user to signer rows.                                       |
 | `signing_sessions_tokenHash_key`                             | Present bearer token: hash then lookup session.                                       |
+| `signing_sessions` `csrfTokenHash`                           | Double-submit CSRF for the exchanged signer cookie.                                   |
 | `signing_sessions_organization_id_id_key`                    | Composite FK from consent to session in the same tenant.                              |
 | `signing_sessions_organization_id_document_id_signer_id_idx` | List sessions for a signer on a document.                                             |
 | `signing_sessions_signer_id_status_idx`                      | Find issued/active session before re-issue.                                           |

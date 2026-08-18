@@ -1,4 +1,11 @@
-import type { AuditActorType, AuditEvent, AuditEventType, OutboxEvent } from '../entities.js';
+import type {
+  AuditActorType,
+  AuditEvent,
+  AuditEventType,
+  Document,
+  OutboxEvent,
+  Signer,
+} from '../entities.js';
 
 export type Clock = {
   nowUtc: () => Date;
@@ -100,4 +107,25 @@ export type SigningInvitation = {
 
 export type Notifier = {
   sendSigningInvitation: (message: SigningInvitation) => Promise<void>;
+};
+
+export type ClientRequestMetadata = {
+  readonly untrustedClientIp: string | null;
+  readonly untrustedUserAgent: string | null;
+};
+
+export type ConsentDisclosure = {
+  readonly copyId: string;
+  readonly version: string;
+  readonly title: string;
+  readonly text: string;
+};
+
+export type ConsentDisclosureCatalog = {
+  current: () => ConsentDisclosure;
+  findByCopyId: (copyId: string) => ConsentDisclosure | null;
+};
+
+export type SigningEnvelopePolicy = {
+  requiresAccountAuth: (input: { document: Document; signer: Signer }) => boolean;
 };

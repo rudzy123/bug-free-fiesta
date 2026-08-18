@@ -114,6 +114,8 @@ enum AuditEventType {
   documentSent          @map("document_sent")
   sessionIssued         @map("session_issued")
   sessionRevoked        @map("session_revoked")
+  sessionExchanged      @map("session_exchanged")
+  documentViewed        @map("document_viewed")
   consentRecorded       @map("consent_recorded")
   signerSigned          @map("signer_signed")
   signerDeclined        @map("signer_declined")
@@ -400,6 +402,7 @@ model SigningSession {
   documentId               String                @db.Uuid
   signerId                 String                @db.Uuid
   tokenHash                String                @unique @db.Char(64)
+  csrfTokenHash            String?               @db.Char(64)
   status                   SigningSessionStatus  @default(issued)
   expiresAt                DateTime              @db.Timestamptz
   consumedAt               DateTime?             @db.Timestamptz

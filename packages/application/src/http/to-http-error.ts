@@ -31,6 +31,8 @@ const SECRET_DETAIL_KEYS = new Set([
   'pdfBytes',
   'documentBytes',
   'uploadToken',
+  'csrfToken',
+  'sessionToken',
 ]);
 
 function redactDetails(details: ApplicationErrorDetails): ApplicationErrorDetails | undefined {

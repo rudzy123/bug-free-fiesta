@@ -35,6 +35,8 @@ Three boundaries remain:
 
 Do not put account-user cookies on signer-only actions or signing tokens in account-user logs.
 
+Signer browser sessions after `POST /signing/exchange` use a separate HttpOnly cookie (`esign_sign`, path `/signing`) and CSRF cookie (`esign_sign_csrf`). Only hashes are stored. Account-user cookies are not treated as signer identity unless envelope policy requires a matching account.
+
 ## Consequences
 
 - Two UI surfaces (owner vs signer) with different auth middleware.

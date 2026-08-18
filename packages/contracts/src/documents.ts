@@ -190,10 +190,19 @@ export const revokeSessionResponseSchema = z
   })
   .strict();
 
-export const signerSessionClaimSchema = z
+export const SIGNING_SESSION_COOKIE_NAME_DEFAULT = 'esign_sign';
+export const SIGNING_CSRF_COOKIE_NAME_DEFAULT = 'esign_sign_csrf';
+
+export const exchangeSigningTokenRequestSchema = z
   .object({
-    documentId: z.string().uuid().optional(),
-    signerId: z.string().uuid().optional(),
+    token: z.string().min(1).max(512).optional(),
+  })
+  .strict();
+
+export const exchangeSigningTokenResponseSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    expiresAt: z.string().datetime(),
   })
   .strict();
 
@@ -206,15 +215,86 @@ export const signerSessionResponseSchema = z
     title: z.string().min(1),
     signingMode: signingModeSchema,
     expiresAt: z.string().datetime(),
+    signerDisplayName: z.string().min(1),
+    signerStatus: signerStatusSchema,
+    consentRequired: z.boolean(),
+    consented: z.boolean(),
+  })
+  .strict();
+
+export const signerDocumentResponseSchema = z
+  .object({
+    documentId: z.string().uuid(),
+    title: z.string().min(1),
+    signingMode: signingModeSchema,
+    pageCount: z.number().int().positive().nullable(),
+    signerDisplayName: z.string().min(1),
+  })
+  .strict();
+
+export const signerFieldsResponseSchema = z
+  .object({
     fields: z.array(
       z
         .object({
           fieldId: z.string().uuid(),
           type: signatureFieldTypeSchema,
           pageNumber: z.number().int().positive(),
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number(),
           required: z.boolean(),
         })
         .strict(),
     ),
   })
   .strict();
+
+export const signerConsentResponseSchema = z
+  .object({
+    copyId: z.string().min(1),
+    version: z.string().min(1),
+    title: z.string().min(1),
+    text: z.string().min(1),
+    required: z.literal(true),
+    accepted: z.boolean(),
+  })
+  .strict();
+
+export const recordSignerConsentRequestSchema = z
+  .object({
+    copyId: z.string().min(1).max(120),
+    accepted: z.literal(true),
+  })
+  .strict();
+
+export const recordSignerConsentResponseSchema = z
+  .object({
+    consentId: z.string().uuid(),
+    copyId: z.string().min(1),
+    acceptedAt: z.string().datetime(),
+  })
+  .strict();
+
+export const recordSignerViewedResponseSchema = z
+  .object({
+    viewed: z.literal(true),
+  })
+  .strict();
+
+export const declineToSignRequestSchema = z
+  .object({
+    reason: z.string().max(500).optional(),
+  })
+  .strict();
+
+export const declineToSignResponseSchema = z
+  .object({
+    documentId: z.string().uuid(),
+    signerId: z.string().uuid(),
+    status: z.literal('declined'),
+  })
+  .strict();
+
+export const signerPreviewResponseSchema = issuePreviewResponseSchema;

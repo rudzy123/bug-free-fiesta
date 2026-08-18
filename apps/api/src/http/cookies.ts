@@ -5,6 +5,7 @@ export type SessionCookieSettings = {
   readonly csrfCookieName: string;
   readonly secure: boolean;
   readonly maxAgeSeconds: number;
+  readonly path?: string;
 };
 
 export function parseCookieHeader(header: string | undefined): Map<string, string> {
@@ -44,7 +45,7 @@ function sessionCookieOptions(settings: SessionCookieSettings): CookieOptions {
     httpOnly: true,
     secure: settings.secure,
     sameSite: 'lax',
-    path: '/',
+    path: settings.path ?? '/',
     maxAge: settings.maxAgeSeconds * 1000,
   };
 }
@@ -54,7 +55,7 @@ function csrfCookieOptions(settings: SessionCookieSettings): CookieOptions {
     httpOnly: false,
     secure: settings.secure,
     sameSite: 'strict',
-    path: '/',
+    path: settings.path ?? '/',
     maxAge: settings.maxAgeSeconds * 1000,
   };
 }

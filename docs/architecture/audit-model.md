@@ -46,6 +46,8 @@ Verification walks the chain from 0 and recomputes hashes. A mismatch is an inci
 | `document_sent`        | Transition to `sent`.                                  |
 | `session_issued`       | Signing session created (store session id, not token). |
 | `session_revoked`      | Void, re-issue, or security revoke.                    |
+| `session_exchanged`    | URL token consumed; cookie token hash stored.          |
+| `document_viewed`      | Signer recorded a view for this session.               |
 | `consent_recorded`     | Consent row written (`consentCopyId`, not full PII).   |
 | `signer_signed`        | Signer completed required fields.                      |
 | `signer_declined`      | Decline.                                               |

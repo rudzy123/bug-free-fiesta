@@ -143,6 +143,30 @@ const apiEnvSchema = z
     ).default('x-preview-token'),
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
     SIGNING_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
+    SIGNING_SESSION_COOKIE_NAME: requiredString(
+      'SIGNING_SESSION_COOKIE_NAME',
+      'esign_sign',
+    ).default('esign_sign'),
+    SIGNING_CSRF_COOKIE_NAME: requiredString('SIGNING_CSRF_COOKIE_NAME', 'esign_sign_csrf').default(
+      'esign_sign_csrf',
+    ),
+    SIGNING_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+    SIGNING_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    SIGNING_CONSENT_COPY_ID: requiredString(
+      'SIGNING_CONSENT_COPY_ID',
+      'esign-disclosure-v1',
+    ).default('esign-disclosure-v1'),
+    SIGNING_CONSENT_VERSION: requiredString('SIGNING_CONSENT_VERSION', '1').default('1'),
+    SIGNING_CONSENT_TITLE: requiredString(
+      'SIGNING_CONSENT_TITLE',
+      'Electronic signature consent',
+    ).default('Electronic signature consent'),
+    SIGNING_CONSENT_TEXT: requiredString(
+      'SIGNING_CONSENT_TEXT',
+      'By selecting Agree, you confirm that you have reviewed this document and intend to sign electronically.',
+    ).default(
+      'By selecting Agree, you confirm that you have reviewed this document and intend to sign electronically. This text is a product placeholder and is not legal advice.',
+    ),
     DOCUMENT_FIELD_OVERLAP_POLICY: z.enum(['prohibit', 'allow']).default('prohibit'),
     NOTIFICATION_ADAPTER: z.enum(['local', 'fail_closed']).default('local'),
     NOTIFICATION_PREVIEW_DIR: requiredString(
@@ -218,6 +242,14 @@ const apiEnvSchema = z
     DOCUMENT_UPLOAD_TOKEN_HEADER: data.DOCUMENT_UPLOAD_TOKEN_HEADER.toLowerCase(),
     DOCUMENT_PREVIEW_TOKEN_HEADER: data.DOCUMENT_PREVIEW_TOKEN_HEADER.toLowerCase(),
     SIGNING_SESSION_TTL_SECONDS: data.SIGNING_SESSION_TTL_SECONDS,
+    SIGNING_SESSION_COOKIE_NAME: data.SIGNING_SESSION_COOKIE_NAME,
+    SIGNING_CSRF_COOKIE_NAME: data.SIGNING_CSRF_COOKIE_NAME,
+    SIGNING_RATE_LIMIT_WINDOW_MS: data.SIGNING_RATE_LIMIT_WINDOW_MS,
+    SIGNING_RATE_LIMIT_MAX: data.SIGNING_RATE_LIMIT_MAX,
+    SIGNING_CONSENT_COPY_ID: data.SIGNING_CONSENT_COPY_ID,
+    SIGNING_CONSENT_VERSION: data.SIGNING_CONSENT_VERSION,
+    SIGNING_CONSENT_TITLE: data.SIGNING_CONSENT_TITLE,
+    SIGNING_CONSENT_TEXT: data.SIGNING_CONSENT_TEXT,
     DOCUMENT_FIELD_OVERLAP_POLICY: data.DOCUMENT_FIELD_OVERLAP_POLICY,
     NOTIFICATION_ADAPTER: data.NOTIFICATION_ADAPTER,
     NOTIFICATION_PREVIEW_DIR: data.NOTIFICATION_PREVIEW_DIR,

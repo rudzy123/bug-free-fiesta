@@ -48,6 +48,17 @@ Until those values are supplied by operators, the OIDC adapter **fails closed**.
 | `AUTH_LOGIN_RATE_LIMIT_MAX`       | `10`           | Per IP and per email digest, per window.         |
 | `AUTH_LOGIN_RATE_LIMIT_WINDOW_MS` | `60000`        | Sliding fixed window in the API process.         |
 
+Signer-facing cookies (after `POST /signing/exchange`):
+
+| Variable                       | Default           | Notes                                    |
+| ------------------------------ | ----------------- | ---------------------------------------- |
+| `SIGNING_SESSION_COOKIE_NAME`  | `esign_sign`      | HttpOnly rotated token; path `/signing`. |
+| `SIGNING_CSRF_COOKIE_NAME`     | `esign_sign_csrf` | Double-submit CSRF for signer mutations. |
+| `SIGNING_RATE_LIMIT_MAX`       | `30`              | Per IP for `/signing/*`.                 |
+| `SIGNING_RATE_LIMIT_WINDOW_MS` | `60000`           | Fixed window in the API process.         |
+
+The URL token is consumed during exchange. Do not log query strings that may contain it.
+
 ## What not to do
 
 - Do not put passwords, session tokens, or CSRF tokens in logs or audit payloads.

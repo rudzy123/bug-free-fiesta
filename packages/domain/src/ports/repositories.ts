@@ -77,6 +77,11 @@ export type DocumentRepository = {
     signingRevisionId: string;
     expiresAt: Date | null;
   }) => Promise<Document>;
+  markDeclined: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+  }) => Promise<Document>;
 };
 
 export type DocumentRevisionRepository = {
@@ -138,6 +143,12 @@ export type SignerRepository = {
     documentId: string;
     signers: readonly Signer[];
   }) => Promise<readonly Signer[]>;
+  markDeclined: (input: {
+    organizationId: string;
+    signerId: string;
+    expectedVersion: number;
+    declinedAt: Date;
+  }) => Promise<Signer>;
 };
 
 export type SigningSessionRepository = {
@@ -173,6 +184,14 @@ export type SigningSessionRepository = {
     sessionId: string;
     expiredAt: Date;
   }) => Promise<SigningSession>;
+  consumeAndRotate: (input: {
+    organizationId: string;
+    sessionId: string;
+    expectedVersion: number;
+    tokenHash: string;
+    csrfTokenHash: string;
+    consumedAt: Date;
+  }) => Promise<SigningSession>;
 };
 
 export type SigningTokenLookup = {
@@ -194,10 +213,15 @@ export type SignatureFieldRepository = {
 
 export type ConsentRecordRepository = {
   findById: (input: { organizationId: string; consentId: string }) => Promise<ConsentRecord | null>;
+  findBySession: (input: {
+    organizationId: string;
+    sessionId: string;
+  }) => Promise<ConsentRecord | null>;
   listByDocument: (input: {
     organizationId: string;
     documentId: string;
   }) => Promise<readonly ConsentRecord[]>;
+  create: (input: { organizationId: string; consent: ConsentRecord }) => Promise<ConsentRecord>;
 };
 
 export type FinalizedArtifactRepository = {

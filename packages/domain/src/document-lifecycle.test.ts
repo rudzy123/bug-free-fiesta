@@ -18,7 +18,7 @@ import {
   isAvailableForSigning,
   isPreparationLocked,
 } from './document-lifecycle.js';
-import { assertSignerRouting } from './signing-mode.js';
+import { assertSignerRouting, canSignerActNow } from './signing-mode.js';
 import { assertFieldLayout } from './field-geometry.js';
 import { ValidationError } from './errors.js';
 
@@ -181,5 +181,24 @@ describe('signing mode and field layout', () => {
         overlapPolicy: 'prohibit',
       }),
     ).not.toThrow();
+  });
+
+  it('allows the current ordered signer and any pending parallel signer to act', () => {
+    const first = { id: 'a', routingOrder: 1, status: 'pending' as const };
+    const second = { id: 'b', routingOrder: 2, status: 'pending' as const };
+    expect(
+      canSignerActNow({ signingMode: 'ordered', actor: first, signers: [first, second] }),
+    ).toBe(true);
+    expect(
+      canSignerActNow({ signingMode: 'ordered', actor: second, signers: [first, second] }),
+    ).toBe(false);
+    const parallel = { ...second, routingOrder: 1 };
+    expect(
+      canSignerActNow({
+        signingMode: 'parallel',
+        actor: parallel,
+        signers: [{ ...first, routingOrder: 1 }, parallel],
+      }),
+    ).toBe(true);
   });
 });

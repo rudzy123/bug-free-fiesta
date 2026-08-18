@@ -24,7 +24,19 @@ export function createApiApp(options: CreateApiAppOptions): Express {
   const app = express();
   app.disable('x-powered-by');
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      referrerPolicy: { policy: 'no-referrer' },
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+        },
+      },
+    }),
+  );
   app.use(createRequestIdMiddleware(options.config.CORRELATION_ID_HEADER));
   app.use(
     cors({

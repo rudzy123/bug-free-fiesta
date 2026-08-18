@@ -60,4 +60,4 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 
 ## API
 
-Health, authentication, document ingestion, preparation, and send are described in [docs/api/openapi.yaml](api/openapi.yaml).
+Health, authentication, document ingestion, preparation, send, and the signer-facing API are described in [docs/api/openapi.yaml](api/openapi.yaml).
