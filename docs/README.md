@@ -39,6 +39,7 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 | [Threat model](security/threat-model.md)                     | Attacks and residual risk               |
 | [Security controls](security/security-controls.md)           | Technical controls (not certifications) |
 | [Privacy considerations](security/privacy-considerations.md) | Data minimization and legal flags       |
+| [Authentication setup](security/authentication-setup.md)     | Local adapter and OIDC configuration    |
 
 ## Runbooks
 

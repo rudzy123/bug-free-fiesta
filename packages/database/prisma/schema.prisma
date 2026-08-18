@@ -18,6 +18,7 @@ enum MembershipRole {
   owner
   admin
   member
+  readOnly              @map("read_only")
 
   @@map("membership_role")
 }
@@ -128,6 +129,15 @@ enum IdempotencyPrincipalType {
   @@map("idempotency_principal_type")
 }
 
+enum AccountSecurityEventType {
+  loginSucceeded        @map("login_succeeded")
+  loginFailed           @map("login_failed")
+  logout
+  sessionRevoked        @map("session_revoked")
+
+  @@map("account_security_event_type")
+}
+
 model Organization {
   id        String   @id @db.Uuid
   name      String
@@ -161,6 +171,7 @@ model User {
 
   memberships OrganizationMembership[]
   signerLinks Signer[]
+  accountSessions AccountSession[]
 
   @@map("users")
 }
@@ -181,6 +192,39 @@ model OrganizationMembership {
   @@unique([organizationId, id], map: "organization_memberships_organization_id_id_key")
   @@index([userId], map: "organization_memberships_user_id_idx")
   @@map("organization_memberships")
+}
+
+/// Browser session for an account user. Token hashed at rest. Not tenant-scoped.
+model AccountSession {
+  id            String    @id @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique @db.Char(64)
+  csrfTokenHash String    @db.Char(64)
+  expiresAt     DateTime  @db.Timestamptz
+  revokedAt     DateTime? @db.Timestamptz
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId], map: "account_sessions_user_id_idx")
+  @@index([expiresAt], map: "account_sessions_expires_at_idx")
+  @@map("account_sessions")
+}
+
+/// Append-only account authentication events. Not document-chained.
+model AccountSecurityEvent {
+  id          String                    @id @db.Uuid
+  type        AccountSecurityEventType
+  actorUserId String?                   @db.Uuid
+  sessionId   String?                   @db.Uuid
+  requestId   String?
+  occurredAt  DateTime                  @db.Timestamptz
+  payload     Json
+  createdAt   DateTime                  @default(now()) @db.Timestamptz
+
+  @@index([actorUserId, occurredAt], map: "account_security_events_actor_occurred_idx")
+  @@index([requestId], map: "account_security_events_request_id_idx")
+  @@map("account_security_events")
 }
 
 model Document {

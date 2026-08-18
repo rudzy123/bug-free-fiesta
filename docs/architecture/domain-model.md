@@ -49,7 +49,7 @@ A person who can authenticate to the SaaS (password, later SSO). Has an opaque `
 
 ### Organization / tenant member
 
-A membership row: this account user belongs to this tenant with a role (for v1: `owner`, `admin`, `member`). Authorization for tenant resources is based on membership plus role, never on “logged in.” An account user may belong to multiple tenants; the active tenant is chosen server-side from membership, not from a client-supplied tenant header.
+A membership row: this account user belongs to this tenant with a role (for v1: `owner`, `admin`, `member`, `read_only`). Authorization for tenant resources is based on membership plus role, never on “logged in.” An account user may belong to multiple tenants; the active tenant is chosen server-side from membership, not from a client-supplied tenant header.
 
 ### Document owner
 

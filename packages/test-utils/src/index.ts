@@ -50,6 +50,9 @@ export function apiEnv(overrides: Record<string, string | undefined> = {}): Node
     CORRELATION_ID_HEADER: 'x-correlation-id',
     SHUTDOWN_TIMEOUT_MS: '1000',
     DATABASE_URL: 'postgresql://esign:esign_dev_password@localhost:5432/esign',
+    AUTH_PROVIDER: 'local',
+    AUTH_LOCAL_SHARED_SECRET: 'local-dev-only-shared-secret',
+    AUTH_COOKIE_SECURE: 'false',
     ...overrides,
   };
 }

@@ -59,5 +59,7 @@ export {
   createPrismaTenantRepositories,
   createPrismaUnitOfWork,
   createPrismaUserRepository,
+  createPrismaAccountSessionRepository,
+  createPrismaAccountSecurityAuditWriter,
 } from './infrastructure/index.js';
 export type { PrismaClientOrTx } from './infrastructure/index.js';

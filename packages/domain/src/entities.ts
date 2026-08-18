@@ -96,6 +96,35 @@ export type OrganizationMembership = {
   readonly updatedAt: Date;
 };
 
+export const ACCOUNT_SECURITY_EVENT_TYPES = [
+  'login_succeeded',
+  'login_failed',
+  'logout',
+  'session_revoked',
+] as const;
+export type AccountSecurityEventType = (typeof ACCOUNT_SECURITY_EVENT_TYPES)[number];
+
+export type AccountSession = {
+  readonly id: string;
+  readonly userId: string;
+  readonly tokenHash: string;
+  readonly csrfTokenHash: string;
+  readonly expiresAt: Date;
+  readonly revokedAt: Date | null;
+  readonly createdAt: Date;
+};
+
+export type AccountSecurityEvent = {
+  readonly id: string;
+  readonly type: AccountSecurityEventType;
+  readonly actorUserId: string | null;
+  readonly sessionId: string | null;
+  readonly requestId: string | null;
+  readonly occurredAt: Date;
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly createdAt: Date;
+};
+
 export type Document = {
   readonly id: string;
   readonly organizationId: string;

@@ -43,6 +43,11 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 | `organization_memberships_user_id_idx`                       | List tenants for an authenticated account user.                                       |
 | `organization_memberships_organization_id_user_id_key`       | One membership per user per tenant; authorize `(org, user)`.                          |
 | `organization_memberships_organization_id_id_key`            | Composite FK from `documents.ownerMembershipId` so the owner belongs to the same org. |
+| `account_sessions_tokenHash_key`                             | Present account session cookie: hash then lookup.                                     |
+| `account_sessions_user_id_idx`                               | List or revoke sessions for an account user.                                          |
+| `account_sessions_expires_at_idx`                            | Expire account sessions from the server clock.                                        |
+| `account_security_events_actor_occurred_idx`                 | Account login/logout/revoke history for an opaque user id.                            |
+| `account_security_events_request_id_idx`                     | Correlate account security events with a request id.                                  |
 | `documents_organization_id_id_key`                           | Composite FK target for all document children (tenant-safe joins).                    |
 | `documents_organization_id_state_idx`                        | Tenant document lists filtered by state (`draft`, `sent`, …).                         |
 | `documents_organization_id_created_at_idx`                   | Tenant document lists ordered by recency.                                             |

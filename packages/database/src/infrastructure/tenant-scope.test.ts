@@ -218,7 +218,7 @@ describe('tenant query source guards', () => {
     );
     const violations: string[] = [];
     for (const file of files) {
-      if (file === 'prisma-token-lookup.ts') {
+      if (file === 'prisma-token-lookup.ts' || file === 'prisma-account-session.ts') {
         continue;
       }
       const source = readFileSync(join(INFRA_DIR, file), 'utf8');

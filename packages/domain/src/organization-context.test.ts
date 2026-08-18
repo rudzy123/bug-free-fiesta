@@ -19,7 +19,11 @@ describe('organization context', () => {
     const actor: RequestActor = {
       type: 'account_user',
       userId: '22222222-2222-4222-8222-222222222222',
-      membership: { organizationId: ORG, role: 'member' },
+      membership: {
+        membershipId: '77777777-7777-4777-8777-777777777777',
+        organizationId: ORG,
+        role: 'member',
+      },
     };
     expect(organizationContextFromActor(actor).organizationId).toBe(ORG);
   });

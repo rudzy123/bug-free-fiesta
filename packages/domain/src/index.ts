@@ -22,9 +22,13 @@ export {
   SIGNATURE_FIELD_TYPES,
   AUDIT_ACTOR_TYPES,
   AUDIT_EVENT_TYPES,
+  ACCOUNT_SECURITY_EVENT_TYPES,
   OUTBOX_STATUSES,
   BACKGROUND_JOB_STATUSES,
   IDEMPOTENCY_PRINCIPAL_TYPES,
+  type AccountSecurityEvent,
+  type AccountSecurityEventType,
+  type AccountSession,
   type AccountUser,
   type AuditEvent,
   type AuditActorType,
@@ -94,6 +98,13 @@ export type {
   SigningTokenHasher,
   StoredObjectMetadata,
 } from './ports/services.js';
+export type { AuthenticatedIdentity, IdentityProvider } from './ports/identity-provider.js';
+export type { AccountSessionRepository } from './ports/account-session.js';
+export type {
+  AccountSecurityAuditWriter,
+  NewAccountSecurityEvent,
+} from './ports/security-audit.js';
+export type { RateLimitDecision, RateLimiter } from './ports/rate-limiter.js';
 export {
   AUTHORIZATION_ACTIONS,
   type AuthorizationAction,

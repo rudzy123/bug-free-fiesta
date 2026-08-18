@@ -14,7 +14,7 @@ Capstone for the v1 architecture. Application code is not implemented; these dec
 | Hash-chained append-only audit                     | [0006](adrs/0006-hash-chained-append-only-audit.md)        | Integrity detection, not a legal archive              |
 | Server-owned field geometry                        | [0007](adrs/0007-server-owned-signature-placement.md)      | Browser coordinates are not trusted                   |
 | Idempotency keys + unique constraints              | [0008](adrs/0008-idempotency-strategy.md)                  | Safe retries and duplicate jobs                       |
-| Account-user vs signer vs worker auth              | [0009](adrs/0009-authentication-boundaries.md)             | Stolen link ≠ tenant admin                            |
+| Account-user vs signer vs worker auth              | [0009](adrs/0009-authentication-boundaries.md)             | Cookie sessions, membership roles, provider port      |
 | Content-addressed artifacts                        | [0010](adrs/0010-content-addressed-finalized-artifacts.md) | Immutable keys; retry-safe uploads                    |
 | Transactional outbox as the job queue              | [0011](adrs/0011-outbox-pattern.md)                        | No dual-write to an external queue in v1              |
 | UTC instants only                                  | [0012](adrs/0012-utc-timestamp-handling.md)                | Expiry and audit use the server clock                 |

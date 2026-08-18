@@ -64,9 +64,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 ### Forged proxy headers
 
-**Impact:** Attacker sets `X-Forwarded-For`, `X-Tenant-Id`, `X-User-Id` to bypass authz or poison audit.
+**Impact:** Attacker sets `X-Forwarded-For`, `X-Tenant-Id`, `X-User-Id`, or `X-Organization-Id` to bypass authz or poison audit.
 
-**Mitigations:** Identity only from verified session/cookie/token. Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
+**Mitigations:** Identity only from verified session/cookie/token. Organization access is loaded from authenticated membership, never from a client tenant header. Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
 
 **Residual:** Misconfigured edge.
 
@@ -122,9 +122,25 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Browser of a logged-in account user sends a send/void mutation.
 
-**Mitigations:** SameSite cookies; CSRF token or custom header for cookie-auth routes; signer bearer flows not relying on account cookies; no state-changing GET.
+**Mitigations:** HttpOnly session cookie with SameSite=Lax; CSRF cookie SameSite=Strict plus `X-CSRF-Token` matched to a server-stored hash; Origin/Referer allowlist for cookie-authenticated mutations; signer bearer flows not relying on account cookies; no state-changing GET.
 
 **Residual:** XSS makes CSRF less relevant (see XSS).
+
+### Session fixation and stolen account sessions
+
+**Impact:** Attacker sets a session cookie before login, or reuses a captured cookie after logout.
+
+**Mitigations:** Login always creates a new opaque session token and revokes any presented prior session; tokens stored only as SHA-256 hashes; logout and explicit session revocation; expiry from the server clock; HttpOnly cookies.
+
+**Residual:** A stolen active cookie works until expiry or revoke. XSS can still read the non-HttpOnly CSRF cookie.
+
+### Account enumeration
+
+**Impact:** Attacker learns which emails have accounts via login errors or timing.
+
+**Mitigations:** Same 401 public message for unknown email and bad secret; local adapter always performs a timing-safe secret compare; failed-login audit events omit email and secrets; rate limits on login by IP and email digest.
+
+**Residual:** Coarse timing of the user lookup; email validity format still returns 400.
 
 ### XSS
 

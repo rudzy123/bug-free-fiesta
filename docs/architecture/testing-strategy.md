@@ -38,6 +38,7 @@ Do not hit production services. Do not assert on secrets, raw tokens, or full PI
 - Stolen expired token fails.
 - Oversize body and non-PDF magic bytes rejected.
 - CSRF: cookie-authenticated mutation without token rejected.
+- Unauthenticated, unauthorized role, wrong organization, revoked session, and expired session fail closed.
 - Forged `X-Tenant-Id` ignored.
 
 **Audit**

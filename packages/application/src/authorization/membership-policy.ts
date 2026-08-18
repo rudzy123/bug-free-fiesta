@@ -24,6 +24,7 @@ const ACCOUNT_USER_ACTIONS: Readonly<Record<string, readonly AuthorizationAction
     'document.download_artifact',
   ],
   member: ['organization.membership.read', 'document.read', 'document.write', 'document.send'],
+  read_only: ['organization.membership.read', 'document.read'],
 };
 
 function deny(details: Record<string, unknown>): never {

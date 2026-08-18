@@ -14,6 +14,30 @@ describe('environment validation', () => {
     expect(config.CORS_ORIGINS).toEqual(['http://localhost:3000']);
     expect(config.JSON_BODY_LIMIT).toBe('1mb');
     expect(config.CORRELATION_ID_HEADER).toBe('x-correlation-id');
+    expect(config.AUTH_PROVIDER).toBe('local');
+    expect(config.AUTH_COOKIE_SECURE).toBe(false);
+  });
+
+  it('rejects the local identity adapter in production', () => {
+    expect(() =>
+      loadApiConfig(
+        apiEnv({
+          NODE_ENV: 'production',
+          AUTH_PROVIDER: 'local',
+        }),
+      ),
+    ).toThrow(/AUTH_PROVIDER=local is not allowed in production/);
+  });
+
+  it('requires OIDC settings when AUTH_PROVIDER=oidc without inventing values', () => {
+    expect(() =>
+      loadApiConfig(
+        apiEnv({
+          AUTH_PROVIDER: 'oidc',
+          AUTH_LOCAL_SHARED_SECRET: undefined,
+        }),
+      ),
+    ).toThrow(/AUTH_OIDC_ISSUER/);
   });
 
   it('fails fast with an actionable message when DATABASE_URL is missing', () => {

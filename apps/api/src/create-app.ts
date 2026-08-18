@@ -1,10 +1,11 @@
-import express, { type Express } from 'express';
+import express, { type Express, type Router } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import type { ApiConfig } from '@esign/config';
 import type { Logger } from '@esign/logger';
 import type { HealthService } from './application/health-service.js';
 import { createRequestIdMiddleware } from './http/middleware/request-id.js';
+import { createCookieParser } from './http/middleware/cookies.js';
 import { createHttpLogger } from './http/middleware/http-logger.js';
 import { createErrorHandler } from './http/middleware/error-handler.js';
 import { notFoundHandler } from './http/middleware/not-found.js';
@@ -15,6 +16,7 @@ export type CreateApiAppOptions = {
   logger: Logger;
   health: HealthService;
   extraRoutes?: (app: Express) => void;
+  accountAuthRouter?: Router;
 };
 
 export function createApiApp(options: CreateApiAppOptions): Express {
@@ -30,8 +32,13 @@ export function createApiApp(options: CreateApiAppOptions): Express {
     }),
   );
   app.use(express.json({ limit: options.config.JSON_BODY_LIMIT }));
+  app.use(createCookieParser());
   app.use(createHttpLogger(options.logger));
   app.use(createHealthRouter(options.health));
+
+  if (options.accountAuthRouter) {
+    app.use(options.accountAuthRouter);
+  }
 
   options.extraRoutes?.(app);
 

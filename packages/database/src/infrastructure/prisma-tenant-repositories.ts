@@ -49,8 +49,17 @@ export function createPrismaUserRepository(prisma: PrismaClientOrTx): UserReposi
       return row ? toDomainUser(row) : null;
     },
     async findByEmail(input) {
-      const row = await prisma.user.findUnique({ where: { email: input.email } });
+      const email = input.email.trim().toLowerCase();
+      const row = await prisma.user.findUnique({ where: { email } });
       return row ? toDomainUser(row) : null;
+    },
+    async listMemberships(input) {
+      const userId = requireOpaqueId(input.userId, 'userId');
+      const rows = await prisma.organizationMembership.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+      });
+      return rows.map(toDomainMembership);
     },
   };
 }

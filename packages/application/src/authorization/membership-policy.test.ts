@@ -17,7 +17,11 @@ describe('membership authorization policy', () => {
         {
           type: 'account_user',
           userId: USER,
-          membership: { organizationId: ORG, role: 'member' },
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'member',
+          },
         },
         'document.read',
         { organizationId: ORG, documentId: DOC },
@@ -31,7 +35,11 @@ describe('membership authorization policy', () => {
         {
           type: 'account_user',
           userId: USER,
-          membership: { organizationId: ORG, role: 'owner' },
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'owner',
+          },
         },
         'document.read',
         { organizationId: OTHER, documentId: DOC },
@@ -45,7 +53,11 @@ describe('membership authorization policy', () => {
         {
           type: 'account_user',
           userId: USER,
-          membership: { organizationId: ORG, role: 'member' },
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'member',
+          },
         },
         'document.void',
         { organizationId: ORG, documentId: DOC },
@@ -71,5 +83,41 @@ describe('membership authorization policy', () => {
     expect(() =>
       policy.assertAllowed(signer, 'document.read', { organizationId: ORG, documentId: DOC }),
     ).toThrow(AuthorizationError);
+  });
+
+  it('denies a read_only member from writing a document', () => {
+    expect(() =>
+      policy.assertAllowed(
+        {
+          type: 'account_user',
+          userId: USER,
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'read_only',
+          },
+        },
+        'document.write',
+        { organizationId: ORG, documentId: DOC },
+      ),
+    ).toThrow(AuthorizationError);
+  });
+
+  it('allows a read_only member to read a document in their tenant', () => {
+    expect(() =>
+      policy.assertAllowed(
+        {
+          type: 'account_user',
+          userId: USER,
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'read_only',
+          },
+        },
+        'document.read',
+        { organizationId: ORG, documentId: DOC },
+      ),
+    ).not.toThrow();
   });
 });

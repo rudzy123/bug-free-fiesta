@@ -8,11 +8,15 @@ const REDACT_PATHS = [
   '*.password',
   '*.token',
   '*.secret',
+  '*.SECRET',
+  '*.csrfToken',
+  '*.sessionToken',
   '*.signature',
   '*.authorization',
   '*.cookie',
   '*.pdfBytes',
   '*.documentBytes',
+  'req.headers["x-csrf-token"]',
 ];
 
 export type { Logger };

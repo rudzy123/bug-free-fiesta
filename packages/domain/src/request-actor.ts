@@ -1,13 +1,14 @@
 import { AuthorizationError } from './errors.js';
 import { organizationContext, type OrganizationContext } from './organization-context.js';
 
-export const MEMBERSHIP_ROLES = ['owner', 'admin', 'member'] as const;
+export const MEMBERSHIP_ROLES = ['owner', 'admin', 'member', 'read_only'] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
 export type AccountUserActor = {
   readonly type: 'account_user';
   readonly userId: string;
   readonly membership: {
+    readonly membershipId: string;
     readonly organizationId: string;
     readonly role: MembershipRole;
   };

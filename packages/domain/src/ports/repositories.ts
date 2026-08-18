@@ -19,6 +19,7 @@ import type { AssertTenantScopedRepository } from './tenant-scope.js';
 export type UserRepository = {
   findById: (input: { userId: string }) => Promise<AccountUser | null>;
   findByEmail: (input: { email: string }) => Promise<AccountUser | null>;
+  listMemberships: (input: { userId: string }) => Promise<readonly OrganizationMembership[]>;
 };
 
 export type OrganizationRepository = {

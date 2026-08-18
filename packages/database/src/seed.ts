@@ -52,6 +52,11 @@ async function seed(): Promise<void> {
       email: 'beau@example.test',
       displayName: 'Beau Example',
     });
+    await createUser(prisma, {
+      id: seedIds.userCora,
+      email: 'cora@example.test',
+      displayName: 'Cora Example',
+    });
     await createMembership(prisma, {
       id: seedIds.membershipNorthAda,
       organizationId: seedIds.orgNorth,
@@ -69,6 +74,12 @@ async function seed(): Promise<void> {
       organizationId: seedIds.orgSouth,
       userId: seedIds.userBeau,
       role: MembershipRole.owner,
+    });
+    await createMembership(prisma, {
+      id: seedIds.membershipSouthCora,
+      organizationId: seedIds.orgSouth,
+      userId: seedIds.userCora,
+      role: MembershipRole.readOnly,
     });
 
     await createDocument(prisma, {

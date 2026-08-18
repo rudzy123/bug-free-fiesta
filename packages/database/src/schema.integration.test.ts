@@ -223,6 +223,28 @@ describe.skipIf(!runInfraTests)('append-only audit', () => {
     expect(persisted?.id).toBe(event.id);
     expect(persisted?.sequence).toBe(0);
   });
+
+  it('rejects update and delete on account security events', async () => {
+    const event = await prisma.accountSecurityEvent.create({
+      data: {
+        id: crypto.randomUUID(),
+        type: 'loginFailed',
+        occurredAt: new Date('2026-08-18T12:00:00.000Z'),
+        payload: { provider: 'local' },
+      },
+    });
+
+    await expect(
+      prisma.accountSecurityEvent.update({
+        where: { id: event.id },
+        data: { type: 'logout' },
+      }),
+    ).rejects.toThrow(/account_security_events are append-only/);
+
+    await expect(prisma.accountSecurityEvent.delete({ where: { id: event.id } })).rejects.toThrow(
+      /account_security_events are append-only/,
+    );
+  });
 });
 
 describe.skipIf(!runInfraTests)('tenant separation', () => {

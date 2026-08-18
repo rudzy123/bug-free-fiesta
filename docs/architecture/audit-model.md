@@ -58,6 +58,8 @@ Verification walks the chain from 0 and recomputes hashes. A mismatch is an inci
 
 Do not put raw tokens, passwords, authorization headers, signature image bytes, or full PDF contents in `payload`.
 
+Account-user login, logout, and session revocation are stored in `account_security_events` (append-only, not hash-chained to a document). Those rows also must not contain emails, secrets, or raw session tokens.
+
 ## Hash algorithm
 
 Use a single platform-wide algorithm (SHA-256 unless an ADR changes it). Record `chainVersion` so verifiers know the canonicalization rules. This is integrity hashing, not a digital signature by a certificate authority.

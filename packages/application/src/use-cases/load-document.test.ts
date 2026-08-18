@@ -52,7 +52,11 @@ describe('loadDocument', () => {
       actor: {
         type: 'account_user',
         userId: USER,
-        membership: { organizationId: ORG, role: 'member' },
+        membership: {
+          membershipId: '77777777-7777-4777-8777-777777777777',
+          organizationId: ORG,
+          role: 'member',
+        },
       },
       documentId: DOC,
     });
@@ -71,7 +75,11 @@ describe('loadDocument', () => {
         actor: {
           type: 'account_user',
           userId: USER,
-          membership: { organizationId: OTHER, role: 'owner' },
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: OTHER,
+            role: 'owner',
+          },
         },
         documentId: DOC,
       }),

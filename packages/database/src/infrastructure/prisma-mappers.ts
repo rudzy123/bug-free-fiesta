@@ -1,4 +1,6 @@
 import type {
+  AccountSession,
+  AccountSecurityEventType as DomainAccountSecurityEventType,
   AuditActorType as DomainAuditActorType,
   AuditEvent,
   AuditEventType as DomainAuditEventType,
@@ -40,20 +42,40 @@ import type {
   Signer as PrismaSigner,
   SigningSession as PrismaSigningSession,
   User as PrismaUser,
+  AccountSession as PrismaAccountSession,
 } from '../generated/client/index.js';
 import {
+  AccountSecurityEventType,
   AuditActorType,
   AuditEventType,
   BackgroundJobStatus,
   DocumentRevisionKind,
   DocumentState,
   IdempotencyPrincipalType,
+  MembershipRole,
   OutboxStatus,
   Prisma,
   SignatureFieldType,
   SignerStatus,
   SigningSessionStatus,
 } from '../generated/client/index.js';
+
+export const MEMBERSHIP_ROLE_TO_DOMAIN: Record<MembershipRole, DomainMembershipRole> = {
+  [MembershipRole.owner]: 'owner',
+  [MembershipRole.admin]: 'admin',
+  [MembershipRole.member]: 'member',
+  [MembershipRole.readOnly]: 'read_only',
+};
+
+export const ACCOUNT_SECURITY_EVENT_TYPE_TO_PRISMA: Record<
+  DomainAccountSecurityEventType,
+  AccountSecurityEventType
+> = {
+  login_succeeded: AccountSecurityEventType.loginSucceeded,
+  login_failed: AccountSecurityEventType.loginFailed,
+  logout: AccountSecurityEventType.logout,
+  session_revoked: AccountSecurityEventType.sessionRevoked,
+};
 
 export const DOCUMENT_STATE_TO_PRISMA: Record<DomainDocumentState, DocumentState> = {
   draft: DocumentState.draft,
@@ -223,7 +245,7 @@ export function toDomainMembership(row: PrismaMembership): OrganizationMembershi
     id: row.id,
     organizationId: row.organizationId,
     userId: row.userId,
-    role: row.role as DomainMembershipRole,
+    role: MEMBERSHIP_ROLE_TO_DOMAIN[row.role],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -429,5 +451,17 @@ export function toDomainIdempotency(row: PrismaIdempotencyRecord): IdempotencyRe
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+}
+
+export function toDomainAccountSession(row: PrismaAccountSession): AccountSession {
+  return {
+    id: row.id,
+    userId: row.userId,
+    tokenHash: row.tokenHash,
+    csrfTokenHash: row.csrfTokenHash,
+    expiresAt: row.expiresAt,
+    revokedAt: row.revokedAt,
+    createdAt: row.createdAt,
   };
 }
