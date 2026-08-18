@@ -18,11 +18,15 @@
     "test:unit": "turbo test:unit",
     "test:integration": "turbo test:integration",
     "test:e2e": "turbo test:e2e --filter=@esign/web",
+    "audit": "pnpm audit --audit-level=high",
     "db:generate": "pnpm --filter @esign/database db:generate",
     "db:migrate": "pnpm --filter @esign/database db:migrate",
+    "db:migrate:deploy": "pnpm --filter @esign/database db:migrate:deploy",
+    "db:migrate:diff": "pnpm --filter @esign/database db:migrate:diff",
+    "db:validate": "pnpm --filter @esign/database db:validate",
     "db:reset": "pnpm --filter @esign/database db:reset",
     "db:seed": "pnpm --filter @esign/database db:seed",
-    "infrastructure:up": "docker compose up -d --wait",
+    "infrastructure:up": "docker compose up -d --wait postgres minio && docker compose run --rm minio-init",
     "infrastructure:down": "docker compose down"
   },
   "devDependencies": {
@@ -37,6 +41,10 @@
       "@prisma/engines",
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "postcss": "8.5.26",
+      "sharp": "0.35.3"
+    }
   }
 }

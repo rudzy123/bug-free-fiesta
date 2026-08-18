@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/rudzy123/bug-free-fiesta/security/advisories/new
+    about: Use GitHub Security Advisories. Do not file public issues with exploits, tokens, or customer documents.

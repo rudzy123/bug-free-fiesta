@@ -1,0 +1,28 @@
+# CI local equivalents
+
+GitHub Actions jobs live in `.github/workflows/`. This table is the source of truth for running the same checks on a developer machine. CI uses `pnpm install --frozen-lockfile`; locally `pnpm install` is enough after a lockfile change you made yourself.
+
+Copy `.env.example` to `.env` (and `packages/database/.env.example` to `packages/database/.env`) before database or infra commands. Use only placeholders.
+
+| CI job                               | Local equivalent                                                                                                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen install                       | `pnpm install --frozen-lockfile`                                                                                                                                                                                        |
+| Formatting check                     | `pnpm format:check`                                                                                                                                                                                                     |
+| Lint                                 | `pnpm lint`                                                                                                                                                                                                             |
+| Typecheck                            | `pnpm typecheck`                                                                                                                                                                                                        |
+| Unit tests with coverage             | `pnpm test:unit`                                                                                                                                                                                                        |
+| Integration tests (Postgres + MinIO) | `pnpm infrastructure:up` then `RUN_INFRA_TESTS=true pnpm test:integration`                                                                                                                                              |
+| Production builds                    | `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000 pnpm build`                                                                                                                                                             |
+| Playwright e2e                       | `pnpm --filter @esign/web exec playwright install chromium` then `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000 pnpm test:e2e`                                                                                         |
+| Prisma schema validation             | `pnpm db:validate`                                                                                                                                                                                                      |
+| Migration verification               | `pnpm infrastructure:up` then `pnpm db:migrate:deploy` then `pnpm db:migrate:diff`                                                                                                                                      |
+| Dependency vulnerability audit       | `pnpm audit --audit-level=high`                                                                                                                                                                                         |
+| Secret scanning                      | `docker run --rm -v "$PWD:/pwd" -w /pwd trufflesecurity/trufflehog:3.88.14 filesystem /pwd --no-update --fail --results=verified --exclude-globs='**/node_modules/**,**/.git/**,**/.next/**,**/dist/**,**/coverage/**'` |
+| CodeQL                               | GitHub-hosted only (`codeql.yml`). No local equivalent is required.                                                                                                                                                     |
+| Container image build (no publish)   | `docker build -f apps/api/Dockerfile .` and the same for `apps/web` and `apps/worker`                                                                                                                                   |
+
+Docker is required for Compose (Postgres + MinIO), live migration verification, TruffleHog, and image builds. GitHub-hosted runners include Docker.
+
+Makefile aliases: `make format-check`, `make lint`, `make typecheck`, `make test-unit`, `make test-integration`, `make test-e2e`, `make build`, `make audit`, `make db-validate`, `make db-migrate-deploy`, `make db-migrate-diff`, `make infrastructure-up`.
+
+Pull requests and `main` run these jobs. There is no production deploy workflow. Dependency updates are grouped weekly via [Dependabot](../../.github/dependabot.yml) (not Renovate).

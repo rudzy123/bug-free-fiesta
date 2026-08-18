@@ -1,4 +1,4 @@
-.PHONY: dev build lint lint-fix format format-check typecheck test test-unit test-integration test-e2e db-generate db-migrate db-reset db-seed infrastructure-up infrastructure-down
+.PHONY: dev build lint lint-fix format format-check typecheck test test-unit test-integration test-e2e audit db-generate db-migrate db-migrate-deploy db-migrate-diff db-validate db-reset db-seed infrastructure-up infrastructure-down
 
 dev:
 	pnpm dev
@@ -33,11 +33,23 @@ test-integration:
 test-e2e:
 	pnpm test:e2e
 
+audit:
+	pnpm audit --audit-level=high
+
 db-generate:
 	pnpm db:generate
 
 db-migrate:
 	pnpm db:migrate
+
+db-migrate-deploy:
+	pnpm db:migrate:deploy
+
+db-migrate-diff:
+	pnpm db:migrate:diff
+
+db-validate:
+	pnpm db:validate
 
 db-reset:
 	pnpm db:reset

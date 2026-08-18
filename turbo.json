@@ -25,14 +25,18 @@
       "dependsOn": ["^build"]
     },
     "test:unit": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**", "reports/**"]
     },
     "test:integration": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": ["RUN_INFRA_TESTS", "DATABASE_URL", "OBJECT_STORAGE_ENDPOINT"]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["CI", "NEXT_PUBLIC_API_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH"]
     }
   }
 }

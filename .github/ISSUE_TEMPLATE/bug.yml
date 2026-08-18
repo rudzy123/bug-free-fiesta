@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a functional defect without attaching secrets or customer documents
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include passwords, signing tokens, authorization headers, private PDFs, or complete personal data.
+        Security issues belong in a [private advisory](https://github.com/rudzy123/bug-free-fiesta/security/advisories/new).
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic data only. Opaque ids are fine; do not paste production URLs that contain tokens.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - apps/web
+        - apps/api
+        - apps/worker
+        - packages/database
+        - CI / tooling
+        - docs
+        - unknown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit SHA or version
+      description: Short git SHA if known
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: This report does not contain secrets, customer documents, or exploit details intended for private disclosure
+          required: true

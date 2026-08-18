@@ -40,27 +40,34 @@ docs/             ADRs, threat model, runbooks, OpenAPI
 
 ## Quality gates
 
-Run these root scripts before opening a PR:
+Run the local equivalents of CI before opening a PR. The full table is in [docs/governance/ci-local-equivalents.md](docs/governance/ci-local-equivalents.md).
 
 ```bash
-pnpm format
+pnpm install --frozen-lockfile
+pnpm format:check
 pnpm lint
 pnpm typecheck
-pnpm test
+pnpm test:unit
+pnpm infrastructure:up
+RUN_INFRA_TESTS=true pnpm test:integration
 pnpm build
+pnpm db:validate
+pnpm audit --audit-level=high
 ```
 
-CI (GitHub Actions) should run the same set. Do not use floating dependency versions; the lockfile is the pin.
+GitHub Actions on pull requests and `main` runs the same jobs plus Playwright, container image builds (no publish), TruffleHog, and CodeQL. There is no production deploy workflow.
+
+Do not use floating dependency versions; the lockfile is the pin.
 
 ## Commits and pull requests
 
-Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`). Describe why, not a file list.
+Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`). See [docs/governance/conventional-commits.md](docs/governance/conventional-commits.md). Describe why, not a file list.
 
 PRs should include a summary, a test plan, and any security notes (authz, tokens, document handling, migrations).
 
 ## Security and compliance
 
-Report suspected vulnerabilities privately to the maintainers; do not file public issues with exploits or customer documents.
+Report suspected vulnerabilities privately via [SECURITY.md](SECURITY.md); do not file public issues with exploits or customer documents.
 
 Technical controls (hashing tokens, audit logs, TLS, and similar) do not by themselves constitute legal, regulatory, or cryptographic compliance. Do not state that they do.
 

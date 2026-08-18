@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a product or engineering change
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem and the intended outcome. Do not attach customer documents or secrets.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Explicitly out of scope
+      description: List anything this should not include (legal claims, new trust of browser state, etc.).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - apps/web
+        - apps/api
+        - apps/worker
+        - packages
+        - docs / governance
+        - unknown
+    validations:
+      required: true

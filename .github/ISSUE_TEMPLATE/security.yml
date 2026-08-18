@@ -1,0 +1,23 @@
+name: Security reporting reminder
+description: How to report a vulnerability without posting exploits publicly
+labels: ['security']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not describe exploits, payloads, or customer data in this public issue.**
+
+        Report vulnerabilities through [GitHub Security Advisories](https://github.com/rudzy123/bug-free-fiesta/security/advisories/new).
+        See [SECURITY.md](../../SECURITY.md).
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: I will use a private advisory for vulnerability details and will not paste tokens, PDFs, or exploit steps here
+          required: true
+  - type: textarea
+    id: non-sensitive
+    attributes:
+      label: Non-sensitive question (optional)
+      description: Process questions only (for example, “where should I send an advisory?”). No technical exploit content.

@@ -46,6 +46,14 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 | [Document finalization failure](runbooks/document-finalization-failure.md) | Worker/artifact failures      |
 | [Audit verification failure](runbooks/audit-verification-failure.md)       | Broken or missing hash chains |
 
+## Governance
+
+| Document                                                   | Purpose                                     |
+| ---------------------------------------------------------- | ------------------------------------------- |
+| [Governance index](governance/README.md)                   | Definition of done, commits, releases, CI   |
+| [CI local equivalents](governance/ci-local-equivalents.md) | Commands that match GitHub Actions jobs     |
+| [Branch protection](governance/branch-protection.md)       | Recommended GitHub rules (not auto-applied) |
+
 ## API
 
 Health endpoints are described in [docs/api/openapi.yaml](api/openapi.yaml). Signing routes are not implemented yet.

@@ -14,7 +14,7 @@
     "prisma"
   ],
   "scripts": {
-    "build": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate && tsc -p tsconfig.json",
+    "build": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate && tsc -p tsconfig.json && rm -rf dist/generated && cp -R src/generated dist/generated",
     "typecheck": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate && tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -22,10 +22,12 @@
     "test:unit": "vitest run --passWithNoTests",
     "test:integration": "vitest run --passWithNoTests",
     "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign} prisma generate",
+    "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx src/seed.ts",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:diff": "prisma migrate diff --from-url \"${DATABASE_URL:-postgresql://esign:esign_dev_password@localhost:5432/esign}\" --to-schema-datamodel prisma/schema.prisma --exit-code"
   },
   "dependencies": {
     "@prisma/client": "6.8.2"
@@ -39,6 +41,6 @@
     "prisma": "6.8.2",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "3.1.4"
+    "vitest": "3.2.7"
   }
 }

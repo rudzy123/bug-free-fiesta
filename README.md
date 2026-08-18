@@ -45,4 +45,4 @@ docs/             architecture, ADRs, threat model, runbooks
 
 ## Documentation
 
-Start at [docs/README.md](docs/README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+Start at [docs/README.md](docs/README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/governance/README.md](docs/governance/README.md). Vulnerability reports: [SECURITY.md](SECURITY.md).

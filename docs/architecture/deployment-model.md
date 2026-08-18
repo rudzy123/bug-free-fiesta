@@ -26,7 +26,7 @@ Compose files will pin images. Application config comes only from `packages/conf
 
 ## CI
 
-GitHub Actions on pull requests and `main`. Same quality gates as [CONTRIBUTING.md](../../CONTRIBUTING.md): format, lint, typecheck, test, build. pnpm lockfile is the dependency pin. Actions must not print secrets.
+GitHub Actions on pull requests and `main`. Jobs and local equivalents: [CI local equivalents](../governance/ci-local-equivalents.md). Workflows live in `.github/workflows/`. Placeholder values from `.env.example` are used in CI; repository secrets are not passed to pull requests. There is no production deploy workflow.
 
 ## Runtime configuration
 
