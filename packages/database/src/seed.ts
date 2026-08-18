@@ -1,5 +1,6 @@
 import { createPrismaClient } from './index.js';
 import {
+  DocumentInspectionStatus,
   DocumentState,
   MembershipRole,
   SignerStatus,
@@ -97,7 +98,11 @@ async function seed(): Promise<void> {
     });
     await prisma.document.update({
       where: { id: seedIds.documentNorth },
-      data: { currentRevisionId: northRevision.id },
+      data: {
+        currentRevisionId: northRevision.id,
+        inspectionStatus: DocumentInspectionStatus.accepted,
+        sourceDisplayName: 'north-source.pdf',
+      },
     });
 
     await createSigner(prisma, {
@@ -173,6 +178,8 @@ async function seed(): Promise<void> {
       data: {
         currentRevisionId: southRevision.id,
         signingRevisionId: southRevision.id,
+        inspectionStatus: DocumentInspectionStatus.accepted,
+        sourceDisplayName: 'south-source.pdf',
       },
     });
     await createSigner(prisma, {

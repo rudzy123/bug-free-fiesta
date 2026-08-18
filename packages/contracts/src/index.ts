@@ -91,3 +91,19 @@ export {
   type OrganizationActorResponse,
   type RevokeSessionRequest,
 } from './auth.js';
+export {
+  IDEMPOTENCY_KEY_HEADER,
+  PREVIEW_TOKEN_HEADER_DEFAULT,
+  UPLOAD_TOKEN_HEADER_DEFAULT,
+  createDocumentRequestSchema,
+  createDocumentResponseSchema,
+  documentIdParamSchema,
+  documentInspectionStatusSchema,
+  issuePreviewResponseSchema,
+  previewGrantIdParamSchema,
+  publicDocumentRevisionSchema,
+  publicDocumentSchema,
+  type CreateDocumentRequest,
+  type CreateDocumentResponse,
+  type IssuePreviewResponse,
+} from './documents.js';

@@ -61,5 +61,8 @@ export {
   createPrismaUserRepository,
   createPrismaAccountSessionRepository,
   createPrismaAccountSecurityAuditWriter,
+  createPrismaUploadSessionLookup,
+  createPrismaPreviewGrantLookup,
+  createPrismaOutboxClaimer,
 } from './infrastructure/index.js';
-export type { PrismaClientOrTx } from './infrastructure/index.js';
+export type { PrismaClientOrTx, OutboxClaimer } from './infrastructure/index.js';

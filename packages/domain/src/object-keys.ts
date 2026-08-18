@@ -26,3 +26,12 @@ export function assertTenantObjectKey(organizationId: string, key: string): stri
   }
   return key;
 }
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+export function sourceRevisionObjectKey(organizationId: string, sha256Digest: string): string {
+  if (!SHA256_HEX.test(sha256Digest)) {
+    throw new IntegrityError({ reason: 'invalid_sha256_digest' });
+  }
+  return tenantObjectKey(organizationId, `revisions/${sha256Digest}`);
+}

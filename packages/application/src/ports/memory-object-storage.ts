@@ -1,5 +1,6 @@
 import {
   IntegrityError,
+  ValidationError,
   assertTenantObjectKey,
   tenantObjectKey,
   type ObjectStorage,
@@ -15,6 +16,9 @@ export function createMemoryObjectStorage(): ObjectStorage {
 
   return {
     async putObject(input) {
+      if (input.maxBytes !== undefined && input.body.byteLength > input.maxBytes) {
+        throw new ValidationError({ reason: 'payload_too_large' });
+      }
       const key = tenantObjectKey(input.organizationId, input.key);
       const metadata: StoredObjectMetadata = {
         key,
@@ -22,7 +26,7 @@ export function createMemoryObjectStorage(): ObjectStorage {
         sizeBytes: input.body.byteLength,
         sha256Digest: hashing.sha256Hex(input.body),
       };
-      objects.set(key, { ...metadata, body: input.body });
+      objects.set(key, { ...metadata, body: Uint8Array.from(input.body) });
       return metadata;
     },
     async getObject(input) {

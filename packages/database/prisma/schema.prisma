@@ -71,6 +71,23 @@ enum DocumentRevisionKind {
   @@map("document_revision_kind")
 }
 
+enum DocumentInspectionStatus {
+  pending
+  accepted
+  rejected
+
+  @@map("document_inspection_status")
+}
+
+enum UploadSessionStatus {
+  issued
+  completed
+  expired
+  abandoned
+
+  @@map("upload_session_status")
+}
+
 enum AuditActorType {
   accountUser           @map("account_user")
   signer
@@ -97,6 +114,9 @@ enum AuditEventType {
   documentFinalized     @map("document_finalized")
   finalizationFailed    @map("finalization_failed")
   artifactDownloaded    @map("artifact_downloaded")
+  inspectionAccepted    @map("inspection_accepted")
+  inspectionRejected    @map("inspection_rejected")
+  uploadAbandoned       @map("upload_abandoned")
 
   @@map("audit_event_type")
 }
@@ -148,6 +168,8 @@ model Organization {
   memberships         OrganizationMembership[]
   documents           Document[]
   documentRevisions   DocumentRevision[]
+  uploadSessions      UploadSession[]
+  previewGrants       PreviewGrant[]
   signers             Signer[]
   signingSessions     SigningSession[]
   signatureFields     SignatureField[]
@@ -233,6 +255,8 @@ model Document {
   ownerMembershipId         String        @db.Uuid
   title                     String
   state                     DocumentState @default(draft)
+  inspectionStatus          DocumentInspectionStatus @default(pending)
+  sourceDisplayName         String?
   expiresAt                 DateTime?     @db.Timestamptz
   currentRevisionId         String?       @db.Uuid
   signingRevisionId         String?       @db.Uuid
@@ -256,6 +280,8 @@ model Document {
   auditLogs       AuditLog[]
   outboxEvents    OutboxEvent[]
   backgroundJobs  BackgroundJob[]
+  uploadSessions  UploadSession[]
+  previewGrants   PreviewGrant[]
 
   @@unique([organizationId, id], map: "documents_organization_id_id_key")
   @@index([organizationId, state], map: "documents_organization_id_state_idx")
@@ -274,6 +300,7 @@ model DocumentRevision {
   contentType    String
   sizeBytes      BigInt
   sha256Digest   String               @db.Char(64)
+  displayName    String
   createdAt      DateTime             @default(now()) @db.Timestamptz
 
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -285,6 +312,47 @@ model DocumentRevision {
   @@index([organizationId, documentId], map: "document_revisions_organization_id_document_id_idx")
   @@index([sha256Digest], map: "document_revisions_sha256_digest_idx")
   @@map("document_revisions")
+}
+
+model UploadSession {
+  id             String              @id @db.Uuid
+  organizationId String              @db.Uuid
+  documentId     String              @db.Uuid
+  tokenHash      String              @unique @db.Char(64)
+  status         UploadSessionStatus @default(issued)
+  displayName    String
+  contentType    String
+  maxBytes       BigInt
+  expiresAt      DateTime            @db.Timestamptz
+  completedAt    DateTime?           @db.Timestamptz
+  revisionId     String?             @db.Uuid
+  createdAt      DateTime            @default(now()) @db.Timestamptz
+  updatedAt      DateTime            @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id], map: "upload_sessions_organization_id_id_key")
+  @@index([organizationId, documentId], map: "upload_sessions_organization_id_document_id_idx")
+  @@index([status, expiresAt], map: "upload_sessions_status_expires_at_idx")
+  @@map("upload_sessions")
+}
+
+model PreviewGrant {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  documentId     String   @db.Uuid
+  revisionId     String   @db.Uuid
+  tokenHash      String   @unique @db.Char(64)
+  expiresAt      DateTime @db.Timestamptz
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  document     Document     @relation(fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id], map: "preview_grants_organization_id_id_key")
+  @@index([expiresAt], map: "preview_grants_expires_at_idx")
+  @@map("preview_grants")
 }
 
 model Signer {

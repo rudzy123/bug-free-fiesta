@@ -43,10 +43,12 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 
 ## Runbooks
 
-| Document                                                                   | Purpose                       |
-| -------------------------------------------------------------------------- | ----------------------------- |
-| [Document finalization failure](runbooks/document-finalization-failure.md) | Worker/artifact failures      |
-| [Audit verification failure](runbooks/audit-verification-failure.md)       | Broken or missing hash chains |
+| Document                                                                   | Purpose                         |
+| -------------------------------------------------------------------------- | ------------------------------- |
+| [Document finalization failure](runbooks/document-finalization-failure.md) | Worker/artifact failures        |
+| [Document upload failure](runbooks/document-upload-failure.md)             | Failed or abandoned PDF uploads |
+| [Document inspection failure](runbooks/document-inspection-failure.md)     | Pending or rejected inspection  |
+| [Audit verification failure](runbooks/audit-verification-failure.md)       | Broken or missing hash chains   |
 
 ## Governance
 
@@ -58,4 +60,4 @@ Do not treat anything here as legal, regulatory, or cryptographic compliance. Qu
 
 ## API
 
-Health endpoints are described in [docs/api/openapi.yaml](api/openapi.yaml). Signing routes are not implemented yet.
+Health, authentication, and document ingestion are described in [docs/api/openapi.yaml](api/openapi.yaml). Signing mutations are not implemented yet.

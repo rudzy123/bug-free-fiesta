@@ -14,8 +14,24 @@ describe('environment validation', () => {
     expect(config.CORS_ORIGINS).toEqual(['http://localhost:3000']);
     expect(config.JSON_BODY_LIMIT).toBe('1mb');
     expect(config.CORRELATION_ID_HEADER).toBe('x-correlation-id');
-    expect(config.AUTH_PROVIDER).toBe('local');
-    expect(config.AUTH_COOKIE_SECURE).toBe(false);
+    expect(config.DOCUMENT_MAX_UPLOAD_BYTES).toBe(26_214_400);
+    expect(config.DOCUMENT_INSPECTOR).toBe('local');
+  });
+
+  it('rejects the local document inspector in production', () => {
+    expect(() =>
+      loadApiConfig(
+        apiEnv({
+          NODE_ENV: 'production',
+          AUTH_PROVIDER: 'oidc',
+          AUTH_OIDC_ISSUER: 'https://idp.example.invalid/realms/esign',
+          AUTH_OIDC_CLIENT_ID: 'client',
+          AUTH_OIDC_CLIENT_SECRET: 'secret',
+          AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+          DOCUMENT_INSPECTOR: 'local',
+        }),
+      ),
+    ).toThrow(/DOCUMENT_INSPECTOR=local is not allowed in production/);
   });
 
   it('rejects the local identity adapter in production', () => {

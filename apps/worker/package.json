@@ -15,9 +15,11 @@
     "test:integration": "vitest run --passWithNoTests integration.test"
   },
   "dependencies": {
+    "@esign/application": "workspace:*",
     "@esign/config": "workspace:*",
     "@esign/contracts": "workspace:*",
     "@esign/database": "workspace:*",
+    "@esign/domain": "workspace:*",
     "@esign/logger": "workspace:*"
   },
   "devDependencies": {

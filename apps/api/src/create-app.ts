@@ -17,6 +17,7 @@ export type CreateApiAppOptions = {
   health: HealthService;
   extraRoutes?: (app: Express) => void;
   accountAuthRouter?: Router;
+  documentRouter?: Router;
 };
 
 export function createApiApp(options: CreateApiAppOptions): Express {
@@ -38,6 +39,10 @@ export function createApiApp(options: CreateApiAppOptions): Express {
 
   if (options.accountAuthRouter) {
     app.use(options.accountAuthRouter);
+  }
+
+  if (options.documentRouter) {
+    app.use(options.documentRouter);
   }
 
   options.extraRoutes?.(app);

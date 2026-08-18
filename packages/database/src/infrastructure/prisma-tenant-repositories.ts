@@ -1,4 +1,6 @@
 import {
+  ConflictError,
+  NotFoundError,
   requireOpaqueId,
   requireOrganizationId,
   type AuditLogRepository,
@@ -11,18 +13,24 @@ import {
   type MembershipRepository,
   type OrganizationRepository,
   type OutboxEventRepository,
+  type PreviewGrantRepository,
   type SignatureFieldRepository,
   type SignerRepository,
   type SigningSessionRepository,
   type TenantRepositories,
+  type UploadSessionRepository,
   type UserRepository,
 } from '@esign/domain';
-import { OutboxStatus } from '../generated/client/index.js';
+import { OutboxStatus, UploadSessionStatus } from '../generated/client/index.js';
 import type { PrismaClientOrTx } from './prisma-client.js';
 import {
   AUDIT_ACTOR_TYPE_TO_PRISMA,
   AUDIT_EVENT_TYPE_TO_PRISMA,
+  DOCUMENT_INSPECTION_STATUS_TO_PRISMA,
   DOCUMENT_STATE_TO_PRISMA,
+  IDEMPOTENCY_PRINCIPAL_TO_PRISMA,
+  REVISION_KIND_TO_PRISMA,
+  UPLOAD_SESSION_STATUS_TO_PRISMA,
   toDomainArtifact,
   toDomainAuditEvent,
   toDomainBackgroundJob,
@@ -32,10 +40,12 @@ import {
   toDomainMembership,
   toDomainOrganization,
   toDomainOutboxEvent,
+  toDomainPreviewGrant,
   toDomainRevision,
   toDomainSignatureField,
   toDomainSigner,
   toDomainSigningSession,
+  toDomainUploadSession,
   toDomainUser,
   asInputJson,
 } from './prisma-mappers.js';
@@ -120,6 +130,8 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
           ownerMembershipId: input.document.ownerMembershipId,
           title: input.document.title,
           state: DOCUMENT_STATE_TO_PRISMA[input.document.state],
+          inspectionStatus: DOCUMENT_INSPECTION_STATUS_TO_PRISMA[input.document.inspectionStatus],
+          sourceDisplayName: input.document.sourceDisplayName,
           expiresAt: input.document.expiresAt,
           currentRevisionId: input.document.currentRevisionId,
           signingRevisionId: input.document.signingRevisionId,
@@ -131,6 +143,49 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
           updatedAt: input.document.updatedAt,
         },
       });
+      return toDomainDocument(row);
+    },
+    async attachSourceRevision(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: { organizationId, id: documentId, version: input.expectedVersion },
+        data: {
+          currentRevisionId: input.revisionId,
+          sourceDisplayName: input.sourceDisplayName,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
+    async setInspectionStatus(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: { organizationId, id: documentId, version: input.expectedVersion },
+        data: {
+          inspectionStatus: DOCUMENT_INSPECTION_STATUS_TO_PRISMA[input.inspectionStatus],
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
       return toDomainDocument(row);
     },
   };
@@ -154,6 +209,129 @@ export function createPrismaDocumentRevisionRepository(
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toDomainRevision);
+    },
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.revision.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.documentRevision.create({
+        data: {
+          id: input.revision.id,
+          organizationId,
+          documentId: input.revision.documentId,
+          kind: REVISION_KIND_TO_PRISMA[input.revision.kind],
+          objectKey: input.revision.objectKey,
+          contentType: input.revision.contentType,
+          sizeBytes: input.revision.sizeBytes,
+          sha256Digest: input.revision.sha256Digest,
+          displayName: input.revision.displayName,
+          createdAt: input.revision.createdAt,
+        },
+      });
+      return toDomainRevision(row);
+    },
+  };
+}
+
+export function createPrismaUploadSessionRepository(
+  prisma: PrismaClientOrTx,
+): UploadSessionRepository {
+  return {
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.session.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.uploadSession.create({
+        data: {
+          id: input.session.id,
+          organizationId,
+          documentId: input.session.documentId,
+          tokenHash: input.session.tokenHash,
+          status: UPLOAD_SESSION_STATUS_TO_PRISMA[input.session.status],
+          displayName: input.session.displayName,
+          contentType: input.session.contentType,
+          maxBytes: input.session.maxBytes,
+          expiresAt: input.session.expiresAt,
+          completedAt: input.session.completedAt,
+          revisionId: input.session.revisionId,
+          createdAt: input.session.createdAt,
+          updatedAt: input.session.updatedAt,
+        },
+      });
+      return toDomainUploadSession(row);
+    },
+    async findById(input) {
+      const row = await prisma.uploadSession.findUnique({
+        where: tenantCompoundWhere(input.organizationId, input.uploadSessionId, 'uploadSessionId'),
+      });
+      return row ? toDomainUploadSession(row) : null;
+    },
+    async complete(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const uploadSessionId = requireOpaqueId(input.uploadSessionId, 'uploadSessionId');
+      const result = await prisma.uploadSession.updateMany({
+        where: { organizationId, id: uploadSessionId, status: UploadSessionStatus.issued },
+        data: {
+          status: UploadSessionStatus.completed,
+          completedAt: input.completedAt,
+          revisionId: input.revisionId,
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'upload_session_not_issued' });
+      }
+      const row = await prisma.uploadSession.findUnique({
+        where: tenantCompoundWhere(organizationId, uploadSessionId, 'uploadSessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'upload_session' });
+      }
+      return toDomainUploadSession(row);
+    },
+    async markAbandoned(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const uploadSessionId = requireOpaqueId(input.uploadSessionId, 'uploadSessionId');
+      const result = await prisma.uploadSession.updateMany({
+        where: { organizationId, id: uploadSessionId, status: UploadSessionStatus.issued },
+        data: { status: UploadSessionStatus.abandoned },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'upload_session_not_issued' });
+      }
+      const row = await prisma.uploadSession.findUnique({
+        where: tenantCompoundWhere(organizationId, uploadSessionId, 'uploadSessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'upload_session' });
+      }
+      return toDomainUploadSession(row);
+    },
+  };
+}
+
+export function createPrismaPreviewGrantRepository(
+  prisma: PrismaClientOrTx,
+): PreviewGrantRepository {
+  return {
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.grant.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.previewGrant.create({
+        data: {
+          id: input.grant.id,
+          organizationId,
+          documentId: input.grant.documentId,
+          revisionId: input.grant.revisionId,
+          tokenHash: input.grant.tokenHash,
+          expiresAt: input.grant.expiresAt,
+          createdAt: input.grant.createdAt,
+        },
+      });
+      return toDomainPreviewGrant(row);
+    },
+    async findById(input) {
+      const row = await prisma.previewGrant.findUnique({
+        where: tenantCompoundWhere(input.organizationId, input.grantId, 'grantId'),
+      });
+      return row ? toDomainPreviewGrant(row) : null;
     },
   };
 }
@@ -373,6 +551,51 @@ export function createPrismaIdempotencyRecordRepository(
       });
       return row ? toDomainIdempotency(row) : null;
     },
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.record.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.idempotencyRecord.create({
+        data: {
+          id: input.record.id,
+          organizationId,
+          principalType: IDEMPOTENCY_PRINCIPAL_TO_PRISMA[input.record.principalType],
+          principalId: input.record.principalId,
+          route: input.record.route,
+          key: input.record.key,
+          requestHash: input.record.requestHash,
+          requestId: input.record.requestId,
+          responseStatus: input.record.responseStatus,
+          responseBody: input.record.responseBody
+            ? asInputJson(input.record.responseBody)
+            : undefined,
+          expiresAt: input.record.expiresAt,
+          createdAt: input.record.createdAt,
+          updatedAt: input.record.updatedAt,
+        },
+      });
+      return toDomainIdempotency(row);
+    },
+    async complete(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const recordId = requireOpaqueId(input.recordId, 'recordId');
+      const result = await prisma.idempotencyRecord.updateMany({
+        where: { id: recordId, organizationId },
+        data: {
+          responseStatus: input.responseStatus,
+          responseBody: asInputJson(input.responseBody),
+        },
+      });
+      if (result.count !== 1) {
+        throw new NotFoundError({ resource: 'idempotency_record' });
+      }
+      const row = await prisma.idempotencyRecord.findFirst({
+        where: { id: recordId, organizationId },
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'idempotency_record' });
+      }
+      return toDomainIdempotency(row);
+    },
   };
 }
 
@@ -382,6 +605,8 @@ export function createPrismaTenantRepositories(prisma: PrismaClientOrTx): Tenant
     memberships: createPrismaMembershipRepository(prisma),
     documents: createPrismaDocumentRepository(prisma),
     revisions: createPrismaDocumentRevisionRepository(prisma),
+    uploadSessions: createPrismaUploadSessionRepository(prisma),
+    previewGrants: createPrismaPreviewGrantRepository(prisma),
     signers: createPrismaSignerRepository(prisma),
     signingSessions: createPrismaSigningSessionRepository(prisma),
     signatureFields: createPrismaSignatureFieldRepository(prisma),

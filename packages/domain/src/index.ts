@@ -17,6 +17,9 @@ export {
 export {
   DOCUMENT_STATES,
   DOCUMENT_REVISION_KINDS,
+  DOCUMENT_INSPECTION_STATUSES,
+  UPLOAD_SESSION_STATUSES,
+  INSPECT_DOCUMENT_JOB_TYPE,
   SIGNER_STATUSES,
   SIGNING_SESSION_STATUSES,
   SIGNATURE_FIELD_TYPES,
@@ -37,6 +40,7 @@ export {
   type BackgroundJobStatus,
   type ConsentRecord,
   type Document,
+  type DocumentInspectionStatus,
   type DocumentRevision,
   type DocumentRevisionKind,
   type DocumentState,
@@ -47,18 +51,25 @@ export {
   type OrganizationMembership,
   type OutboxEvent,
   type OutboxStatus,
+  type PreviewGrant,
   type SignatureField,
   type SignatureFieldType,
   type Signer,
   type SignerStatus,
   type SigningSession,
   type SigningSessionStatus,
+  type UploadSession,
+  type UploadSessionStatus,
 } from './entities.js';
 export {
   DOCUMENT_TRANSITIONS,
   assertDocumentTransition,
+  assertInspectionAccepted,
+  assertReadyToSend,
   canTransitionDocument,
+  isAvailableForSigning,
   isDocumentState,
+  isInspectionAccepted,
 } from './document-lifecycle.js';
 export {
   isOpaqueId,
@@ -82,6 +93,7 @@ export {
 export {
   AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
   assertTenantObjectKey,
+  sourceRevisionObjectKey,
   tenantObjectKey,
   tenantObjectKeyPrefix,
 } from './object-keys.js';
@@ -90,6 +102,8 @@ export type {
   Hashing,
   IdGenerator,
   AuditWriter,
+  DocumentInspectionOutcome,
+  DocumentInspector,
   JobPublishInput,
   JobPublisher,
   NewAuditEvent,
@@ -122,11 +136,15 @@ export type {
   MembershipRepository,
   OrganizationRepository,
   OutboxEventRepository,
+  PreviewGrantLookup,
+  PreviewGrantRepository,
   SignatureFieldRepository,
   SignerRepository,
   SigningSessionRepository,
   SigningTokenLookup,
   TenantRepositories,
+  UploadSessionLookup,
+  UploadSessionRepository,
   UserRepository,
 } from './ports/repositories.js';
 export { TENANT_REPOSITORY_TYPE_GUARDS } from './ports/repositories.js';

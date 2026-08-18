@@ -74,7 +74,7 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Parser crash, infinite loops, embedded JavaScript, SSRF via remote streams, worker RCE in a library.
 
-**Mitigations:** Treat all PDFs as untrusted; size limits; process in worker not in the API request thread; disable external stream fetches; timeout and memory limits; fail closed to `finalization_failed`; keep pdf-lib and OS packages pinned.
+**Mitigations:** Treat all PDFs as untrusted; size limits at proxy, API, and object storage; validate content type, extension, and `%PDF-` magic bytes; inspect via a port (local stub is non-production); process advanced PDF work in the worker; disable external stream fetches; timeout and memory limits; keep pdf-lib and OS packages pinned.
 
 **Residual:** Zero-days in PDF libraries (dependency compromise overlap).
 

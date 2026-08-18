@@ -25,8 +25,16 @@ import {
 } from '@esign/database';
 import { createAccountAuthRouter } from './http/routes/account-auth.js';
 import { createOidcIdentityProvider } from './infrastructure/oidc-identity-provider.js';
+import type { Router } from 'express';
+import type { ResolveAccountSession, ResolveOrganizationActor } from '@esign/application';
+import type { SigningTokenHasher } from '@esign/domain';
 
-export function createAccountAuthFromPrisma(input: { config: ApiConfig; prisma: PrismaClient }) {
+export function createAccountAuthFromPrisma(input: { config: ApiConfig; prisma: PrismaClient }): {
+  router: Router;
+  resolveSession: ResolveAccountSession;
+  resolveActor: ResolveOrganizationActor;
+  hasher: SigningTokenHasher;
+} {
   const hashing = createSha256Hashing();
   const hasher = createSigningTokenHasher(hashing);
   const clock = createSystemClock();
@@ -58,25 +66,33 @@ export function createAccountAuthFromPrisma(input: { config: ApiConfig; prisma: 
     sessionTtlMs: input.config.AUTH_SESSION_TTL_SECONDS * 1000,
   });
 
-  return createAccountAuthRouter({
-    config: input.config,
-    login,
-    logout: createLogoutAccountUser({ sessions, clock, ids, audit }),
-    revokeSession: createRevokeAccountSession({ sessions, clock, ids, audit }),
-    resolveSession: createResolveAccountSession({ sessions, hasher, clock }),
-    resolveActor: createResolveOrganizationActor({ memberships }),
-    loadCurrentUser: createLoadCurrentAccountUser({ users }),
-    assertAction: createAssertAccountAction({
-      authorization: createMembershipAuthorizationPolicy(),
+  const resolveSession = createResolveAccountSession({ sessions, hasher, clock });
+  const resolveActor = createResolveOrganizationActor({ memberships });
+
+  return {
+    router: createAccountAuthRouter({
+      config: input.config,
+      login,
+      logout: createLogoutAccountUser({ sessions, clock, ids, audit }),
+      revokeSession: createRevokeAccountSession({ sessions, clock, ids, audit }),
+      resolveSession,
+      resolveActor,
+      loadCurrentUser: createLoadCurrentAccountUser({ users }),
+      assertAction: createAssertAccountAction({
+        authorization: createMembershipAuthorizationPolicy(),
+      }),
+      hasher,
+      hashing,
+      loginRateLimiter: createMemoryRateLimiter({
+        max: input.config.AUTH_LOGIN_RATE_LIMIT_MAX,
+        windowMs: input.config.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
+        clock,
+      }),
     }),
+    resolveSession,
+    resolveActor,
     hasher,
-    hashing,
-    loginRateLimiter: createMemoryRateLimiter({
-      max: input.config.AUTH_LOGIN_RATE_LIMIT_MAX,
-      windowMs: input.config.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
-      clock,
-    }),
-  });
+  };
 }
 
 function requireLocalSharedSecret(config: ApiConfig): string {

@@ -105,6 +105,7 @@ export async function createDocumentRevision(
     contentType?: string;
     sizeBytes?: bigint;
     sha256Digest?: string;
+    displayName?: string;
   },
 ) {
   const id = input.id ?? newId();
@@ -119,6 +120,7 @@ export async function createDocumentRevision(
       contentType: input.contentType ?? 'application/pdf',
       sizeBytes: input.sizeBytes ?? 1024n,
       sha256Digest,
+      displayName: input.displayName ?? 'document.pdf',
     },
   });
 }

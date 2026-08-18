@@ -5,6 +5,10 @@ import { createLogger } from '@esign/logger';
 import { apiEnv } from '@esign/test-utils';
 import {
   createAssertAccountAction,
+  createCompleteSourceUpload,
+  createCreateDraftDocument,
+  createGetOrganizationDocument,
+  createIssueDocumentPreview,
   createLoadCurrentAccountUser,
   createLocalIdentityProvider,
   createLoginAccountUser,
@@ -12,8 +16,18 @@ import {
   createMembershipAuthorizationPolicy,
   createMemoryAccountSecurityAuditWriter,
   createMemoryAccountSessionRepository,
+  createMemoryAuditWriter,
+  createMemoryDocumentRepository,
+  createMemoryDocumentRevisionRepository,
+  createMemoryDocumentScope,
+  createMemoryIdempotencyRecordRepository,
+  createMemoryJobPublisher,
   createMemoryMembershipRepository,
+  createMemoryObjectStorage,
+  createMemoryPreviewGrantStore,
   createMemoryRateLimiter,
+  createMemoryUnitOfWork,
+  createMemoryUploadSessionStore,
   createMemoryUserRepository,
   createResolveAccountSession,
   createResolveOrganizationActor,
@@ -21,6 +35,8 @@ import {
   createSha256Hashing,
   createSigningTokenGenerator,
   createSigningTokenHasher,
+  createSizeLimitedObjectStorage,
+  createStreamDocumentPreview,
   createUuidIdGenerator,
 } from '@esign/application';
 import {
@@ -32,6 +48,7 @@ import type { AccountUser, Clock, OrganizationMembership } from '@esign/domain';
 import { createHealthService } from './application/health-service.js';
 import { createApiApp } from './create-app.js';
 import { createAccountAuthRouter } from './http/routes/account-auth.js';
+import { createDocumentIngestionRouter } from './http/routes/documents.js';
 
 const ORG_NORTH = '11111111-1111-4111-8111-111111111111';
 const ORG_SOUTH = '22222222-2222-4222-8222-222222222222';
@@ -132,6 +149,29 @@ function testAuthApp(clock: Clock & { set: (iso: string) => void } = nowClock())
     sharedSecret: SHARED_SECRET,
     findByEmail: (email) => users.findByEmail({ email }),
   });
+  const authorization = createMembershipAuthorizationPolicy();
+  const documents = createMemoryDocumentRepository();
+  const revisions = createMemoryDocumentRevisionRepository();
+  const uploadSessions = createMemoryUploadSessionStore();
+  const previewGrants = createMemoryPreviewGrantStore();
+  const idempotency = createMemoryIdempotencyRecordRepository();
+  const documentAudit = createMemoryAuditWriter();
+  const jobs = createMemoryJobPublisher();
+  const unitOfWork = createMemoryUnitOfWork(
+    createMemoryDocumentScope({
+      documents,
+      revisions,
+      uploadSessions,
+      previewGrants,
+      idempotencyRecords: idempotency,
+      audit: documentAudit,
+      jobs,
+    }),
+  );
+  const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), 26_214_400);
+  const resolveSession = createResolveAccountSession({ sessions, hasher, clock });
+  const resolveActor = createResolveOrganizationActor({ memberships });
+  const assertAction = createAssertAccountAction({ authorization });
   const app = createApiApp({
     config,
     logger,
@@ -152,17 +192,72 @@ function testAuthApp(clock: Clock & { set: (iso: string) => void } = nowClock())
       }),
       logout: createLogoutAccountUser({ sessions, clock, ids, audit }),
       revokeSession: createRevokeAccountSession({ sessions, clock, ids, audit }),
-      resolveSession: createResolveAccountSession({ sessions, hasher, clock }),
-      resolveActor: createResolveOrganizationActor({ memberships }),
+      resolveSession,
+      resolveActor,
       loadCurrentUser: createLoadCurrentAccountUser({ users }),
-      assertAction: createAssertAccountAction({
-        authorization: createMembershipAuthorizationPolicy(),
-      }),
+      assertAction,
       hasher,
       hashing,
       loginRateLimiter: createMemoryRateLimiter({
         max: config.AUTH_LOGIN_RATE_LIMIT_MAX,
         windowMs: config.AUTH_LOGIN_RATE_LIMIT_WINDOW_MS,
+        clock,
+      }),
+    }),
+    documentRouter: createDocumentIngestionRouter({
+      config,
+      resolveSession,
+      resolveActor,
+      hasher,
+      assertAction,
+      createDraft: createCreateDraftDocument({
+        authorization,
+        idempotency,
+        unitOfWork,
+        ids,
+        clock,
+        hashing,
+        tokens,
+        hasher,
+        maxUploadBytes: config.DOCUMENT_MAX_UPLOAD_BYTES,
+        uploadTtlMs: config.DOCUMENT_UPLOAD_TTL_SECONDS * 1000,
+        idempotencyTtlMs: config.IDEMPOTENCY_TTL_SECONDS * 1000,
+        uploadTokenHeader: config.DOCUMENT_UPLOAD_TOKEN_HEADER,
+      }),
+      completeUpload: createCompleteSourceUpload({
+        documents,
+        revisions,
+        uploadSessions,
+        hasher,
+        hashing,
+        ids,
+        clock,
+        storage,
+        unitOfWork,
+        maxUploadBytes: config.DOCUMENT_MAX_UPLOAD_BYTES,
+      }),
+      getDocument: createGetOrganizationDocument({
+        authorization,
+        documents,
+        revisions,
+      }),
+      issuePreview: createIssueDocumentPreview({
+        authorization,
+        documents,
+        revisions,
+        previewGrants,
+        tokens,
+        hasher,
+        ids,
+        clock,
+        previewTtlMs: config.DOCUMENT_PREVIEW_TTL_SECONDS * 1000,
+        previewTokenHeader: config.DOCUMENT_PREVIEW_TOKEN_HEADER,
+      }),
+      streamPreview: createStreamDocumentPreview({
+        grants: previewGrants,
+        revisions,
+        storage,
+        hasher,
         clock,
       }),
     }),
@@ -300,8 +395,11 @@ describe('account authentication and authorization', () => {
       .post(`/organizations/${ORG_NORTH}/documents`)
       .set('Origin', ORIGIN)
       .set('Cookie', session.cookies)
-      .set('x-csrf-token', session.csrf);
-    expect(write.status).toBe(204);
+      .set('x-csrf-token', session.csrf)
+      .set('Idempotency-Key', 'auth-write-probe-key')
+      .send({ title: 'Auth probe', filename: 'probe.pdf' });
+    expect(write.status).toBe(201);
+    expect(write.body.documentId).toEqual(expect.any(String));
     expect(JSON.stringify(audit.events)).not.toContain(SHARED_SECRET);
     expect(JSON.stringify(audit.events)).not.toContain('ada@example.test');
   });

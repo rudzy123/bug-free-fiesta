@@ -33,6 +33,14 @@ export type SignatureFieldType = (typeof SIGNATURE_FIELD_TYPES)[number];
 export const DOCUMENT_REVISION_KINDS = ['source', 'intermediate'] as const;
 export type DocumentRevisionKind = (typeof DOCUMENT_REVISION_KINDS)[number];
 
+export const DOCUMENT_INSPECTION_STATUSES = ['pending', 'accepted', 'rejected'] as const;
+export type DocumentInspectionStatus = (typeof DOCUMENT_INSPECTION_STATUSES)[number];
+
+export const UPLOAD_SESSION_STATUSES = ['issued', 'completed', 'expired', 'abandoned'] as const;
+export type UploadSessionStatus = (typeof UPLOAD_SESSION_STATUSES)[number];
+
+export const INSPECT_DOCUMENT_JOB_TYPE = 'inspect_document';
+
 export const AUDIT_ACTOR_TYPES = ['account_user', 'signer', 'worker', 'system'] as const;
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
 
@@ -53,6 +61,9 @@ export const AUDIT_EVENT_TYPES = [
   'document_finalized',
   'finalization_failed',
   'artifact_downloaded',
+  'inspection_accepted',
+  'inspection_rejected',
+  'upload_abandoned',
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
@@ -131,6 +142,8 @@ export type Document = {
   readonly ownerMembershipId: string;
   readonly title: string;
   readonly state: DocumentState;
+  readonly inspectionStatus: DocumentInspectionStatus;
+  readonly sourceDisplayName: string | null;
   readonly expiresAt: Date | null;
   readonly currentRevisionId: string | null;
   readonly signingRevisionId: string | null;
@@ -151,6 +164,33 @@ export type DocumentRevision = {
   readonly contentType: string;
   readonly sizeBytes: bigint;
   readonly sha256Digest: string;
+  readonly displayName: string;
+  readonly createdAt: Date;
+};
+
+export type UploadSession = {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly documentId: string;
+  readonly tokenHash: string;
+  readonly status: UploadSessionStatus;
+  readonly displayName: string;
+  readonly contentType: string;
+  readonly maxBytes: bigint;
+  readonly expiresAt: Date;
+  readonly completedAt: Date | null;
+  readonly revisionId: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+};
+
+export type PreviewGrant = {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly documentId: string;
+  readonly revisionId: string;
+  readonly tokenHash: string;
+  readonly expiresAt: Date;
   readonly createdAt: Date;
 };
 

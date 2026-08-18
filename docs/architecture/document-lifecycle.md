@@ -19,6 +19,12 @@ State machine for the **Document** aggregate. The API is the only authority. The
 
 `finalization_failed` is operational, not a signer-facing success state. Operators may re-queue finalization if the document is still complete and not voided.
 
+## Source inspection
+
+Uploaded PDFs stay in `draft` with `inspectionStatus` of `pending`, `accepted`, or `rejected`. Signing is unavailable until inspection is `accepted` and the document is later `sent`. Send must refuse a draft whose inspection is not `accepted` or that has no current revision.
+
+The inspector is an application port (malware scanning and advanced PDF checks). The bundled `local` adapter is **NON-PRODUCTION**.
+
 ## Permitted transitions
 
 ```mermaid
@@ -48,21 +54,21 @@ stateDiagram-v2
 
 Without the diagram, only these transitions are legal. Anything else is a conflict error.
 
-| From                   | To                    | Actor / trigger                    | Guards                                                                                                                                              |
-| ---------------------- | --------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `draft`                | `sent`                | Document owner or admin            | At least one signer; all required fields assigned; current revision present; `expiresAt` in the future (UTC). Freeze fields, routing, and revision. |
-| `draft`                | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                                                                     |
-| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                                                                |
-| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                                                                   |
-| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                                                                   |
-| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                                                           |
-| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                                                         |
-| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                                                         |
-| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                                                          |
-| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                                                        |
-| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                                                                  |
-| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                                                                |
-| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                                                             |
+| From                   | To                    | Actor / trigger                    | Guards                                                                                                                                                                     |
+| ---------------------- | --------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `draft`                | `sent`                | Document owner or admin            | At least one signer; all required fields assigned; current revision present; inspection `accepted`; `expiresAt` in the future (UTC). Freeze fields, routing, and revision. |
+| `draft`                | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                                                                                            |
+| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                                                                                       |
+| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                                                                                          |
+| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                                                                                          |
+| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                                                                                  |
+| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                                                                                |
+| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                                                                                |
+| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                                                                                 |
+| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                                                                               |
+| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                                                                                         |
+| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                                                                                       |
+| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                                                                                    |
 
 **v1 rule:** `completed`, `finalizing`, and `finalized` cannot move to `voided`. Changing that is **legal review required** (already-captured signatures).
 

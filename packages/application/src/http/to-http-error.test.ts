@@ -17,6 +17,7 @@ describe('HTTP error mapping', () => {
   it('maps typed errors to stable public messages and never returns internal details', () => {
     const cases = [
       [new ValidationError({ field: 'title' }), 400, 'validation'],
+      [new ValidationError({ reason: 'payload_too_large' }), 413, 'payload_too_large'],
       [new AuthenticationError({ reason: 'missing_session' }), 401, 'authentication'],
       [new AuthorizationError({ reason: 'role_denied' }), 403, 'forbidden'],
       [new NotFoundError({ resource: 'document' }), 404, 'not_found'],

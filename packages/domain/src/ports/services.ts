@@ -33,12 +33,28 @@ export type ObjectStorage = {
     key: string;
     body: Uint8Array;
     contentType: string;
+    maxBytes?: number;
   }) => Promise<StoredObjectMetadata>;
   getObject: (input: {
     organizationId: string;
     key: string;
   }) => Promise<{ body: Uint8Array; contentType: string } | null>;
   deleteObject: (input: { organizationId: string; key: string }) => Promise<void>;
+};
+
+export type DocumentInspectionOutcome = {
+  readonly status: 'accepted' | 'rejected';
+  readonly reasonCode: string | null;
+};
+
+export type DocumentInspector = {
+  inspect: (input: {
+    organizationId: string;
+    documentId: string;
+    revisionId: string;
+    contentType: string;
+    body: Uint8Array;
+  }) => Promise<DocumentInspectionOutcome>;
 };
 
 export type NewAuditEvent = {

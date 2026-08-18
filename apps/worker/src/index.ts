@@ -1,18 +1,74 @@
 import { loadWorkerConfig } from '@esign/config';
 import { createLogger } from '@esign/logger';
-import { createPrismaClient, createPrismaPinger } from '@esign/database';
+import {
+  createPrismaClient,
+  createPrismaOutboxClaimer,
+  createPrismaPinger,
+  createPrismaTenantRepositories,
+  createPrismaUnitOfWork,
+  createPrismaUploadSessionLookup,
+} from '@esign/database';
+import {
+  createCleanupAbandonedUploads,
+  createDocumentInspector,
+  createInspectDocument,
+  createMemoryObjectStorage,
+  createSizeLimitedObjectStorage,
+  createSystemClock,
+  createUuidIdGenerator,
+} from '@esign/application';
 import { createJobPoller } from './poller.js';
 import { createWorkerHealthServer } from './health-server.js';
+import { processDocumentIngestionJobs } from './process-ingestion.js';
 
 async function main(): Promise<void> {
   const config = loadWorkerConfig();
   const logger = createLogger({ name: 'worker', level: config.LOG_LEVEL });
   const prisma = createPrismaClient(config.DATABASE_URL);
   const database = createPrismaPinger(prisma);
+  const clock = createSystemClock();
+  const ids = createUuidIdGenerator();
+  const repos = createPrismaTenantRepositories(prisma);
+  const unitOfWork = createPrismaUnitOfWork(prisma);
+  const storage = createSizeLimitedObjectStorage(
+    createMemoryObjectStorage(),
+    config.DOCUMENT_MAX_UPLOAD_BYTES,
+  );
+  const inspect = createInspectDocument({
+    documents: repos.documents,
+    revisions: repos.revisions,
+    storage,
+    inspector: createDocumentInspector({
+      name: config.DOCUMENT_INSPECTOR,
+      nodeEnv: config.NODE_ENV,
+    }),
+    unitOfWork,
+    ids,
+    clock,
+  });
+  const cleanup = createCleanupAbandonedUploads({
+    uploadSessions: createPrismaUploadSessionLookup(prisma),
+    unitOfWork,
+    ids,
+    clock,
+    limit: 50,
+  });
+  const claimer = createPrismaOutboxClaimer(prisma);
 
   const poller = createJobPoller({
     intervalMs: config.WORKER_POLL_INTERVAL_MS,
     logger,
+    poll: async () => {
+      const result = await processDocumentIngestionJobs({
+        claimer,
+        inspect,
+        cleanup,
+        clock,
+        logger,
+        workerId: 'document-ingestion',
+      });
+      return { jobsClaimed: result.inspected + result.abandoned };
+    },
   });
 
   const healthServer = createWorkerHealthServer({

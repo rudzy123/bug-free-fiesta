@@ -21,6 +21,9 @@ export const AUDIT_EVENT_TYPE_DB: Record<AuditEventType, string> = {
   [AuditEventType.documentFinalized]: 'document_finalized',
   [AuditEventType.finalizationFailed]: 'finalization_failed',
   [AuditEventType.artifactDownloaded]: 'artifact_downloaded',
+  [AuditEventType.inspectionAccepted]: 'inspection_accepted',
+  [AuditEventType.inspectionRejected]: 'inspection_rejected',
+  [AuditEventType.uploadAbandoned]: 'upload_abandoned',
 };
 
 export const AUDIT_ACTOR_TYPE_DB: Record<AuditActorType, string> = {

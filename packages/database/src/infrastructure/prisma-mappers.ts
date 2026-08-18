@@ -8,6 +8,7 @@ import type {
   BackgroundJobStatus as DomainBackgroundJobStatus,
   ConsentRecord,
   Document,
+  DocumentInspectionStatus as DomainDocumentInspectionStatus,
   DocumentRevision,
   DocumentRevisionKind as DomainDocumentRevisionKind,
   DocumentState as DomainDocumentState,
@@ -18,12 +19,15 @@ import type {
   OrganizationMembership,
   OutboxEvent,
   OutboxStatus as DomainOutboxStatus,
+  PreviewGrant,
   SignatureField,
   SignatureFieldType as DomainSignatureFieldType,
   Signer,
   SignerStatus as DomainSignerStatus,
   SigningSession,
   SigningSessionStatus as DomainSigningSessionStatus,
+  UploadSession,
+  UploadSessionStatus as DomainUploadSessionStatus,
   AccountUser,
 } from '@esign/domain';
 import type { MembershipRole as DomainMembershipRole } from '@esign/domain';
@@ -38,9 +42,11 @@ import type {
   Organization as PrismaOrganization,
   OrganizationMembership as PrismaMembership,
   OutboxEvent as PrismaOutboxEvent,
+  PreviewGrant as PrismaPreviewGrant,
   SignatureField as PrismaSignatureField,
   Signer as PrismaSigner,
   SigningSession as PrismaSigningSession,
+  UploadSession as PrismaUploadSession,
   User as PrismaUser,
   AccountSession as PrismaAccountSession,
 } from '../generated/client/index.js';
@@ -49,6 +55,7 @@ import {
   AuditActorType,
   AuditEventType,
   BackgroundJobStatus,
+  DocumentInspectionStatus,
   DocumentRevisionKind,
   DocumentState,
   IdempotencyPrincipalType,
@@ -58,6 +65,7 @@ import {
   SignatureFieldType,
   SignerStatus,
   SigningSessionStatus,
+  UploadSessionStatus,
 } from '../generated/client/index.js';
 
 export const MEMBERSHIP_ROLE_TO_DOMAIN: Record<MembershipRole, DomainMembershipRole> = {
@@ -103,6 +111,41 @@ export const DOCUMENT_STATE_TO_DOMAIN: Record<DocumentState, DomainDocumentState
   [DocumentState.finalizationFailed]: 'finalization_failed',
 };
 
+export const DOCUMENT_INSPECTION_STATUS_TO_PRISMA: Record<
+  DomainDocumentInspectionStatus,
+  DocumentInspectionStatus
+> = {
+  pending: DocumentInspectionStatus.pending,
+  accepted: DocumentInspectionStatus.accepted,
+  rejected: DocumentInspectionStatus.rejected,
+};
+
+export const DOCUMENT_INSPECTION_STATUS_TO_DOMAIN: Record<
+  DocumentInspectionStatus,
+  DomainDocumentInspectionStatus
+> = {
+  [DocumentInspectionStatus.pending]: 'pending',
+  [DocumentInspectionStatus.accepted]: 'accepted',
+  [DocumentInspectionStatus.rejected]: 'rejected',
+};
+
+const UPLOAD_SESSION_STATUS_TO_DOMAIN: Record<UploadSessionStatus, DomainUploadSessionStatus> = {
+  [UploadSessionStatus.issued]: 'issued',
+  [UploadSessionStatus.completed]: 'completed',
+  [UploadSessionStatus.expired]: 'expired',
+  [UploadSessionStatus.abandoned]: 'abandoned',
+};
+
+export const UPLOAD_SESSION_STATUS_TO_PRISMA: Record<
+  DomainUploadSessionStatus,
+  UploadSessionStatus
+> = {
+  issued: UploadSessionStatus.issued,
+  completed: UploadSessionStatus.completed,
+  expired: UploadSessionStatus.expired,
+  abandoned: UploadSessionStatus.abandoned,
+};
+
 const SIGNER_STATUS_TO_DOMAIN: Record<SignerStatus, DomainSignerStatus> = {
   [SignerStatus.pending]: 'pending',
   [SignerStatus.signed]: 'signed',
@@ -128,6 +171,11 @@ const REVISION_KIND_TO_DOMAIN: Record<DocumentRevisionKind, DomainDocumentRevisi
   [DocumentRevisionKind.intermediate]: 'intermediate',
 };
 
+export const REVISION_KIND_TO_PRISMA: Record<DomainDocumentRevisionKind, DocumentRevisionKind> = {
+  source: DocumentRevisionKind.source,
+  intermediate: DocumentRevisionKind.intermediate,
+};
+
 export const AUDIT_EVENT_TYPE_TO_PRISMA: Record<DomainAuditEventType, AuditEventType> = {
   document_created: AuditEventType.documentCreated,
   revision_added: AuditEventType.revisionAdded,
@@ -145,6 +193,9 @@ export const AUDIT_EVENT_TYPE_TO_PRISMA: Record<DomainAuditEventType, AuditEvent
   document_finalized: AuditEventType.documentFinalized,
   finalization_failed: AuditEventType.finalizationFailed,
   artifact_downloaded: AuditEventType.artifactDownloaded,
+  inspection_accepted: AuditEventType.inspectionAccepted,
+  inspection_rejected: AuditEventType.inspectionRejected,
+  upload_abandoned: AuditEventType.uploadAbandoned,
 };
 
 export const AUDIT_ACTOR_TYPE_TO_PRISMA: Record<DomainAuditActorType, AuditActorType> = {
@@ -171,6 +222,9 @@ const AUDIT_EVENT_TYPE_TO_DOMAIN: Record<AuditEventType, DomainAuditEventType> =
   [AuditEventType.documentFinalized]: 'document_finalized',
   [AuditEventType.finalizationFailed]: 'finalization_failed',
   [AuditEventType.artifactDownloaded]: 'artifact_downloaded',
+  [AuditEventType.inspectionAccepted]: 'inspection_accepted',
+  [AuditEventType.inspectionRejected]: 'inspection_rejected',
+  [AuditEventType.uploadAbandoned]: 'upload_abandoned',
 };
 
 const AUDIT_ACTOR_TYPE_TO_DOMAIN: Record<AuditActorType, DomainAuditActorType> = {
@@ -193,6 +247,16 @@ const JOB_STATUS_TO_DOMAIN: Record<BackgroundJobStatus, DomainBackgroundJobStatu
   [BackgroundJobStatus.succeeded]: 'succeeded',
   [BackgroundJobStatus.failed]: 'failed',
   [BackgroundJobStatus.cancelled]: 'cancelled',
+};
+
+export const IDEMPOTENCY_PRINCIPAL_TO_PRISMA: Record<
+  DomainIdempotencyPrincipalType,
+  IdempotencyPrincipalType
+> = {
+  account_user: IdempotencyPrincipalType.accountUser,
+  signer: IdempotencyPrincipalType.signer,
+  worker: IdempotencyPrincipalType.worker,
+  system: IdempotencyPrincipalType.system,
 };
 
 const IDEMPOTENCY_PRINCIPAL_TO_DOMAIN: Record<
@@ -258,6 +322,8 @@ export function toDomainDocument(row: PrismaDocument): Document {
     ownerMembershipId: row.ownerMembershipId,
     title: row.title,
     state: DOCUMENT_STATE_TO_DOMAIN[row.state],
+    inspectionStatus: DOCUMENT_INSPECTION_STATUS_TO_DOMAIN[row.inspectionStatus],
+    sourceDisplayName: row.sourceDisplayName,
     expiresAt: row.expiresAt,
     currentRevisionId: row.currentRevisionId,
     signingRevisionId: row.signingRevisionId,
@@ -280,6 +346,37 @@ export function toDomainRevision(row: PrismaDocumentRevision): DocumentRevision 
     contentType: row.contentType,
     sizeBytes: row.sizeBytes,
     sha256Digest: row.sha256Digest,
+    displayName: row.displayName,
+    createdAt: row.createdAt,
+  };
+}
+
+export function toDomainUploadSession(row: PrismaUploadSession): UploadSession {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    documentId: row.documentId,
+    tokenHash: row.tokenHash,
+    status: UPLOAD_SESSION_STATUS_TO_DOMAIN[row.status],
+    displayName: row.displayName,
+    contentType: row.contentType,
+    maxBytes: row.maxBytes,
+    expiresAt: row.expiresAt,
+    completedAt: row.completedAt,
+    revisionId: row.revisionId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function toDomainPreviewGrant(row: PrismaPreviewGrant): PreviewGrant {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    documentId: row.documentId,
+    revisionId: row.revisionId,
+    tokenHash: row.tokenHash,
+    expiresAt: row.expiresAt,
     createdAt: row.createdAt,
   };
 }

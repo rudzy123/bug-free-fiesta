@@ -55,6 +55,9 @@ Verification walks the chain from 0 and recomputes hashes. A mismatch is an inci
 | `document_finalized`   | Artifact digest recorded.                              |
 | `finalization_failed`  | Lease released without artifact.                       |
 | `artifact_downloaded`  | Authorized download of finalized bytes.                |
+| `inspection_accepted`  | Source PDF passed inspection.                          |
+| `inspection_rejected`  | Source PDF failed inspection.                          |
+| `upload_abandoned`     | Issued upload session expired without completion.      |
 
 Do not put raw tokens, passwords, authorization headers, signature image bytes, or full PDF contents in `payload`.
 

@@ -3,6 +3,7 @@ import { createLogger } from '@esign/logger';
 import { createPrismaClient, createPrismaPinger } from '@esign/database';
 import { createHealthService } from './application/health-service.js';
 import { createAccountAuthFromPrisma } from './compose-account-auth.js';
+import { createDocumentIngestionFromPrisma } from './compose-documents.js';
 import { createApiApp } from './create-app.js';
 import { installGracefulShutdown } from './shutdown.js';
 
@@ -11,11 +12,20 @@ async function main(): Promise<void> {
   const logger = createLogger({ name: 'api', level: config.LOG_LEVEL });
   const prisma = createPrismaClient(config.DATABASE_URL);
   const health = createHealthService(createPrismaPinger(prisma));
+  const accountAuth = createAccountAuthFromPrisma({ config, prisma });
+  const documents = createDocumentIngestionFromPrisma({
+    config,
+    prisma,
+    resolveSession: accountAuth.resolveSession,
+    resolveActor: accountAuth.resolveActor,
+    hasher: accountAuth.hasher,
+  });
   const app = createApiApp({
     config,
     logger,
     health,
-    accountAuthRouter: createAccountAuthFromPrisma({ config, prisma }),
+    accountAuthRouter: accountAuth.router,
+    documentRouter: documents.router,
   });
 
   const server = app.listen(config.API_PORT, config.API_HOST, () => {

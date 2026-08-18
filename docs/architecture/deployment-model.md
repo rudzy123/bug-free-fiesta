@@ -42,6 +42,8 @@ GitHub Actions on pull requests and `main`. Jobs and local equivalents: [CI loca
 
 Private buckets/containers. No public list or public read. TLS. Lifecycle rules for incomplete multipart uploads. Production providers: S3-compatible and/or Azure Blob via one port. MinIO is local only.
 
+PDF uploads are capped by `DOCUMENT_MAX_UPLOAD_BYTES` at the reverse proxy, the API raw body parser, and the object-storage adapter. Set the proxy body limit to the same value (for example nginx `client_max_body_size`).
+
 ## Network
 
 - API and worker do not expose PostgreSQL or MinIO ports publicly.

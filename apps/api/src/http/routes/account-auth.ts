@@ -181,22 +181,6 @@ export function createAccountAuthRouter(deps: AccountAuthRouterDeps): Router {
     }),
   );
 
-  router.post(
-    '/organizations/:organizationId/documents',
-    requireOrigin,
-    requireSession,
-    requireCsrf,
-    requireMembership,
-    asyncRoute(async (req, res) => {
-      const actor = req.accountActor;
-      if (actor === undefined) {
-        throw new Error('missing account actor after middleware');
-      }
-      deps.assertAction({ actor, action: 'document.write' });
-      res.status(204).end();
-    }),
-  );
-
   return router;
 }
 

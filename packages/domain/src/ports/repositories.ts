@@ -4,15 +4,18 @@ import type {
   BackgroundJob,
   ConsentRecord,
   Document,
+  DocumentInspectionStatus,
   DocumentRevision,
   FinalizedArtifact,
   IdempotencyRecord,
   Organization,
   OrganizationMembership,
   OutboxEvent,
+  PreviewGrant,
   SignatureField,
   Signer,
   SigningSession,
+  UploadSession,
 } from '../entities.js';
 import type { AssertTenantScopedRepository } from './tenant-scope.js';
 
@@ -41,6 +44,19 @@ export type DocumentRepository = {
   findById: (input: { organizationId: string; documentId: string }) => Promise<Document | null>;
   listByOrganization: (input: { organizationId: string }) => Promise<readonly Document[]>;
   create: (input: { organizationId: string; document: Document }) => Promise<Document>;
+  attachSourceRevision: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    revisionId: string;
+    sourceDisplayName: string;
+  }) => Promise<Document>;
+  setInspectionStatus: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    inspectionStatus: DocumentInspectionStatus;
+  }) => Promise<Document>;
 };
 
 export type DocumentRevisionRepository = {
@@ -52,6 +68,43 @@ export type DocumentRevisionRepository = {
     organizationId: string;
     documentId: string;
   }) => Promise<readonly DocumentRevision[]>;
+  create: (input: {
+    organizationId: string;
+    revision: DocumentRevision;
+  }) => Promise<DocumentRevision>;
+};
+
+export type UploadSessionRepository = {
+  create: (input: { organizationId: string; session: UploadSession }) => Promise<UploadSession>;
+  findById: (input: {
+    organizationId: string;
+    uploadSessionId: string;
+  }) => Promise<UploadSession | null>;
+  complete: (input: {
+    organizationId: string;
+    uploadSessionId: string;
+    revisionId: string;
+    completedAt: Date;
+  }) => Promise<UploadSession>;
+  markAbandoned: (input: {
+    organizationId: string;
+    uploadSessionId: string;
+    abandonedAt: Date;
+  }) => Promise<UploadSession>;
+};
+
+export type UploadSessionLookup = {
+  findByTokenHash: (tokenHash: string) => Promise<UploadSession | null>;
+  listExpiredIssued: (input: { now: Date; limit: number }) => Promise<readonly UploadSession[]>;
+};
+
+export type PreviewGrantRepository = {
+  create: (input: { organizationId: string; grant: PreviewGrant }) => Promise<PreviewGrant>;
+  findById: (input: { organizationId: string; grantId: string }) => Promise<PreviewGrant | null>;
+};
+
+export type PreviewGrantLookup = {
+  findByTokenHash: (tokenHash: string) => Promise<PreviewGrant | null>;
 };
 
 export type SignerRepository = {
@@ -128,6 +181,16 @@ export type IdempotencyRecordRepository = {
     route: string;
     key: string;
   }) => Promise<IdempotencyRecord | null>;
+  create: (input: {
+    organizationId: string;
+    record: IdempotencyRecord;
+  }) => Promise<IdempotencyRecord>;
+  complete: (input: {
+    organizationId: string;
+    recordId: string;
+    responseStatus: number;
+    responseBody: Readonly<Record<string, unknown>>;
+  }) => Promise<IdempotencyRecord>;
 };
 
 export type TenantRepositories = {
@@ -135,6 +198,8 @@ export type TenantRepositories = {
   readonly memberships: MembershipRepository;
   readonly documents: DocumentRepository;
   readonly revisions: DocumentRevisionRepository;
+  readonly uploadSessions: UploadSessionRepository;
+  readonly previewGrants: PreviewGrantRepository;
   readonly signers: SignerRepository;
   readonly signingSessions: SigningSessionRepository;
   readonly signatureFields: SignatureFieldRepository;
@@ -184,11 +249,21 @@ type _IdempotencyOk =
   IdempotencyRecordRepository extends AssertTenantScopedRepository<IdempotencyRecordRepository>
     ? true
     : never;
+type _UploadSessionsOk =
+  UploadSessionRepository extends AssertTenantScopedRepository<UploadSessionRepository>
+    ? true
+    : never;
+type _PreviewGrantsOk =
+  PreviewGrantRepository extends AssertTenantScopedRepository<PreviewGrantRepository>
+    ? true
+    : never;
 
 export const TENANT_REPOSITORY_TYPE_GUARDS: {
   documents: _DocumentsOk;
   memberships: _MembershipsOk;
   revisions: _RevisionsOk;
+  uploadSessions: _UploadSessionsOk;
+  previewGrants: _PreviewGrantsOk;
   signers: _SignersOk;
   signingSessions: _SessionsOk;
   signatureFields: _FieldsOk;
@@ -202,6 +277,8 @@ export const TENANT_REPOSITORY_TYPE_GUARDS: {
   documents: true,
   memberships: true,
   revisions: true,
+  uploadSessions: true,
+  previewGrants: true,
   signers: true,
   signingSessions: true,
   signatureFields: true,

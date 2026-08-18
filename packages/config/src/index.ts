@@ -124,6 +124,24 @@ const apiEnvSchema = z
     AUTH_OIDC_CLIENT_ID: z.string().optional(),
     AUTH_OIDC_CLIENT_SECRET: z.string().optional(),
     AUTH_OIDC_REDIRECT_URI: z.string().optional(),
+    DOCUMENT_MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1024)
+      .max(104_857_600)
+      .default(26_214_400),
+    DOCUMENT_UPLOAD_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
+    DOCUMENT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(120),
+    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed']).default('local'),
+    DOCUMENT_UPLOAD_TOKEN_HEADER: requiredString(
+      'DOCUMENT_UPLOAD_TOKEN_HEADER',
+      'x-upload-token',
+    ).default('x-upload-token'),
+    DOCUMENT_PREVIEW_TOKEN_HEADER: requiredString(
+      'DOCUMENT_PREVIEW_TOKEN_HEADER',
+      'x-preview-token',
+    ).default('x-preview-token'),
+    IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && data.AUTH_PROVIDER === 'local') {
@@ -173,6 +191,13 @@ const apiEnvSchema = z
         });
       }
     }
+    if (data.NODE_ENV === 'production' && data.DOCUMENT_INSPECTOR === 'local') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
+      });
+    }
   })
   .transform((data) => ({
     ...data,
@@ -183,28 +208,47 @@ const apiEnvSchema = z
           ? false
           : data.NODE_ENV === 'production',
     AUTH_CSRF_HEADER_NAME: data.AUTH_CSRF_HEADER_NAME.toLowerCase(),
+    DOCUMENT_UPLOAD_TOKEN_HEADER: data.DOCUMENT_UPLOAD_TOKEN_HEADER.toLowerCase(),
+    DOCUMENT_PREVIEW_TOKEN_HEADER: data.DOCUMENT_PREVIEW_TOKEN_HEADER.toLowerCase(),
   }));
 
-const workerEnvSchema = z.object({
-  NODE_ENV: nodeEnvSchema,
-  LOG_LEVEL: logLevelSchema.default('info'),
-  DATABASE_URL: databaseUrlSchema,
-  WORKER_HEALTH_HOST: requiredString('WORKER_HEALTH_HOST', '0.0.0.0').default('0.0.0.0'),
-  WORKER_HEALTH_PORT: portSchema,
-  WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(5_000),
-  SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
-  OBJECT_STORAGE_ENDPOINT: requiredString('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000').url(
-    'OBJECT_STORAGE_ENDPOINT must be an absolute URL such as http://localhost:9000',
-  ),
-  OBJECT_STORAGE_REGION: requiredString('OBJECT_STORAGE_REGION', 'us-east-1'),
-  OBJECT_STORAGE_BUCKET: requiredString('OBJECT_STORAGE_BUCKET', 'esign-documents'),
-  OBJECT_STORAGE_ACCESS_KEY: requiredString('OBJECT_STORAGE_ACCESS_KEY', 'minio-access-key'),
-  OBJECT_STORAGE_SECRET_KEY: requiredString('OBJECT_STORAGE_SECRET_KEY', 'minio-secret-key'),
-  OBJECT_STORAGE_FORCE_PATH_STYLE: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((value) => value === 'true'),
-});
+const workerEnvSchema = z
+  .object({
+    NODE_ENV: nodeEnvSchema,
+    LOG_LEVEL: logLevelSchema.default('info'),
+    DATABASE_URL: databaseUrlSchema,
+    WORKER_HEALTH_HOST: requiredString('WORKER_HEALTH_HOST', '0.0.0.0').default('0.0.0.0'),
+    WORKER_HEALTH_PORT: portSchema,
+    WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(5_000),
+    SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+    OBJECT_STORAGE_ENDPOINT: requiredString('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000').url(
+      'OBJECT_STORAGE_ENDPOINT must be an absolute URL such as http://localhost:9000',
+    ),
+    OBJECT_STORAGE_REGION: requiredString('OBJECT_STORAGE_REGION', 'us-east-1'),
+    OBJECT_STORAGE_BUCKET: requiredString('OBJECT_STORAGE_BUCKET', 'esign-documents'),
+    OBJECT_STORAGE_ACCESS_KEY: requiredString('OBJECT_STORAGE_ACCESS_KEY', 'minio-access-key'),
+    OBJECT_STORAGE_SECRET_KEY: requiredString('OBJECT_STORAGE_SECRET_KEY', 'minio-secret-key'),
+    OBJECT_STORAGE_FORCE_PATH_STYLE: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    DOCUMENT_MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1024)
+      .max(104_857_600)
+      .default(26_214_400),
+    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed']).default('local'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.NODE_ENV === 'production' && data.DOCUMENT_INSPECTOR === 'local') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
+      });
+    }
+  });
 
 const webEnvSchema = z.object({
   NODE_ENV: nodeEnvSchema.default('development'),

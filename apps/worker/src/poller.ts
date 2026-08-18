@@ -13,7 +13,7 @@ export type JobPoller = {
 export function createJobPoller(options: {
   intervalMs: number;
   logger: Logger;
-  poll?: () => Promise<void>;
+  poll?: () => Promise<{ jobsClaimed?: number } | void>;
 }): JobPoller {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
@@ -22,13 +22,17 @@ export function createJobPoller(options: {
 
   const pollOnce = async (): Promise<void> => {
     options.logger.debug('polling for jobs');
+    let jobsClaimed = 0;
     if (options.poll) {
-      await options.poll();
+      const result = await options.poll();
+      if (result && typeof result.jobsClaimed === 'number') {
+        jobsClaimed = result.jobsClaimed;
+      }
     }
     lastPollAtUtc = new Date();
     options.logger.info(
-      { lastPollAtUtc: lastPollAtUtc.toISOString(), jobsClaimed: 0 },
-      'job poll completed with no work',
+      { lastPollAtUtc: lastPollAtUtc.toISOString(), jobsClaimed },
+      jobsClaimed > 0 ? 'job poll completed' : 'job poll completed with no work',
     );
   };
 

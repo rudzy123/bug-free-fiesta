@@ -83,6 +83,9 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 | `idempotency_records_org_principal_route_key_key`            | HTTP mutation replay: same tenant, principal, route, and key.                         |
 | `idempotency_records_expires_at_idx`                         | TTL purge of expired keys.                                                            |
 | `idempotency_records_request_id_idx`                         | Correlate stored responses with request ids.                                          |
+| `upload_sessions_tokenHash_key`                              | Present upload token: hash then lookup.                                               |
+| `upload_sessions_status_expires_at_idx`                      | Cleanup abandoned issued sessions past `expiresAt`.                                   |
+| `preview_grants_tokenHash_key`                               | Present preview token: hash then lookup.                                              |
 
 Primary keys (UUID) support direct get-by-id **after** authorization has loaded the row and checked `organizationId`.
 

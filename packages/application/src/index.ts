@@ -50,3 +50,56 @@ export {
   createMemoryMembershipRepository,
   createMemoryUserRepository,
 } from './auth/memory-adapters.js';
+export { CREATE_DOCUMENT_ROUTE, requireIdempotencyKey } from './documents/idempotency.js';
+export {
+  PDF_CONTENT_TYPE,
+  assertPdfMagicBytes,
+  assertUploadSize,
+  assertedPdfContentType,
+  sanitizeDisplayFilename,
+} from './documents/pdf.js';
+export {
+  LOCAL_INSPECTOR_REJECT_MARKER,
+  createDocumentInspector,
+  createFailClosedDocumentInspector,
+  createLocalDevelopmentDocumentInspector,
+} from './documents/inspectors.js';
+export { createSizeLimitedObjectStorage } from './documents/size-limited-storage.js';
+export { toPublicDocument, type PublicDocument } from './documents/public-document.js';
+export {
+  createCreateDraftDocument,
+  type CreateDraftDocument,
+  type CreateDraftDocumentResult,
+} from './documents/create-draft-document.js';
+export {
+  createCompleteSourceUpload,
+  type CompleteSourceUpload,
+} from './documents/complete-source-upload.js';
+export {
+  createGetOrganizationDocument,
+  type GetOrganizationDocument,
+} from './documents/get-organization-document.js';
+export {
+  createIssueDocumentPreview,
+  type IssueDocumentPreview,
+} from './documents/issue-document-preview.js';
+export {
+  createStreamDocumentPreview,
+  type StreamDocumentPreview,
+} from './documents/stream-document-preview.js';
+export { createInspectDocument, type InspectDocument } from './documents/inspect-document.js';
+export {
+  createCleanupAbandonedUploads,
+  type CleanupAbandonedUploads,
+} from './documents/cleanup-abandoned-uploads.js';
+export {
+  createMemoryAuditWriter,
+  createMemoryDocumentRepository,
+  createMemoryDocumentRevisionRepository,
+  createMemoryDocumentScope,
+  createMemoryIdempotencyRecordRepository,
+  createMemoryJobPublisher,
+  createMemoryPreviewGrantStore,
+  createMemoryUnitOfWork,
+  createMemoryUploadSessionStore,
+} from './documents/memory-adapters.js';

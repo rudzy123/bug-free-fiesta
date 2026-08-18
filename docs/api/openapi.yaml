@@ -3,8 +3,8 @@ info:
   title: Electronic signature API
   version: 0.0.0
   description: >
-    Public HTTP surface. Health plus account-user authentication. This document is not a
-    legal or compliance statement.
+    Public HTTP surface. Health, account-user authentication, and document ingestion.
+    This document is not a legal or compliance statement.
 servers:
   - url: http://localhost:4000
 paths:
@@ -166,11 +166,13 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
   /organizations/{organizationId}/documents:
     post:
-      summary: Authorize document.write for the membership role
-      operationId: authorizeDocumentWrite
+      summary: Create a draft document and a short-lived upload capability
+      operationId: createDraftDocument
       description: >
-        Persistence of documents is not implemented. The route enforces
-        authentication, CSRF, membership, and deny-by-default role checks.
+        Authenticated organization members with document.write create a DRAFT
+        document. Inspection starts pending. The response includes a short-lived
+        upload URL and a one-time token. The token is not stored in idempotent
+        replays. Object-storage keys are never returned.
       parameters:
         - name: organizationId
           in: path
@@ -178,9 +180,32 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
       responses:
-        '204':
-          description: Caller is authorized to write documents in this organization
+        '201':
+          description: Draft created with an upload capability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateDocumentResponse'
+        '400':
+          description: Invalid title, filename, or idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
@@ -189,6 +214,149 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: CSRF rejected, wrong organization, or role denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /organizations/{organizationId}/documents/{documentId}:
+    get:
+      summary: Load a tenant document without object-storage keys
+      operationId: getOrganizationDocument
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicDocument'
+        '403':
+          description: No membership in this organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Document not in this organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /organizations/{organizationId}/documents/{documentId}/source:
+    put:
+      summary: Stream a PDF into the issued upload capability
+      operationId: uploadDocumentSource
+      description: >
+        PDF only. The API validates declared content type, sanitized .pdf
+        extension from create time, magic bytes, and DOCUMENT_MAX_UPLOAD_BYTES.
+        Reverse proxies must use the same limit. Object storage also enforces
+        the cap. The original filename is stored only as sanitized display metadata.
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-upload-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Source revision stored; inspection pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicDocument'
+        '400':
+          description: Malformed content type, extension, or magic bytes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Body exceeds DOCUMENT_MAX_UPLOAD_BYTES
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /organizations/{organizationId}/documents/{documentId}/previews:
+    post:
+      summary: Issue a short-lived preview download capability
+      operationId: issueDocumentPreview
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Preview grant issued. Object keys are not included.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuePreviewResponse'
+  /document-previews/{grantId}:
+    get:
+      summary: Stream an authorized PDF preview
+      operationId: streamDocumentPreview
+      parameters:
+        - name: grantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-preview-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF bytes
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Missing, unknown, or expired preview token
           content:
             application/json:
               schema:
@@ -328,3 +496,110 @@ components:
         sessionId:
           type: string
           format: uuid
+    CreateDocumentRequest:
+      type: object
+      additionalProperties: false
+      required: [title, filename]
+      properties:
+        title:
+          type: string
+        filename:
+          type: string
+          description: Untrusted. Stored only after sanitization as display metadata.
+    PublicDocument:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          documentId,
+          title,
+          state,
+          inspectionStatus,
+          displayName,
+          availableForSigning,
+          currentRevision,
+        ]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        state:
+          type: string
+        inspectionStatus:
+          type: string
+          enum: [pending, accepted, rejected]
+        displayName:
+          type: string
+          nullable: true
+        availableForSigning:
+          type: boolean
+        currentRevision:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/PublicDocumentRevision'
+    PublicDocumentRevision:
+      type: object
+      additionalProperties: false
+      required: [revisionId, contentType, sizeBytes, sha256Digest, displayName]
+      properties:
+        revisionId:
+          type: string
+          format: uuid
+        contentType:
+          type: string
+          enum: [application/pdf]
+        sizeBytes:
+          type: integer
+        sha256Digest:
+          type: string
+        displayName:
+          type: string
+    CreateDocumentResponse:
+      allOf:
+        - $ref: '#/components/schemas/PublicDocument'
+        - type: object
+          additionalProperties: false
+          required: [upload]
+          properties:
+            upload:
+              type: object
+              additionalProperties: false
+              required: [url, method, expiresAt, maxBytes, contentType, tokenHeader, token]
+              properties:
+                url:
+                  type: string
+                method:
+                  type: string
+                  enum: [PUT]
+                expiresAt:
+                  type: string
+                  format: date-time
+                maxBytes:
+                  type: integer
+                contentType:
+                  type: string
+                  enum: [application/pdf]
+                tokenHeader:
+                  type: string
+                token:
+                  type: string
+                  nullable: true
+    IssuePreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [url, expiresAt, tokenHeader, token, contentType]
+      properties:
+        url:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        tokenHeader:
+          type: string
+        token:
+          type: string
+        contentType:
+          type: string
+          enum: [application/pdf]

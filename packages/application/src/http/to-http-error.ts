@@ -30,6 +30,7 @@ const SECRET_DETAIL_KEYS = new Set([
   'signature',
   'pdfBytes',
   'documentBytes',
+  'uploadToken',
 ]);
 
 function redactDetails(details: ApplicationErrorDetails): ApplicationErrorDetails | undefined {
@@ -61,6 +62,9 @@ export function toHttpError(error: unknown): HttpErrorMapping {
   if (isApplicationError(error)) {
     switch (error.kind) {
       case APPLICATION_ERROR_KIND.validation:
+        if (error.details.reason === 'payload_too_large') {
+          return mappingFor(error, 413, 'payload_too_large');
+        }
         return mappingFor(error, 400, 'validation');
       case APPLICATION_ERROR_KIND.authentication:
         return mappingFor(error, 401, 'authentication');

@@ -13,6 +13,8 @@ const TENANT_TYPES = [
   'MembershipRepository',
   'DocumentRepository',
   'DocumentRevisionRepository',
+  'UploadSessionRepository',
+  'PreviewGrantRepository',
   'SignerRepository',
   'SigningSessionRepository',
   'SignatureFieldRepository',

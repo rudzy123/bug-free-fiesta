@@ -30,6 +30,8 @@ function document(organizationId = ORG): Document {
     ownerMembershipId: MEMBERSHIP,
     title: 'NDA',
     state: 'draft',
+    inspectionStatus: 'pending',
+    sourceDisplayName: null,
     expiresAt: null,
     currentRevisionId: null,
     signingRevisionId: null,
@@ -122,10 +124,12 @@ describe('Prisma tenant repositories', () => {
         'memberships',
         'organizations',
         'outboxEvents',
+        'previewGrants',
         'revisions',
         'signatureFields',
         'signers',
         'signingSessions',
+        'uploadSessions',
       ].sort(),
     );
   });
