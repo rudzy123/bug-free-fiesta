@@ -4,6 +4,7 @@ import type {
   AuditEventType,
   Document,
   OutboxEvent,
+  SignatureField,
   Signer,
 } from '../entities.js';
 
@@ -34,6 +35,13 @@ export type StoredObjectMetadata = {
   readonly sha256Digest: string;
 };
 
+export type StoredObject = {
+  readonly body: Uint8Array;
+  readonly contentType: string;
+  readonly sha256Digest: string;
+  readonly sizeBytes: number;
+};
+
 export type ObjectStorage = {
   putObject: (input: {
     organizationId: string;
@@ -41,12 +49,31 @@ export type ObjectStorage = {
     body: Uint8Array;
     contentType: string;
     maxBytes?: number;
+    expectedSha256Digest?: string;
   }) => Promise<StoredObjectMetadata>;
-  getObject: (input: {
-    organizationId: string;
-    key: string;
-  }) => Promise<{ body: Uint8Array; contentType: string } | null>;
+  getObject: (input: { organizationId: string; key: string }) => Promise<StoredObject | null>;
   deleteObject: (input: { organizationId: string; key: string }) => Promise<void>;
+  listKeys: (input: {
+    organizationId: string;
+    prefix: string;
+    olderThan: Date;
+  }) => Promise<readonly string[]>;
+};
+
+export type FlattenedAppearance = {
+  readonly field: SignatureField;
+  readonly pngBytes: Uint8Array | null;
+  readonly signerName: string | null;
+  readonly signedAt: Date | null;
+};
+
+export type PdfFlattener = {
+  flatten: (input: {
+    pdfBytes: Uint8Array;
+    appearances: readonly FlattenedAppearance[];
+    occurredAt: Date;
+    timeoutMs: number;
+  }) => Promise<{ pdfBytes: Uint8Array; pageCount: number }>;
 };
 
 export type DocumentInspectionOutcome = {

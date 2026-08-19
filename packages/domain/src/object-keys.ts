@@ -30,8 +30,24 @@ export function assertTenantObjectKey(organizationId: string, key: string): stri
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 export function sourceRevisionObjectKey(organizationId: string, sha256Digest: string): string {
+  return digestObjectKey(organizationId, 'revisions', sha256Digest);
+}
+
+export function artifactObjectKey(organizationId: string, sha256Digest: string): string {
+  return digestObjectKey(organizationId, 'artifacts', sha256Digest);
+}
+
+export function signatureImageObjectKey(organizationId: string, sha256Digest: string): string {
+  return digestObjectKey(organizationId, 'signatures', sha256Digest);
+}
+
+function digestObjectKey(
+  organizationId: string,
+  kind: 'revisions' | 'artifacts' | 'signatures',
+  sha256Digest: string,
+): string {
   if (!SHA256_HEX.test(sha256Digest)) {
     throw new IntegrityError({ reason: 'invalid_sha256_digest' });
   }
-  return tenantObjectKey(organizationId, `revisions/${sha256Digest}`);
+  return tenantObjectKey(organizationId, `${kind}/${sha256Digest}`);
 }

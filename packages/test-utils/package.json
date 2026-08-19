@@ -26,8 +26,11 @@
     "@esign/typescript-config": "workspace:*",
     "@types/node": "22.15.18",
     "eslint": "9.27.0",
-    "typescript-eslint": "8.32.1",
     "typescript": "5.8.3",
+    "typescript-eslint": "8.32.1",
     "vitest": "3.2.7"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
   }
 }

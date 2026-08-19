@@ -17,5 +17,6 @@ export function createSizeLimitedObjectStorage(
     },
     getObject: (input) => inner.getObject(input),
     deleteObject: (input) => inner.deleteObject(input),
+    listKeys: (input) => inner.listKeys(input),
   };
 }

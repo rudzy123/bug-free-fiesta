@@ -20,18 +20,19 @@
     "@esign/contracts": "workspace:*",
     "@esign/database": "workspace:*",
     "@esign/domain": "workspace:*",
-    "@esign/logger": "workspace:*"
+    "@esign/logger": "workspace:*",
+    "pdf-lib": "1.17.1"
   },
   "devDependencies": {
     "@esign/eslint-config": "workspace:*",
     "@esign/test-utils": "workspace:*",
     "@esign/typescript-config": "workspace:*",
     "@types/node": "22.15.18",
+    "@vitest/coverage-v8": "3.2.7",
     "eslint": "9.27.0",
-    "typescript-eslint": "8.32.1",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "3.2.7",
-    "@vitest/coverage-v8": "3.2.7"
+    "typescript-eslint": "8.32.1",
+    "vitest": "3.2.7"
   }
 }

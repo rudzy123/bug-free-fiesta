@@ -59,23 +59,23 @@ stateDiagram-v2
 
 Without the diagram, only these transitions are legal. Anything else is a conflict error.
 
-| From                   | To                    | Actor / trigger                    | Guards                                                                                                        |
-| ---------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `draft`                | `prepared`            | Owner or member                    | Inspection `accepted`; at least one signer; each signer has a field; routing matches `ordered` or `parallel`. |
-| `prepared`             | `draft`               | Owner or member                    | Signers or fields no longer satisfy send guards.                                                              |
-| `draft` / `prepared`   | `sent`                | Document owner, admin, member      | Same send guards; freeze fields, routing, revision, and signing mode. Issue hashed sessions.                  |
-| `draft` / `prepared`   | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                               |
-| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                          |
-| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                             |
-| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                             |
-| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                     |
-| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                   |
-| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                   |
-| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Write finalization outbox.                                                    |
-| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty. Exactly one winner.                                  |
-| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                            |
-| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                          |
-| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                       |
+| From                   | To                    | Actor / trigger                    | Guards                                                                                                                    |
+| ---------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `draft`                | `prepared`            | Owner or member                    | Inspection `accepted`; at least one signer; each signer has a field; routing matches `ordered` or `parallel`.             |
+| `prepared`             | `draft`               | Owner or member                    | Signers or fields no longer satisfy send guards.                                                                          |
+| `draft` / `prepared`   | `sent`                | Document owner, admin, member      | Same send guards; freeze fields, routing, revision, and signing mode. Issue hashed sessions.                              |
+| `draft` / `prepared`   | `voided`              | Owner or admin                     | Optional; equivalent to abandoning a draft. Still append audit.                                                           |
+| `sent`                 | `in_progress`         | Sign mutation                      | First successful required signature.                                                                                      |
+| `sent`                 | `completed`           | Sign mutation                      | Document had one required signer who just signed.                                                                         |
+| `sent` / `in_progress` | `voided`              | Owner or admin                     | Not `completed` or later. Revoke active sessions.                                                                         |
+| `sent` / `in_progress` | `expired`             | Expiry job or lazy check on access | `nowUtc >= expiresAt` and not completed. Revoke sessions.                                                                 |
+| `sent` / `in_progress` | `declined`            | Assigned signer                    | Decline is explicit. Revoke other sessions.                                                                               |
+| `in_progress`          | `in_progress`         | Sign mutation                      | Additional signer completed; others remain.                                                                               |
+| `in_progress`          | `completed`           | Sign mutation                      | Last required signer completed. Publish `flatten_signature` (same job type as earlier signers). Flattening remains async. |
+| `completed`            | `finalizing`          | Worker                             | Conditional update: `state = completed` AND lease empty or expired. Exactly one winner.                                   |
+| `finalizing`           | `finalized`           | Worker                             | Artifact uploaded; digest persisted in the same short transaction as state change.                                        |
+| `finalizing`           | `finalization_failed` | Worker or lease watchdog           | Attempts exceeded or lease expired without artifact.                                                                      |
+| `finalization_failed`  | `finalizing`          | Worker retry                       | Same claim pattern as from `completed`.                                                                                   |
 
 **v1 rule:** `completed`, `finalizing`, and `finalized` cannot move to `voided`. Changing that is **legal review required** (already-captured signatures).
 
@@ -85,6 +85,7 @@ Each **Signer** has `routingOrder` (unsigned integer, starting at 1) and `status
 
 - **Ordered:** routing orders are unique and consecutive starting at 1. A signer may sign only when every required signer with a lower order is `signed`, and the document is `sent` or `in_progress`.
 - **Parallel:** every signer has `routingOrder = 1` and may sign in any sequence, including concurrently.
+- After each successful sign, the API publishes `flatten_signature`. The worker stamps that signer’s server-owned fields onto `currentRevisionId`, writes a new `intermediate` revision, and preserves prior flattened signatures. `COMPLETED` / `finalized` happen only when every required signer has status `signed` and the last flatten commits the artifact.
 
 v1 does not mix ordered groups with parallel groups on the same document. The API ignores client-supplied “it is my turn” flags.
 

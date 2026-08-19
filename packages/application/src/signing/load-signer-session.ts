@@ -26,6 +26,7 @@ export type LoadedSignerSession = {
 export type LoadSignerSessionInput = {
   readonly rawToken: string;
   readonly requireExchanged: boolean;
+  readonly allowCompleted?: boolean;
   readonly accountUserId?: string | null;
 };
 
@@ -55,7 +56,10 @@ export function createLoadSignerSession(deps: {
     }
 
     const now = deps.clock.nowUtc();
-    if (found.status === 'revoked' || found.status === 'completed' || found.status === 'expired') {
+    if (found.status === 'revoked' || found.status === 'expired') {
+      rejectToken();
+    }
+    if (found.status === 'completed' && input.allowCompleted !== true) {
       rejectToken();
     }
     if (found.expiresAt.getTime() <= now.getTime()) {
@@ -79,7 +83,10 @@ export function createLoadSignerSession(deps: {
       organizationId: found.organizationId,
       documentId: found.documentId,
     });
-    if (!document || !isAvailableForSigning(document)) {
+    if (!document) {
+      throw new ConflictError({ reason: 'document_not_signable' });
+    }
+    if (found.status !== 'completed' && !isAvailableForSigning(document)) {
       throw new ConflictError({ reason: 'document_not_signable' });
     }
     const signer = await deps.signers.findById({

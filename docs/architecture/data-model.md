@@ -68,6 +68,7 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 | `signing_sessions_one_open_per_signer_idx` (partial unique)  | At most one `issued` or `active` session per signer.                                                 |
 | `signature_fields_organization_id_id_key`                    | Tenant-safe field identity.                                                                          |
 | `signature_fields_organization_id_document_id_signer_id_idx` | Load server-owned fields for a signer (ignore client coordinates).                                   |
+| `signature_fields_flattened_revision_id_idx`                 | Idempotent flatten: skip fields already applied to a revision.                                       |
 | `consent_records_sessionId_key`                              | One consent row per signing session.                                                                 |
 | `consent_records_organization_id_document_id_idx`            | Consent history for a document (support / export).                                                   |
 | `finalized_artifacts_documentId_key`                         | At most one artifact per document (finalization backstop).                                           |

@@ -53,6 +53,7 @@ export type UploadSessionStatus = (typeof UPLOAD_SESSION_STATUSES)[number];
 
 export const INSPECT_DOCUMENT_JOB_TYPE = 'inspect_document';
 export const NOTIFY_SIGNER_JOB_TYPE = 'notify_signer';
+export const FLATTEN_SIGNATURE_JOB_TYPE = 'flatten_signature';
 
 export const AUDIT_ACTOR_TYPES = ['account_user', 'signer', 'worker', 'system'] as const;
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
@@ -270,6 +271,7 @@ export type SignatureField = {
   readonly completionContentType: string | null;
   readonly completionSizeBytes: bigint | null;
   readonly completionSha256Digest: string | null;
+  readonly flattenedRevisionId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 };

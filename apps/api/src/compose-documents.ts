@@ -3,6 +3,7 @@ import {
   createAssertAccountAction,
   createCleanupAbandonedUploads,
   createCompleteSourceUpload,
+  createCompleteSigning,
   createConsentDisclosureCatalog,
   createCreateDraftDocument,
   createDeclineToSign,
@@ -35,6 +36,7 @@ import {
   createStreamDocumentPreview,
   createSystemClock,
   createUuidIdGenerator,
+  PNG_MAX_BYTES,
 } from '@esign/application';
 import {
   createPrismaPreviewGrantLookup,
@@ -302,6 +304,21 @@ export function createDocumentIngestionFromPrisma(input: {
       unitOfWork,
       ids,
       clock,
+    }),
+    complete: createCompleteSigning({
+      loadSession,
+      authorization,
+      signers: repos.signers,
+      fields: repos.signatureFields,
+      consent: repos.consentRecords,
+      storage,
+      hashing,
+      idempotency: repos.idempotencyRecords,
+      unitOfWork,
+      ids,
+      clock,
+      idempotencyTtlMs: input.config.IDEMPOTENCY_TTL_SECONDS * 1000,
+      maxPngBytes: PNG_MAX_BYTES,
     }),
   });
   const router = Router();

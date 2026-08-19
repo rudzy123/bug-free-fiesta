@@ -93,6 +93,23 @@ export {
   createCleanupAbandonedUploads,
   type CleanupAbandonedUploads,
 } from './documents/cleanup-abandoned-uploads.js';
+export {
+  PNG_CONTENT_TYPE,
+  PNG_MAX_BYTES,
+  decodePngBase64,
+  validateSignaturePng,
+} from './documents/png.js';
+export { createMemoryPdfFlattener } from './documents/memory-pdf-flattener.js';
+export {
+  createFlattenSignature,
+  type FlattenSignature,
+  type FlattenSignatureInput,
+} from './documents/flatten-signature.js';
+export {
+  createCleanupOrphanedObjects,
+  type CleanupOrphanedObjects,
+} from './documents/cleanup-orphaned-objects.js';
+export { withTimeout } from './jobs/with-timeout.js';
 export { createMemoryJobQueueMetrics, createNoopJobQueueMetrics } from './jobs/metrics.js';
 export { createMemoryOutboxClaimer, type MemoryOutboxClaimer } from './jobs/memory-claimer.js';
 export {
@@ -108,6 +125,7 @@ export {
   createMemoryDocumentRepository,
   createMemoryDocumentRevisionRepository,
   createMemoryDocumentScope,
+  createMemoryFinalizedArtifactStore,
   createMemoryIdempotencyRecordRepository,
   createMemoryJobPublisher,
   createMemoryPreviewGrantStore,
@@ -171,3 +189,10 @@ export {
   type RecordSignerConsent,
   type RecordSignerViewed,
 } from './signing/signer-mutations.js';
+export {
+  COMPLETE_SIGNING_ROUTE,
+  createCompleteSigning,
+  type CompleteSigning,
+  type CompleteSigningInput,
+  type CompleteSigningResult,
+} from './signing/complete-signing.js';

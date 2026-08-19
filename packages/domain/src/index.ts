@@ -21,6 +21,7 @@ export {
   UPLOAD_SESSION_STATUSES,
   INSPECT_DOCUMENT_JOB_TYPE,
   NOTIFY_SIGNER_JOB_TYPE,
+  FLATTEN_SIGNATURE_JOB_TYPE,
   SIGNER_STATUSES,
   SIGNING_SESSION_STATUSES,
   SIGNATURE_FIELD_TYPES,
@@ -115,7 +116,9 @@ export {
 } from './request-actor.js';
 export {
   AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
+  artifactObjectKey,
   assertTenantObjectKey,
+  signatureImageObjectKey,
   sourceRevisionObjectKey,
   tenantObjectKey,
   tenantObjectKeyPrefix,
@@ -130,15 +133,18 @@ export type {
   ConsentDisclosureCatalog,
   DocumentInspectionOutcome,
   DocumentInspector,
+  FlattenedAppearance,
   JobPublishInput,
   JobPublisher,
   NewAuditEvent,
   Notifier,
   ObjectStorage,
+  PdfFlattener,
   SigningEnvelopePolicy,
   SigningInvitation,
   SigningTokenGenerator,
   SigningTokenHasher,
+  StoredObject,
   StoredObjectMetadata,
   UnitIntervalRandom,
 } from './ports/services.js';
@@ -188,6 +194,12 @@ export {
 } from './jobs/failures.js';
 export { computeBackoffMs, type BackoffPolicy } from './jobs/backoff.js';
 export { jobCorrelation, type JobCorrelation } from './jobs/correlation.js';
+export {
+  FINALIZATION_FAILURE_CODES,
+  finalizationError,
+  isFinalizationFailureCode,
+  type FinalizationFailureCode,
+} from './jobs/finalization-failures.js';
 export {
   isJobQueueStale,
   type ClaimedOutboxWork,

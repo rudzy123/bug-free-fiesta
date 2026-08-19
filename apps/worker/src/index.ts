@@ -11,21 +11,27 @@ import {
 } from '@esign/database';
 import {
   createCleanupAbandonedUploads,
+  createCleanupOrphanedObjects,
   createDocumentInspector,
+  createFlattenSignature,
   createInspectDocument,
   createMemoryJobQueueMetrics,
   createMemoryObjectStorage,
   createNotifier,
   createOutboxJobProcessor,
+  createSha256Hashing,
   createSizeLimitedObjectStorage,
   createSystemClock,
   createSystemUnitIntervalRandom,
   createUuidIdGenerator,
+  PNG_MAX_BYTES,
 } from '@esign/application';
 import { createJobPoller } from './poller.js';
 import { createWorkerHealthServer } from './health-server.js';
 import { processDocumentIngestionJobs } from './process-ingestion.js';
 import { processSignerNotificationJobs } from './process-notifications.js';
+import { processSignatureFlattenJobs } from './process-finalization.js';
+import { createPdfLibFlattener } from './pdf-lib-flattener.js';
 
 async function main(): Promise<void> {
   const config = loadWorkerConfig();
@@ -53,12 +59,37 @@ async function main(): Promise<void> {
     ids,
     clock,
   });
+  const flatten = createFlattenSignature({
+    documents: repos.documents,
+    revisions: repos.revisions,
+    signers: repos.signers,
+    sessions: repos.signingSessions,
+    fields: repos.signatureFields,
+    consent: repos.consentRecords,
+    artifacts: repos.finalizedArtifacts,
+    storage,
+    flattener: createPdfLibFlattener(),
+    hashing: createSha256Hashing(),
+    unitOfWork,
+    ids,
+    clock,
+    leaseMs: config.WORKER_LEASE_MS,
+    timeoutMs: config.WORKER_PDF_TIMEOUT_MS,
+    maxPdfBytes: config.DOCUMENT_MAX_UPLOAD_BYTES,
+    maxPngBytes: PNG_MAX_BYTES,
+  });
   const cleanup = createCleanupAbandonedUploads({
     uploadSessions: createPrismaUploadSessionLookup(prisma),
     unitOfWork,
     ids,
     clock,
     limit: 50,
+  });
+  const cleanupOrphans = createCleanupOrphanedObjects({
+    storage,
+    unitOfWork,
+    clock,
+    olderThanMs: config.WORKER_ORPHAN_OBJECT_TTL_MS,
   });
   const notifier = createNotifier({
     name: config.NOTIFICATION_ADAPTER,
@@ -102,7 +133,29 @@ async function main(): Promise<void> {
         notifier,
         workerId,
       });
-      return { jobsClaimed: ingestion.inspected + ingestion.abandoned + notifications.notified };
+      const flattening = await processSignatureFlattenJobs({
+        processor,
+        flatten,
+        workerId,
+      });
+      const organizations = await prisma.organization.findMany({
+        select: { id: true },
+        take: 25,
+        orderBy: { id: 'asc' },
+      });
+      let orphansDeleted = 0;
+      for (const organization of organizations) {
+        const result = await cleanupOrphans({ organizationId: organization.id });
+        orphansDeleted += result.deleted;
+      }
+      return {
+        jobsClaimed:
+          ingestion.inspected +
+          ingestion.abandoned +
+          notifications.notified +
+          flattening.flattened +
+          orphansDeleted,
+      };
     },
   });
 

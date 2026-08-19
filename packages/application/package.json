@@ -26,6 +26,7 @@
     "@esign/domain": "workspace:*"
   },
   "devDependencies": {
+    "@esign/test-utils": "workspace:*",
     "@esign/eslint-config": "workspace:*",
     "@esign/typescript-config": "workspace:*",
     "@types/node": "22.15.18",

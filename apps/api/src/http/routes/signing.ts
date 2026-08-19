@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import type { ApiConfig } from '@esign/config';
 import {
+  completeSigningRequestSchema,
+  completeSigningResponseSchema,
   declineToSignRequestSchema,
   declineToSignResponseSchema,
   exchangeSigningTokenRequestSchema,
@@ -16,6 +18,7 @@ import {
 } from '@esign/contracts';
 import {
   clientRequestMetadataFromHeaders,
+  type CompleteSigning,
   type DeclineToSign,
   type ExchangeSigningToken,
   type GetSignerConsent,
@@ -57,6 +60,7 @@ export type SigningRouterDeps = {
   recordViewed: RecordSignerViewed;
   recordConsent: RecordSignerConsent;
   decline: DeclineToSign;
+  complete: CompleteSigning;
 };
 
 export function createSigningRouter(deps: SigningRouterDeps): Router {
@@ -215,7 +219,42 @@ export function createSigningRouter(deps: SigningRouterDeps): Router {
     }),
   );
 
+  router.post(
+    '/signing/complete',
+    requireOrigin,
+    requireToken,
+    requireCsrf,
+    asyncRoute(async (req, res) => {
+      const parsed = completeSigningRequestSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError({ reason: 'invalid_complete_signing' });
+      }
+      const result = await deps.complete({
+        rawToken: requireSigningToken(req),
+        consentCopyId: parsed.data.consentCopyId,
+        intentToSign: parsed.data.intentToSign,
+        fieldIds: parsed.data.fieldIds,
+        signature: parsed.data.signature,
+        initials: parsed.data.initials,
+        idempotencyKey: headerValue(req, 'idempotency-key') ?? '',
+        requestId: req.correlationId,
+      });
+      res.status(200).json(completeSigningResponseSchema.parse({ status: result.status }));
+    }),
+  );
+
   return router;
+}
+
+function headerValue(
+  req: { header: (name: string) => string | undefined },
+  name: string,
+): string | undefined {
+  const value = req.header(name)?.trim();
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+  return value;
 }
 
 function requireSigningToken(req: { signingToken?: string }): string {

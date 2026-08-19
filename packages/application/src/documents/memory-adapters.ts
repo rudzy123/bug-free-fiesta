@@ -10,6 +10,8 @@ import {
   type DocumentRepository,
   type DocumentRevision,
   type DocumentRevisionRepository,
+  type FinalizedArtifact,
+  type FinalizedArtifactRepository,
   type IdempotencyRecord,
   type IdempotencyRecordRepository,
   type JobPublishInput,
@@ -127,6 +129,122 @@ export function createMemoryDocumentRepository(
         return { ...current, state: 'declined' };
       });
     },
+    async markInProgress(input) {
+      return bumpDocument(records, input, (current) => {
+        if (current.state !== 'sent' && current.state !== 'in_progress') {
+          throw new ConflictError({ reason: 'document_not_in_progress' });
+        }
+        return { ...current, state: 'in_progress' };
+      });
+    },
+    async markCompleted(input) {
+      return bumpDocument(records, input, (current) => {
+        if (current.state !== 'sent' && current.state !== 'in_progress') {
+          throw new ConflictError({ reason: 'document_not_completable' });
+        }
+        return { ...current, state: 'completed' };
+      });
+    },
+    async claimProcessingLease(input) {
+      return bumpDocument(records, input, (current) => {
+        if (
+          current.leaseUntil !== null &&
+          current.leaseUntil.getTime() >= input.now.getTime() &&
+          current.leaseOwner !== input.owner
+        ) {
+          throw new ConflictError({ reason: 'document_lease', code: 'CONCURRENT_FINALIZATION' });
+        }
+        if (
+          current.state !== 'sent' &&
+          current.state !== 'in_progress' &&
+          current.state !== 'completed' &&
+          current.state !== 'finalization_failed' &&
+          current.state !== 'finalizing'
+        ) {
+          throw new ConflictError({ reason: 'document_not_flattenable' });
+        }
+        const nextState =
+          current.state === 'completed' || current.state === 'finalization_failed'
+            ? 'finalizing'
+            : current.state === 'sent'
+              ? 'in_progress'
+              : current.state;
+        return {
+          ...current,
+          state: nextState,
+          leaseOwner: input.owner,
+          leaseUntil: input.leaseUntil,
+          finalizationAttemptCount:
+            nextState === 'finalizing'
+              ? current.finalizationAttemptCount + 1
+              : current.finalizationAttemptCount,
+        };
+      });
+    },
+    async commitFlattenedRevision(input) {
+      return bumpDocument(records, input, (current) => {
+        if (current.leaseOwner !== input.owner) {
+          throw new ConflictError({ reason: 'document_lease', code: 'CONCURRENT_FINALIZATION' });
+        }
+        if (input.finalize) {
+          if (current.state !== 'finalizing' && current.state !== 'completed') {
+            throw new ConflictError({ reason: 'document_not_finalizable' });
+          }
+          return {
+            ...current,
+            state: 'finalized',
+            currentRevisionId: input.revisionId,
+            leaseOwner: null,
+            leaseUntil: null,
+          };
+        }
+        return {
+          ...current,
+          currentRevisionId: input.revisionId,
+          leaseOwner: null,
+          leaseUntil: null,
+        };
+      });
+    },
+    async markFinalizationFailed(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.documentId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      if (current.leaseOwner !== input.owner && current.state !== 'finalizing') {
+        return current;
+      }
+      const updated: Document = {
+        ...current,
+        state: current.state === 'finalizing' ? 'finalization_failed' : current.state,
+        leaseOwner: null,
+        leaseUntil: null,
+        version: current.version + 1,
+      };
+      records[index] = updated;
+      return updated;
+    },
+    async releaseProcessingLease(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.documentId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        return;
+      }
+      if (current.leaseOwner !== input.owner) {
+        return;
+      }
+      records[index] = {
+        ...current,
+        leaseOwner: null,
+        leaseUntil: null,
+        version: current.version + 1,
+      };
+    },
   };
 }
 
@@ -178,6 +296,13 @@ export function createMemoryDocumentRevisionRepository(
     async create(input) {
       records.push(input.revision);
       return input.revision;
+    },
+    async findFirstByObjectKey(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.objectKey === input.objectKey,
+        ) ?? null
+      );
     },
   };
 }
@@ -481,6 +606,29 @@ export function createMemorySignerStore(signers: Signer[] = []): MemorySignerSto
       records[index] = updated;
       return updated;
     },
+    async markSigned(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.signerId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signer' });
+      }
+      if (current.status === 'signed') {
+        return current;
+      }
+      if (current.version !== input.expectedVersion || current.status !== 'pending') {
+        throw new ConflictError({ reason: 'signer_version' });
+      }
+      const updated: Signer = {
+        ...current,
+        status: 'signed',
+        completedAt: input.completedAt,
+        version: current.version + 1,
+      };
+      records[index] = updated;
+      return updated;
+    },
   };
 }
 
@@ -517,6 +665,49 @@ export function createMemorySignatureFieldStore(
       }
       records.push(...input.fields);
       return [...input.fields];
+    },
+    async complete(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.fieldId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      const updated: SignatureField = {
+        ...current,
+        completedAt: input.completedAt,
+        completionObjectKey: input.completionObjectKey,
+        completionContentType: input.completionContentType,
+        completionSizeBytes: input.completionSizeBytes,
+        completionSha256Digest: input.completionSha256Digest,
+      };
+      records[index] = updated;
+      return updated;
+    },
+    async markFlattened(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.fieldId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      const updated: SignatureField = {
+        ...current,
+        flattenedRevisionId: input.flattenedRevisionId,
+      };
+      records[index] = updated;
+      return updated;
+    },
+    async findFirstByCompletionObjectKey(input) {
+      return (
+        records.find(
+          (row) =>
+            row.organizationId === input.organizationId &&
+            row.completionObjectKey === input.objectKey,
+        ) ?? null
+      );
     },
   };
 }
@@ -655,6 +846,28 @@ export function createMemorySigningSessionStore(
       records[index] = updated;
       return updated;
     },
+    async markCompleted(input) {
+      const index = records.findIndex(
+        (row) => row.organizationId === input.organizationId && row.id === input.sessionId,
+      );
+      const current = records[index];
+      if (index === -1 || current === undefined) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      if (current.status === 'completed') {
+        return current;
+      }
+      if (current.status !== 'issued' && current.status !== 'active') {
+        throw new ConflictError({ reason: 'session_not_completable' });
+      }
+      const updated: SigningSession = {
+        ...current,
+        status: 'completed',
+        completedAt: input.completedAt,
+      };
+      records[index] = updated;
+      return updated;
+    },
     async findByTokenHash(tokenHash) {
       return records.find((row) => row.tokenHash === tokenHash) ?? null;
     },
@@ -702,6 +915,47 @@ export function createMemoryConsentStore(consents: ConsentRecord[] = []): Memory
   };
 }
 
+export type MemoryFinalizedArtifactStore = FinalizedArtifactRepository & {
+  records: FinalizedArtifact[];
+};
+
+export function createMemoryFinalizedArtifactStore(
+  artifacts: FinalizedArtifact[] = [],
+): MemoryFinalizedArtifactStore {
+  const records = [...artifacts];
+  return {
+    records,
+    async findByDocument(input) {
+      return (
+        records.find(
+          (row) =>
+            row.organizationId === input.organizationId && row.documentId === input.documentId,
+        ) ?? null
+      );
+    },
+    async create(input) {
+      if (
+        records.some(
+          (row) =>
+            row.organizationId === input.organizationId &&
+            row.documentId === input.artifact.documentId,
+        )
+      ) {
+        throw new ConflictError({ reason: 'artifact_exists' });
+      }
+      records.push(input.artifact);
+      return input.artifact;
+    },
+    async findFirstByObjectKey(input) {
+      return (
+        records.find(
+          (row) => row.organizationId === input.organizationId && row.objectKey === input.objectKey,
+        ) ?? null
+      );
+    },
+  };
+}
+
 export function createMemoryUnitOfWork(scope: TransactionScope): UnitOfWork {
   return {
     async run(work) {
@@ -726,6 +980,7 @@ export function createMemoryDocumentScope(input: {
   signatureFields?: SignatureFieldRepository;
   signingSessions?: SigningSessionRepository;
   consentRecords?: ConsentRecordRepository;
+  finalizedArtifacts?: FinalizedArtifactRepository;
 }): TransactionScope {
   return {
     organizations: { findById: unusedMemoryRepo },
@@ -739,6 +994,7 @@ export function createMemoryDocumentScope(input: {
       listByDocument: unusedMemoryRepo,
       replaceAll: unusedMemoryRepo,
       markDeclined: unusedMemoryRepo,
+      markSigned: unusedMemoryRepo,
     },
     signingSessions: input.signingSessions ?? {
       findById: unusedMemoryRepo,
@@ -750,11 +1006,15 @@ export function createMemoryDocumentScope(input: {
       markPresented: unusedMemoryRepo,
       markExpired: unusedMemoryRepo,
       consumeAndRotate: unusedMemoryRepo,
+      markCompleted: unusedMemoryRepo,
     },
     signatureFields: input.signatureFields ?? {
       findById: unusedMemoryRepo,
       listByDocument: unusedMemoryRepo,
       replaceAll: unusedMemoryRepo,
+      complete: unusedMemoryRepo,
+      markFlattened: unusedMemoryRepo,
+      findFirstByCompletionObjectKey: unusedMemoryRepo,
     },
     consentRecords: input.consentRecords ?? {
       findById: unusedMemoryRepo,
@@ -762,7 +1022,11 @@ export function createMemoryDocumentScope(input: {
       listByDocument: unusedMemoryRepo,
       create: unusedMemoryRepo,
     },
-    finalizedArtifacts: { findByDocument: unusedMemoryRepo },
+    finalizedArtifacts: input.finalizedArtifacts ?? {
+      findByDocument: unusedMemoryRepo,
+      create: unusedMemoryRepo,
+      findFirstByObjectKey: unusedMemoryRepo,
+    },
     auditLogs: {
       findLatest: unusedMemoryRepo,
       listByDocument: unusedMemoryRepo,

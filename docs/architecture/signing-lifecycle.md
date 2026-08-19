@@ -124,7 +124,7 @@ Signing HTML responses set `Cache-Control: no-store`, `Referrer-Policy: no-refer
 
 Signature ink is kept in memory only. It is not written to `localStorage`, `sessionStorage`, analytics, or logs, and object URLs are revoked on completion, decline, expiry, or unmount.
 
-`POST /signing/complete` is the intended completion boundary (field ids + ink payload). The API may not persist completions yet; the UI still treats field ids as intent only.
+`POST /signing/complete` is the completion boundary (field ids + ink payload + consent copy id + intent). The API validates PNG bytes, stores them under a content-addressed key, marks the signer signed, and publishes `flatten_signature`. The worker is the only component that loads pdf-lib. Client field coordinates are ignored.
 
 ## Related documents
 

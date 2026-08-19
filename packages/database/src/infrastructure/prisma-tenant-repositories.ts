@@ -59,6 +59,20 @@ import {
 } from './prisma-mappers.js';
 import { assertSameOrganization, tenantCompoundWhere, tenantScope } from './tenant-where.js';
 
+async function requireDocument(
+  prisma: PrismaClientOrTx,
+  organizationId: string,
+  documentId: string,
+) {
+  const row = await prisma.document.findUnique({
+    where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+  });
+  if (!row) {
+    throw new NotFoundError({ resource: 'document' });
+  }
+  return toDomainDocument(row);
+}
+
 export function createPrismaUserRepository(prisma: PrismaClientOrTx): UserRepository {
   return {
     async findById(input) {
@@ -288,6 +302,168 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
       }
       return toDomainDocument(row);
     },
+    async markInProgress(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          state: { in: [DOCUMENT_STATE_TO_PRISMA.sent, DOCUMENT_STATE_TO_PRISMA.in_progress] },
+        },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.in_progress,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      return requireDocument(prisma, organizationId, documentId);
+    },
+    async markCompleted(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          state: { in: [DOCUMENT_STATE_TO_PRISMA.sent, DOCUMENT_STATE_TO_PRISMA.in_progress] },
+        },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.completed,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      return requireDocument(prisma, organizationId, documentId);
+    },
+    async claimProcessingLease(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const current = await prisma.document.findFirst({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          state: {
+            in: [
+              DOCUMENT_STATE_TO_PRISMA.sent,
+              DOCUMENT_STATE_TO_PRISMA.in_progress,
+              DOCUMENT_STATE_TO_PRISMA.completed,
+              DOCUMENT_STATE_TO_PRISMA.finalization_failed,
+              DOCUMENT_STATE_TO_PRISMA.finalizing,
+            ],
+          },
+          OR: [
+            { leaseUntil: null },
+            { leaseUntil: { lt: input.now } },
+            { leaseOwner: input.owner },
+          ],
+        },
+      });
+      if (!current) {
+        throw new ConflictError({ reason: 'document_lease', code: 'CONCURRENT_FINALIZATION' });
+      }
+      const nextState =
+        current.state === DOCUMENT_STATE_TO_PRISMA.completed ||
+        current.state === DOCUMENT_STATE_TO_PRISMA.finalization_failed
+          ? DOCUMENT_STATE_TO_PRISMA.finalizing
+          : current.state === DOCUMENT_STATE_TO_PRISMA.sent
+            ? DOCUMENT_STATE_TO_PRISMA.in_progress
+            : current.state;
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          OR: [
+            { leaseUntil: null },
+            { leaseUntil: { lt: input.now } },
+            { leaseOwner: input.owner },
+          ],
+        },
+        data: {
+          state: nextState,
+          leaseOwner: input.owner,
+          leaseUntil: input.leaseUntil,
+          finalizationAttemptCount:
+            nextState === DOCUMENT_STATE_TO_PRISMA.finalizing
+              ? { increment: 1 }
+              : current.finalizationAttemptCount,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_lease', code: 'CONCURRENT_FINALIZATION' });
+      }
+      return requireDocument(prisma, organizationId, documentId);
+    },
+    async commitFlattenedRevision(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          leaseOwner: input.owner,
+        },
+        data: input.finalize
+          ? {
+              state: DOCUMENT_STATE_TO_PRISMA.finalized,
+              currentRevisionId: input.revisionId,
+              leaseOwner: null,
+              leaseUntil: null,
+              version: { increment: 1 },
+            }
+          : {
+              currentRevisionId: input.revisionId,
+              leaseOwner: null,
+              leaseUntil: null,
+              version: { increment: 1 },
+            },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_lease', code: 'CONCURRENT_FINALIZATION' });
+      }
+      return requireDocument(prisma, organizationId, documentId);
+    },
+    async markFinalizationFailed(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          leaseOwner: input.owner,
+          state: DOCUMENT_STATE_TO_PRISMA.finalizing,
+        },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.finalization_failed,
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
+      });
+      return requireDocument(prisma, organizationId, documentId);
+    },
+    async releaseProcessingLease(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      await prisma.document.updateMany({
+        where: { organizationId, id: documentId, leaseOwner: input.owner },
+        data: {
+          leaseOwner: null,
+          leaseUntil: null,
+          version: { increment: 1 },
+        },
+      });
+    },
   };
 }
 
@@ -329,6 +505,13 @@ export function createPrismaDocumentRevisionRepository(
         },
       });
       return toDomainRevision(row);
+    },
+    async findFirstByObjectKey(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.documentRevision.findFirst({
+        where: { organizationId, objectKey: input.objectKey },
+      });
+      return row ? toDomainRevision(row) : null;
     },
   };
 }
@@ -509,6 +692,39 @@ export function createPrismaSignerRepository(prisma: PrismaClientOrTx): SignerRe
         data: {
           status: SIGNER_STATUS_TO_PRISMA.declined,
           declinedAt: input.declinedAt,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'signer_version' });
+      }
+      const row = await prisma.signer.findUnique({
+        where: tenantCompoundWhere(organizationId, signerId, 'signerId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signer' });
+      }
+      return toDomainSigner(row);
+    },
+    async markSigned(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const signerId = requireOpaqueId(input.signerId, 'signerId');
+      const existing = await prisma.signer.findUnique({
+        where: tenantCompoundWhere(organizationId, signerId, 'signerId'),
+      });
+      if (existing?.status === SIGNER_STATUS_TO_PRISMA.signed) {
+        return toDomainSigner(existing);
+      }
+      const result = await prisma.signer.updateMany({
+        where: {
+          organizationId,
+          id: signerId,
+          version: input.expectedVersion,
+          status: SIGNER_STATUS_TO_PRISMA.pending,
+        },
+        data: {
+          status: SIGNER_STATUS_TO_PRISMA.signed,
+          completedAt: input.completedAt,
           version: { increment: 1 },
         },
       });
@@ -712,6 +928,37 @@ export function createPrismaSigningSessionRepository(
       }
       return toDomainSigningSession(row);
     },
+    async markCompleted(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const sessionId = requireOpaqueId(input.sessionId, 'sessionId');
+      const existing = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (existing?.status === SigningSessionStatus.completed) {
+        return toDomainSigningSession(existing);
+      }
+      const result = await prisma.signingSession.updateMany({
+        where: {
+          organizationId,
+          id: sessionId,
+          status: { in: [SigningSessionStatus.issued, SigningSessionStatus.active] },
+        },
+        data: {
+          status: SigningSessionStatus.completed,
+          completedAt: input.completedAt,
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'session_not_completable' });
+      }
+      const row = await prisma.signingSession.findUnique({
+        where: tenantCompoundWhere(organizationId, sessionId, 'sessionId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signing_session' });
+      }
+      return toDomainSigningSession(row);
+    },
   };
 }
 
@@ -759,6 +1006,7 @@ export function createPrismaSignatureFieldRepository(
             completionContentType: field.completionContentType,
             completionSizeBytes: field.completionSizeBytes,
             completionSha256Digest: field.completionSha256Digest,
+            flattenedRevisionId: field.flattenedRevisionId,
             createdAt: field.createdAt,
             updatedAt: field.updatedAt,
           },
@@ -766,6 +1014,55 @@ export function createPrismaSignatureFieldRepository(
         stored.push(toDomainSignatureField(row));
       }
       return stored;
+    },
+    async complete(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const fieldId = requireOpaqueId(input.fieldId, 'fieldId');
+      const result = await prisma.signatureField.updateMany({
+        where: { organizationId, id: fieldId },
+        data: {
+          completedAt: input.completedAt,
+          completionObjectKey: input.completionObjectKey,
+          completionContentType: input.completionContentType,
+          completionSizeBytes: input.completionSizeBytes,
+          completionSha256Digest: input.completionSha256Digest,
+        },
+      });
+      if (result.count !== 1) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      const row = await prisma.signatureField.findUnique({
+        where: tenantCompoundWhere(organizationId, fieldId, 'fieldId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      return toDomainSignatureField(row);
+    },
+    async markFlattened(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const fieldId = requireOpaqueId(input.fieldId, 'fieldId');
+      const result = await prisma.signatureField.updateMany({
+        where: { organizationId, id: fieldId },
+        data: { flattenedRevisionId: input.flattenedRevisionId },
+      });
+      if (result.count !== 1) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      const row = await prisma.signatureField.findUnique({
+        where: tenantCompoundWhere(organizationId, fieldId, 'fieldId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'signature_field' });
+      }
+      return toDomainSignatureField(row);
+    },
+    async findFirstByCompletionObjectKey(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.signatureField.findFirst({
+        where: { organizationId, completionObjectKey: input.objectKey },
+      });
+      return row ? toDomainSignatureField(row) : null;
     },
   };
 }
@@ -832,6 +1129,30 @@ export function createPrismaFinalizedArtifactRepository(
       const documentId = requireOpaqueId(input.documentId, 'documentId');
       const row = await prisma.finalizedArtifact.findFirst({
         where: { organizationId, documentId },
+      });
+      return row ? toDomainArtifact(row) : null;
+    },
+    async create(input) {
+      assertSameOrganization(input.organizationId, input.artifact.organizationId);
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.finalizedArtifact.create({
+        data: {
+          id: input.artifact.id,
+          organizationId,
+          documentId: input.artifact.documentId,
+          objectKey: input.artifact.objectKey,
+          contentType: input.artifact.contentType,
+          sizeBytes: input.artifact.sizeBytes,
+          sha256Digest: input.artifact.sha256Digest,
+          createdAt: input.artifact.createdAt,
+        },
+      });
+      return toDomainArtifact(row);
+    },
+    async findFirstByObjectKey(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const row = await prisma.finalizedArtifact.findFirst({
+        where: { organizationId, objectKey: input.objectKey },
       });
       return row ? toDomainArtifact(row) : null;
     },

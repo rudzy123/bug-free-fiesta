@@ -482,6 +482,7 @@ export function toDomainSignatureField(row: PrismaSignatureField): SignatureFiel
     completionContentType: row.completionContentType,
     completionSizeBytes: row.completionSizeBytes,
     completionSha256Digest: row.completionSha256Digest,
+    flattenedRevisionId: row.flattenedRevisionId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

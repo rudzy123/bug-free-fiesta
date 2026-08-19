@@ -20,6 +20,17 @@ export const notifySignerJobPayloadSchema = z
 
 export type NotifySignerJobPayload = z.infer<typeof notifySignerJobPayloadSchema>;
 
+export const flattenSignatureJobPayloadSchema = z
+  .object({
+    documentId: opaqueJobIdSchema,
+    signerId: opaqueJobIdSchema,
+    sessionId: opaqueJobIdSchema,
+    revisionId: opaqueJobIdSchema,
+  })
+  .strict();
+
+export type FlattenSignatureJobPayload = z.infer<typeof flattenSignatureJobPayloadSchema>;
+
 export const workerQueueHealthSchema = z
   .object({
     pending: z.number().int().nonnegative(),

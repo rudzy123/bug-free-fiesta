@@ -151,9 +151,11 @@ export {
 export {
   inspectDocumentJobPayloadSchema,
   notifySignerJobPayloadSchema,
+  flattenSignatureJobPayloadSchema,
   opaqueJobIdSchema,
   workerQueueHealthSchema,
   type InspectDocumentJobPayload,
   type NotifySignerJobPayload,
+  type FlattenSignatureJobPayload,
   type WorkerQueueHealth,
 } from './jobs.js';

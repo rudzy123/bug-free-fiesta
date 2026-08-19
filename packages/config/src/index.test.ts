@@ -88,6 +88,8 @@ describe('environment validation', () => {
     expect(worker.WORKER_HEALTH_PORT).toBe(4100);
     expect(worker.WORKER_LEASE_MS).toBe(60_000);
     expect(worker.WORKER_STALE_QUEUE_MS).toBe(120_000);
+    expect(worker.WORKER_PDF_TIMEOUT_MS).toBe(15_000);
+    expect(worker.WORKER_ORPHAN_OBJECT_TTL_MS).toBe(86_400_000);
     expect(worker.OBJECT_STORAGE_FORCE_PATH_STYLE).toBe(true);
     expect(web.NEXT_PUBLIC_API_BASE_URL).toBe('http://localhost:4000');
   });

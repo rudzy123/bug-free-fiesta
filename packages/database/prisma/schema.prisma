@@ -445,6 +445,7 @@ model SignatureField {
   completionContentType    String?
   completionSizeBytes      BigInt?
   completionSha256Digest   String?            @db.Char(64)
+  flattenedRevisionId      String?            @db.Uuid
   createdAt                DateTime           @default(now()) @db.Timestamptz
   updatedAt                DateTime           @updatedAt @db.Timestamptz
 
@@ -454,6 +455,7 @@ model SignatureField {
 
   @@unique([organizationId, id], map: "signature_fields_organization_id_id_key")
   @@index([organizationId, documentId, signerId], map: "signature_fields_organization_id_document_id_signer_id_idx")
+  @@index([flattenedRevisionId], map: "signature_fields_flattened_revision_id_idx")
   @@map("signature_fields")
 }
 

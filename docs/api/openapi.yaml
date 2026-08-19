@@ -711,6 +711,42 @@ paths:
           description: Missing, unknown, revoked, or expired token
         '409':
           description: Signer cannot act now
+  /signing/complete:
+    post:
+      summary: Complete signing after consent and a valid signature capture
+      operationId: completeSigning
+      description: >
+        Cookie-authenticated. Requires CSRF, an allowed Origin, and Idempotency-Key.
+        Field ids must be this signer's server-owned fields. PNG ink is validated at the API;
+        PDF flattening runs asynchronously in the worker. Does not accept client coordinates.
+      security: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSigningRequest'
+      responses:
+        '200':
+          description: Signer completed; flattening is queued. pending means other signers remain.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteSigningResponse'
+        '401':
+          description: Missing, unknown, revoked, or expired token
+        '403':
+          description: CSRF rejected
+        '409':
+          description: Signer cannot act now, or idempotency key reused with a different body
 components:
   schemas:
     Liveness:
@@ -1298,3 +1334,70 @@ components:
         status:
           type: string
           enum: [declined]
+    CompleteSigningRequest:
+      type: object
+      additionalProperties: false
+      required: [consentCopyId, intentToSign, fieldIds]
+      properties:
+        consentCopyId:
+          type: string
+          maxLength: 120
+        intentToSign:
+          type: boolean
+          enum: [true]
+        fieldIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        signature:
+          $ref: '#/components/schemas/SignatureInkPayload'
+        initials:
+          $ref: '#/components/schemas/SignatureInkPayload'
+    SignatureInkPayload:
+      type: object
+      additionalProperties: false
+      required: [pngBase64, strokes, durationMs]
+      properties:
+        pngBase64:
+          type: string
+        strokes:
+          type: array
+          minItems: 1
+          maxItems: 32
+          items:
+            type: object
+            additionalProperties: false
+            required: [points]
+            properties:
+              points:
+                type: array
+                minItems: 1
+                maxItems: 4000
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [x, y, t, p]
+                  properties:
+                    x:
+                      type: number
+                    y:
+                      type: number
+                    t:
+                      type: number
+                    p:
+                      type: number
+        durationMs:
+          type: integer
+          minimum: 0
+          maximum: 90000
+    CompleteSigningResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted, pending]

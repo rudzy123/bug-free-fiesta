@@ -82,6 +82,42 @@ export type DocumentRepository = {
     documentId: string;
     expectedVersion: number;
   }) => Promise<Document>;
+  markInProgress: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+  }) => Promise<Document>;
+  markCompleted: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+  }) => Promise<Document>;
+  claimProcessingLease: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    owner: string;
+    leaseUntil: Date;
+    now: Date;
+  }) => Promise<Document>;
+  commitFlattenedRevision: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+    owner: string;
+    revisionId: string;
+    finalize: boolean;
+  }) => Promise<Document>;
+  markFinalizationFailed: (input: {
+    organizationId: string;
+    documentId: string;
+    owner: string;
+  }) => Promise<Document>;
+  releaseProcessingLease: (input: {
+    organizationId: string;
+    documentId: string;
+    owner: string;
+  }) => Promise<void>;
 };
 
 export type DocumentRevisionRepository = {
@@ -97,6 +133,10 @@ export type DocumentRevisionRepository = {
     organizationId: string;
     revision: DocumentRevision;
   }) => Promise<DocumentRevision>;
+  findFirstByObjectKey: (input: {
+    organizationId: string;
+    objectKey: string;
+  }) => Promise<DocumentRevision | null>;
 };
 
 export type UploadSessionRepository = {
@@ -149,6 +189,12 @@ export type SignerRepository = {
     expectedVersion: number;
     declinedAt: Date;
   }) => Promise<Signer>;
+  markSigned: (input: {
+    organizationId: string;
+    signerId: string;
+    expectedVersion: number;
+    completedAt: Date;
+  }) => Promise<Signer>;
 };
 
 export type SigningSessionRepository = {
@@ -192,6 +238,11 @@ export type SigningSessionRepository = {
     csrfTokenHash: string;
     consumedAt: Date;
   }) => Promise<SigningSession>;
+  markCompleted: (input: {
+    organizationId: string;
+    sessionId: string;
+    completedAt: Date;
+  }) => Promise<SigningSession>;
 };
 
 export type SigningTokenLookup = {
@@ -209,6 +260,24 @@ export type SignatureFieldRepository = {
     documentId: string;
     fields: readonly SignatureField[];
   }) => Promise<readonly SignatureField[]>;
+  complete: (input: {
+    organizationId: string;
+    fieldId: string;
+    completedAt: Date;
+    completionObjectKey: string | null;
+    completionContentType: string | null;
+    completionSizeBytes: bigint | null;
+    completionSha256Digest: string | null;
+  }) => Promise<SignatureField>;
+  markFlattened: (input: {
+    organizationId: string;
+    fieldId: string;
+    flattenedRevisionId: string;
+  }) => Promise<SignatureField>;
+  findFirstByCompletionObjectKey: (input: {
+    organizationId: string;
+    objectKey: string;
+  }) => Promise<SignatureField | null>;
 };
 
 export type ConsentRecordRepository = {
@@ -228,6 +297,14 @@ export type FinalizedArtifactRepository = {
   findByDocument: (input: {
     organizationId: string;
     documentId: string;
+  }) => Promise<FinalizedArtifact | null>;
+  create: (input: {
+    organizationId: string;
+    artifact: FinalizedArtifact;
+  }) => Promise<FinalizedArtifact>;
+  findFirstByObjectKey: (input: {
+    organizationId: string;
+    objectKey: string;
   }) => Promise<FinalizedArtifact | null>;
 };
 

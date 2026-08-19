@@ -209,6 +209,7 @@ export function createReplaceDocumentFields(deps: {
         completionContentType: null,
         completionSizeBytes: null,
         completionSha256Digest: null,
+        flattenedRevisionId: null,
         createdAt: now,
         updatedAt: now,
       } satisfies SignatureField;

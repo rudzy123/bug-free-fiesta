@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createTestPng } from '@esign/test-utils';
 import {
   AuthenticationError,
   ValidationError,
@@ -44,6 +45,7 @@ import { createConsentDisclosureCatalog } from './consent-catalog.js';
 import { createSigningEnvelopePolicy } from './envelope-policy.js';
 import { createExchangeSigningToken } from './exchange-signing-token.js';
 import { createLoadSignerSession } from './load-signer-session.js';
+import { createCompleteSigning } from './complete-signing.js';
 import { clientRequestMetadataFromHeaders } from './request-metadata.js';
 import {
   createDeclineToSign,
@@ -104,7 +106,7 @@ function harness(options?: { requiresAccountAuth?: boolean }) {
   const audit = createMemoryAuditWriter();
   const jobs = createMemoryJobPublisher();
   const notifier = createMemoryNotifier();
-  const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), 2048);
+  const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), 8192);
   const unitOfWork = createMemoryUnitOfWork(
     createMemoryDocumentScope({
       documents,
@@ -277,6 +279,24 @@ function harness(options?: { requiresAccountAuth?: boolean }) {
       ids,
       clock,
     }),
+    complete: createCompleteSigning({
+      loadSession,
+      authorization,
+      signers,
+      fields,
+      consent,
+      storage,
+      hashing,
+      idempotency,
+      unitOfWork,
+      ids,
+      clock,
+      idempotencyTtlMs: 3_600_000,
+      maxPngBytes: 256_000,
+    }),
+    jobs,
+    documents,
+    fields,
   };
 }
 
@@ -488,6 +508,77 @@ describe('signer-facing session', () => {
     expect(preview.url).not.toContain(ORG);
     expect(preview.token).toEqual(expect.any(String));
     expect(sent.documentId).toEqual(expect.any(String));
+  });
+});
+
+describe('complete signing', () => {
+  it('records consent-backed completions, publishes flatten_signature, and is idempotent', async () => {
+    const h = harness();
+    const { urlToken, signerId } = await sentEnvelope(h, 'complete');
+    const exchanged = await h.exchange({ rawToken: urlToken, requestId: 'req-ex' });
+    const cookie = exchanged.rawSessionToken;
+    const disclosure = await h.getConsent({ rawToken: cookie });
+    await h.recordConsent({
+      rawToken: cookie,
+      copyId: disclosure.copyId,
+      accepted: true,
+      requestId: 'req-consent',
+      metadata: clientRequestMetadataFromHeaders({
+        forwardedFor: '203.0.113.9',
+        remoteAddress: '127.0.0.1',
+        userAgent: 'vitest',
+      }),
+    });
+    const fields = await h.getFields({ rawToken: cookie });
+    const fieldId = fields[0]?.fieldId;
+    if (fieldId === undefined) {
+      throw new Error('expected field');
+    }
+    const png = createTestPng({ width: 16, height: 8 });
+    const result = await h.complete({
+      rawToken: cookie,
+      consentCopyId: disclosure.copyId,
+      intentToSign: true,
+      fieldIds: [fieldId],
+      signature: { pngBase64: Buffer.from(png).toString('base64') },
+      idempotencyKey: 'complete-sign-key-1',
+      requestId: 'req-complete',
+    });
+    expect(result.status).toBe('accepted');
+    expect(result.signerId).toBe(signerId);
+    expect(h.documents.records[0]?.state).toBe('completed');
+    expect(h.jobs.events.some((event) => event.type === 'flatten_signature')).toBe(true);
+    const replay = await h.complete({
+      rawToken: cookie,
+      consentCopyId: disclosure.copyId,
+      intentToSign: true,
+      fieldIds: [fieldId],
+      signature: { pngBase64: Buffer.from(png).toString('base64') },
+      idempotencyKey: 'complete-sign-key-1',
+      requestId: 'req-complete-2',
+    });
+    expect(replay.status).toBe('accepted');
+    expect(h.jobs.events.filter((event) => event.type === 'flatten_signature')).toHaveLength(1);
+    expect(h.fields.records[0]?.completionObjectKey).toContain('/signatures/');
+  });
+
+  it('rejects completion without consent or without required ink', async () => {
+    const h = harness();
+    const { urlToken } = await sentEnvelope(h, 'no-consent');
+    const exchanged = await h.exchange({ rawToken: urlToken, requestId: 'req-ex' });
+    const fields = await h.getFields({ rawToken: exchanged.rawSessionToken });
+    const fieldId = fields[0]?.fieldId ?? '';
+    await expect(
+      h.complete({
+        rawToken: exchanged.rawSessionToken,
+        consentCopyId: 'esign-disclosure-v1',
+        intentToSign: true,
+        fieldIds: [fieldId],
+        signature: { pngBase64: Buffer.from(createTestPng()).toString('base64') },
+        idempotencyKey: 'complete-sign-key-2',
+        requestId: 'req-no',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 });
 
