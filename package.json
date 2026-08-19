@@ -27,7 +27,8 @@
     "db:reset": "pnpm --filter @esign/database db:reset",
     "db:seed": "pnpm --filter @esign/database db:seed",
     "infrastructure:up": "docker compose up -d --wait postgres minio && docker compose run --rm minio-init",
-    "infrastructure:down": "docker compose down"
+    "infrastructure:down": "docker compose down",
+    "audit:verify": "pnpm --filter @esign/worker verify-audit"
   },
   "devDependencies": {
     "prettier": "3.5.3",

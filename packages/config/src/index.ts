@@ -173,6 +173,7 @@ const apiEnvSchema = z
       'NOTIFICATION_PREVIEW_DIR',
       'tmp/signing-notifications',
     ).default('tmp/signing-notifications'),
+    AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && data.AUTH_PROVIDER === 'local') {
@@ -253,6 +254,7 @@ const apiEnvSchema = z
     DOCUMENT_FIELD_OVERLAP_POLICY: data.DOCUMENT_FIELD_OVERLAP_POLICY,
     NOTIFICATION_ADAPTER: data.NOTIFICATION_ADAPTER,
     NOTIFICATION_PREVIEW_DIR: data.NOTIFICATION_PREVIEW_DIR,
+    AUDIT_CHECKPOINT_STORE: data.AUDIT_CHECKPOINT_STORE,
   }));
 
 const workerEnvSchema = z
@@ -298,6 +300,13 @@ const workerEnvSchema = z
       'NOTIFICATION_PREVIEW_DIR',
       'tmp/signing-notifications',
     ).default('tmp/signing-notifications'),
+    AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
+    WORKER_AUDIT_VERIFY_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(10_000)
+      .max(86_400_000)
+      .default(300_000),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && data.DOCUMENT_INSPECTOR === 'local') {

@@ -9,6 +9,7 @@ export const AUTHORIZATION_ACTIONS = [
   'document.download_artifact',
   'signing.session.act',
   'job.process',
+  'audit.verify',
 ] as const;
 
 export type AuthorizationAction = (typeof AUTHORIZATION_ACTIONS)[number];

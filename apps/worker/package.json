@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:unit": "vitest run --coverage --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run --passWithNoTests integration.test"
+    "test:integration": "vitest run --passWithNoTests integration.test",
+    "verify-audit": "tsx src/cli/verify-audit.ts"
   },
   "dependencies": {
     "@esign/application": "workspace:*",

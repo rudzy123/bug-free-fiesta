@@ -159,3 +159,10 @@ export {
   type FlattenSignatureJobPayload,
   type WorkerQueueHealth,
 } from './jobs.js';
+export {
+  auditVerificationFailureCodeSchema,
+  auditVerificationReportSchema,
+  organizationAuditVerificationReportSchema,
+  type AuditVerificationReportResponse,
+  type OrganizationAuditVerificationReportResponse,
+} from './audit.js';

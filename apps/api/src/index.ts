@@ -19,6 +19,7 @@ async function main(): Promise<void> {
     resolveSession: accountAuth.resolveSession,
     resolveActor: accountAuth.resolveActor,
     hasher: accountAuth.hasher,
+    logError: (fields, message) => logger.error(fields, message),
   });
   const app = createApiApp({
     config,

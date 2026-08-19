@@ -4,6 +4,7 @@ import {
   createCleanupAbandonedUploads,
   createCompleteSourceUpload,
   createCompleteSigning,
+  createConfiguredCheckpointStore,
   createConsentDisclosureCatalog,
   createCreateDraftDocument,
   createDeclineToSign,
@@ -36,6 +37,10 @@ import {
   createStreamDocumentPreview,
   createSystemClock,
   createUuidIdGenerator,
+  createLoggingAuditVerificationAlertSink,
+  createMemoryAuditVerificationMetrics,
+  createVerifyAuditChain,
+  createVerifyOrganizationAuditChains,
   PNG_MAX_BYTES,
 } from '@esign/application';
 import {
@@ -49,6 +54,7 @@ import {
 import { Router } from 'express';
 import { createDocumentIngestionRouter } from './http/routes/documents.js';
 import { createSigningRouter } from './http/routes/signing.js';
+import { createAuditVerificationRouter } from './http/routes/audit.js';
 import type {
   CleanupAbandonedUploads,
   InspectDocument,
@@ -63,6 +69,7 @@ export function createDocumentIngestionFromPrisma(input: {
   resolveSession: ResolveAccountSession;
   resolveActor: ResolveOrganizationActor;
   hasher: SigningTokenHasher;
+  logError?: (fields: Readonly<Record<string, unknown>>, message: string) => void;
 }): {
   router: Router;
   inspect: InspectDocument;
@@ -321,9 +328,39 @@ export function createDocumentIngestionFromPrisma(input: {
       maxPngBytes: PNG_MAX_BYTES,
     }),
   });
+  const auditVerification = {
+    authorization,
+    documents: repos.documents,
+    auditLogs: repos.auditLogs,
+    artifacts: repos.finalizedArtifacts,
+    storage,
+    hashing,
+    clock,
+    checkpoints: createConfiguredCheckpointStore({
+      name: input.config.AUDIT_CHECKPOINT_STORE,
+      storage,
+      hashing,
+    }),
+    metrics: createMemoryAuditVerificationMetrics(),
+    alerts: createLoggingAuditVerificationAlertSink({
+      error: input.logError ?? (() => undefined),
+    }),
+  };
+  const verifyDocument = createVerifyAuditChain(auditVerification);
+  const verifyOrganization = createVerifyOrganizationAuditChains(auditVerification);
+  const auditRouter = createAuditVerificationRouter({
+    config: input.config,
+    resolveSession: input.resolveSession,
+    resolveActor: input.resolveActor,
+    hasher,
+    assertAction: createAssertAccountAction({ authorization }),
+    verifyDocument,
+    verifyOrganization,
+  });
   const router = Router();
   router.use(documentsRouter);
   router.use(signingRouter);
+  router.use(auditRouter);
 
   return {
     router,

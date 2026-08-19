@@ -12,9 +12,13 @@ import {
 import {
   createCleanupAbandonedUploads,
   createCleanupOrphanedObjects,
+  createConfiguredCheckpointStore,
   createDocumentInspector,
   createFlattenSignature,
   createInspectDocument,
+  createLoggingAuditVerificationAlertSink,
+  createMembershipAuthorizationPolicy,
+  createMemoryAuditVerificationMetrics,
   createMemoryJobQueueMetrics,
   createMemoryObjectStorage,
   createNotifier,
@@ -24,6 +28,8 @@ import {
   createSystemClock,
   createSystemUnitIntervalRandom,
   createUuidIdGenerator,
+  createVerifyOrganizationAuditChains,
+  createRunScheduledAuditVerification,
   PNG_MAX_BYTES,
 } from '@esign/application';
 import { createJobPoller } from './poller.js';
@@ -32,6 +38,7 @@ import { processDocumentIngestionJobs } from './process-ingestion.js';
 import { processSignerNotificationJobs } from './process-notifications.js';
 import { processSignatureFlattenJobs } from './process-finalization.js';
 import { createPdfLibFlattener } from './pdf-lib-flattener.js';
+import { createScheduledAuditVerificationPoll } from './process-audit-verification.js';
 
 async function main(): Promise<void> {
   const config = loadWorkerConfig();
@@ -43,6 +50,7 @@ async function main(): Promise<void> {
   const workerId = ids.next();
   const repos = createPrismaTenantRepositories(prisma);
   const unitOfWork = createPrismaUnitOfWork(prisma);
+  const hashing = createSha256Hashing();
   const storage = createSizeLimitedObjectStorage(
     createMemoryObjectStorage(),
     config.DOCUMENT_MAX_UPLOAD_BYTES,
@@ -69,7 +77,7 @@ async function main(): Promise<void> {
     artifacts: repos.finalizedArtifacts,
     storage,
     flattener: createPdfLibFlattener(),
-    hashing: createSha256Hashing(),
+    hashing,
     unitOfWork,
     ids,
     clock,
@@ -90,6 +98,42 @@ async function main(): Promise<void> {
     unitOfWork,
     clock,
     olderThanMs: config.WORKER_ORPHAN_OBJECT_TTL_MS,
+  });
+  const auditMetrics = createMemoryAuditVerificationMetrics();
+  const verifyOrganization = createVerifyOrganizationAuditChains({
+    authorization: createMembershipAuthorizationPolicy(),
+    documents: repos.documents,
+    auditLogs: repos.auditLogs,
+    artifacts: repos.finalizedArtifacts,
+    storage,
+    hashing,
+    clock,
+    checkpoints: createConfiguredCheckpointStore({
+      name: config.AUDIT_CHECKPOINT_STORE,
+      storage,
+      hashing,
+    }),
+    metrics: auditMetrics,
+    alerts: createLoggingAuditVerificationAlertSink({
+      error: (fields, message) => logger.error(fields, message),
+    }),
+  });
+  const runAuditVerification = createRunScheduledAuditVerification({
+    listOrganizationIds: async () => {
+      const organizations = await prisma.organization.findMany({
+        select: { id: true },
+        take: 25,
+        orderBy: { id: 'asc' },
+      });
+      return organizations.map((organization) => organization.id);
+    },
+    verifyOrganization,
+    clock,
+  });
+  const pollAuditVerification = createScheduledAuditVerificationPoll({
+    run: runAuditVerification,
+    intervalMs: config.WORKER_AUDIT_VERIFY_INTERVAL_MS,
+    now: () => clock.nowUtc(),
   });
   const notifier = createNotifier({
     name: config.NOTIFICATION_ADAPTER,
@@ -148,13 +192,26 @@ async function main(): Promise<void> {
         const result = await cleanupOrphans({ organizationId: organization.id });
         orphansDeleted += result.deleted;
       }
+      const audit = await pollAuditVerification();
+      if (audit.jobsClaimed > 0) {
+        logger.error(
+          {
+            severity: 'high',
+            alertCode: 'audit_verification_failed',
+            failedDocumentCount: audit.jobsClaimed,
+            metrics: auditMetrics.snapshot(),
+          },
+          'scheduled audit verification reported failures',
+        );
+      }
       return {
         jobsClaimed:
           ingestion.inspected +
           ingestion.abandoned +
           notifications.notified +
           flattening.flattened +
-          orphansDeleted,
+          orphansDeleted +
+          audit.jobsClaimed,
       };
     },
   });

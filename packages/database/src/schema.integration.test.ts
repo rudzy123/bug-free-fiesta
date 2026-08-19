@@ -224,6 +224,18 @@ describe.skipIf(!runInfraTests)('append-only audit', () => {
     expect(persisted?.sequence).toBe(0);
   });
 
+  it('rejects truncate and documents that esign_app cannot update or delete', async () => {
+    await expect(prisma.$executeRawUnsafe('TRUNCATE audit_logs')).rejects.toThrow(
+      /audit_logs are append-only/,
+    );
+    const grants = await prisma.$queryRaw<
+      { privilege_type: string }[]
+    >`SELECT privilege_type FROM information_schema.role_table_grants
+      WHERE table_name = 'audit_logs' AND grantee = 'esign_app'`;
+    const privileges = grants.map((row) => row.privilege_type).sort();
+    expect(privileges).toEqual(['INSERT', 'SELECT']);
+  });
+
   it('rejects update and delete on account security events', async () => {
     const event = await prisma.accountSecurityEvent.create({
       data: {

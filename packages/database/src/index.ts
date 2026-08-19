@@ -21,6 +21,7 @@ export {
   AUDIT_ACTOR_TYPE_DB,
   AUDIT_EVENT_TYPE_DB,
   AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
+  AUDIT_CHAIN_SCHEMA_VERSION,
   computeAuditEventHash,
   sha256Hex,
   syntheticSha256,

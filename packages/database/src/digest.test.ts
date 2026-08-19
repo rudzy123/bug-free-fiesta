@@ -31,5 +31,16 @@ describe('digest helpers', () => {
     };
     expect(computeAuditEventHash(input)).toBe(computeAuditEventHash(input));
     expect(computeAuditEventHash({ ...input, sequence: 1 })).not.toBe(computeAuditEventHash(input));
+    expect(
+      computeAuditEventHash({
+        ...input,
+        payload: { extra: true, documentId: '22222222-2222-4222-8222-222222222222' },
+      }),
+    ).toBe(
+      computeAuditEventHash({
+        ...input,
+        payload: { documentId: '22222222-2222-4222-8222-222222222222', extra: true },
+      }),
+    );
   });
 });

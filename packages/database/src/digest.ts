@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
+import {
+  AUDIT_CHAIN_SCHEMA_VERSION,
+  AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
+  computeAuditEventHash as computeCanonicalAuditEventHash,
+} from '@esign/domain';
 import { AuditActorType, AuditEventType, Prisma } from './generated/client/index.js';
 
-/** Genesis `previousEventHash` for sequence 0. 64 zero hex chars, not the word "genesis", so SHA-256 CHECKs hold. */
-export const AUDIT_GENESIS_PREVIOUS_EVENT_HASH = '0'.repeat(64);
+export { AUDIT_GENESIS_PREVIOUS_EVENT_HASH, AUDIT_CHAIN_SCHEMA_VERSION };
 
 export const AUDIT_EVENT_TYPE_DB: Record<AuditEventType, string> = {
   [AuditEventType.documentCreated]: 'document_created',
@@ -44,6 +48,13 @@ export function syntheticSha256(label: string): string {
   return sha256Hex(`esign-synthetic:${label}`);
 }
 
+function payloadRecord(payload: Prisma.InputJsonValue): Readonly<Record<string, unknown>> {
+  if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
+    return payload as Readonly<Record<string, unknown>>;
+  }
+  return { value: payload };
+}
+
 export function computeAuditEventHash(input: {
   previousEventHash: string;
   sequence: number;
@@ -52,15 +63,16 @@ export function computeAuditEventHash(input: {
   actorId: string;
   occurredAt: Date;
   payload: Prisma.InputJsonValue;
+  schemaVersion?: number;
 }): string {
-  const canonical = JSON.stringify({
+  return computeCanonicalAuditEventHash({
+    schemaVersion: input.schemaVersion ?? AUDIT_CHAIN_SCHEMA_VERSION,
     previousEventHash: input.previousEventHash,
     sequence: input.sequence,
     type: input.type,
     actorType: input.actorType,
     actorId: input.actorId,
-    occurredAt: input.occurredAt.toISOString(),
-    payload: input.payload,
+    occurredAt: input.occurredAt,
+    payload: payloadRecord(input.payload),
   });
-  return sha256Hex(canonical);
 }
