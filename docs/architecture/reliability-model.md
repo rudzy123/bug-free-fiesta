@@ -21,12 +21,15 @@ If storage succeeds and the follow-up transaction fails, reconciliation uses con
 
 See [ADR-0011](adrs/0011-outbox-pattern.md).
 
-1. Write domain change + `outbox` row (`pending`) in one commit.
-2. Poller claims rows (`processing`, lease, attempt++).
-3. Worker performs side effects idempotently.
-4. Mark `processed` or `failed` with a reason code (no Restricted payloads).
+**Delivery guarantee: at-least-once, not exactly-once.** If the API transaction commits, the worker will attempt the handler one or more times. Duplicate handler invocation is expected after a crash, a timeout, or an expired lease. Handlers must be idempotent. This system does **not** provide exactly-once processing.
 
-At-least-once delivery is expected. Handlers must tolerate duplicates ([ADR-0008](adrs/0008-idempotency-strategy.md)).
+1. Write domain change + `outbox_events` row (`pending`) and a linked `background_jobs` row in one commit. Payloads contain opaque internal ids only (never raw signing tokens, signature PNGs, or PDF bytes).
+2. Poller claims a row with `UPDATE ... FROM (SELECT ... FOR UPDATE SKIP LOCKED)`. Concurrent workers cannot claim the same row while a lease is held. Claim also covers `processing` rows whose `leaseUntil` is in the past (crash recovery).
+3. Worker performs side effects **outside** the database transaction (object storage, PDF, email). Then a short transaction marks `processed` / `succeeded`, or schedules a retry, or dead-letters.
+4. Retryable failures (`external_service`, `rate_limit`, `conflict`, unknown errors) use exponential backoff with equal jitter and set `availableAt`. Non-retryable failures (`validation`, `integrity`, `authentication`, `authorization`, `not_found`, `invalid_state_transition`) go to `failed` immediately (dead letter). After `maxAttempts` (default 8), retryable work is also terminal.
+5. `lastErrorCode` stores `{category}:{kind}` such as `retryable:external_service`. Correlation uses `requestId` (HTTP), `outboxEventId`, `jobId`, and `documentId` on outbox, jobs, audit, and worker logs.
+
+At-least-once delivery is expected. Handlers must tolerate duplicates ([ADR-0008](adrs/0008-idempotency-strategy.md)). Email providers may send more than one invitation for the same outbox id; signing remains token-hash safe. **Do not claim exactly-once processing.**
 
 ## Idempotency
 

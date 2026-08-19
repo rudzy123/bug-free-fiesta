@@ -334,6 +334,11 @@ export async function createOutboxEvent(
     status?: OutboxStatus;
     payload?: Prisma.InputJsonValue;
     requestId?: string;
+    attemptCount?: number;
+    availableAt?: Date;
+    leaseOwner?: string;
+    leaseUntil?: Date;
+    lastErrorCode?: string;
   },
 ) {
   return prisma.outboxEvent.create({
@@ -345,6 +350,11 @@ export async function createOutboxEvent(
       status: input.status ?? OutboxStatus.pending,
       payload: input.payload ?? {},
       requestId: input.requestId,
+      attemptCount: input.attemptCount ?? 0,
+      availableAt: input.availableAt,
+      leaseOwner: input.leaseOwner,
+      leaseUntil: input.leaseUntil,
+      lastErrorCode: input.lastErrorCode,
     },
   });
 }
@@ -359,6 +369,12 @@ export async function createBackgroundJob(
     type?: string;
     status?: BackgroundJobStatus;
     requestId?: string;
+    attemptCount?: number;
+    maxAttempts?: number;
+    availableAt?: Date;
+    leaseOwner?: string;
+    leaseUntil?: Date;
+    lastErrorCode?: string;
   },
 ) {
   return prisma.backgroundJob.create({
@@ -370,6 +386,12 @@ export async function createBackgroundJob(
       type: input.type ?? 'finalize_document',
       status: input.status ?? BackgroundJobStatus.pending,
       requestId: input.requestId,
+      attemptCount: input.attemptCount ?? 0,
+      maxAttempts: input.maxAttempts ?? 8,
+      availableAt: input.availableAt,
+      leaseOwner: input.leaseOwner,
+      leaseUntil: input.leaseUntil,
+      lastErrorCode: input.lastErrorCode,
     },
   });
 }

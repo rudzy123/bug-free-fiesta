@@ -88,6 +88,8 @@ export type JobPublishInput = {
   readonly payload: Readonly<Record<string, unknown>>;
   readonly requestId?: string | null;
   readonly availableAt?: Date;
+  readonly jobId?: string;
+  readonly maxAttempts?: number;
 };
 
 export type JobPublisher = {
@@ -101,8 +103,14 @@ export type SigningInvitation = {
   readonly sessionId: string;
   readonly to: string | null;
   readonly expiresAt: Date;
+  /** Outbox event id. Safe to persist; never a signing token. */
+  readonly idempotencyKey?: string;
   /** Present only in memory for first delivery. Never persist or log in production. */
   readonly rawToken?: string;
+};
+
+export type UnitIntervalRandom = {
+  next: () => number;
 };
 
 export type Notifier = {

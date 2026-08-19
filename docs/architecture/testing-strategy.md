@@ -31,6 +31,19 @@ Do not hit production services. Do not assert on secrets, raw tokens, or full PI
 - Worker crash after upload: retry still one digest.
 - Duplicate outbox message: no-op.
 
+**Background jobs (outbox)**
+
+Delivery is at-least-once, not exactly-once. Tests must not assert a single handler invocation as a platform guarantee; they may assert idempotent outcomes.
+
+- API publish writes `outbox_events` and `background_jobs` in one transaction.
+- Two concurrent workers: `FOR UPDATE SKIP LOCKED` lets only one claim a given row while its lease is held.
+- Duplicate delivery: second handler run is a no-op when work is already done.
+- Crash after object upload, before outbox `processed`: retry; content-addressed keys keep one object.
+- Crash before the outbox commit: lease expiry or retry schedules another attempt.
+- Expired processing lease is recoverable by another worker.
+- Poison / non-retryable validation: dead-letter (`failed`) with no retry.
+- Retryable failures use exponential backoff with jitter until `maxAttempts`.
+
 **Security**
 
 - Tenant A cannot read tenant B’s document by ID (IDOR).

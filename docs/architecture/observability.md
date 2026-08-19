@@ -25,13 +25,13 @@ Redact by default: headers named `authorization`, `cookie`, `set-cookie`; keys m
 
 - HTTP: rate, latency, status class by route (no query strings).
 - Authz denials by reason code (not by email).
-- Outbox: pending age, processed rate, failed count.
+- Outbox: pending / processing / failed depth, oldest claimable age, expired leases, claim count, recovered leases, attempt count, success latency, retryable vs terminal failures.
 - Finalization: success, retry, `finalization_failed`.
 - Signing: session issue, sign success, decline, expiry.
 - Storage: upload/download errors.
 - Payload rejections: oversize, invalid PDF, Zod failures.
 
-Metrics labels must not include names, emails, or tokens.
+The worker `/health/ready` body includes a `queue` snapshot (`stale` when claimable work or expired leases are older than `WORKER_STALE_QUEUE_MS`) and an in-process `metrics` snapshot. Labels must not include names, emails, or tokens.
 
 ## Tracing
 

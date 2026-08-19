@@ -41,6 +41,7 @@ export function createLocalDevelopmentNotifier(input: {
         documentId: message.documentId,
         signerId: message.signerId,
         sessionId: message.sessionId,
+        idempotencyKey: message.idempotencyKey ?? null,
         to: message.to,
         expiresAt: message.expiresAt.toISOString(),
         tokenHeader: 'authorization',

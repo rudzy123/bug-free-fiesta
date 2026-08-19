@@ -2,6 +2,7 @@ import { loadWorkerConfig } from '@esign/config';
 import { createLogger } from '@esign/logger';
 import {
   createPrismaClient,
+  createPrismaJobQueueHealth,
   createPrismaOutboxClaimer,
   createPrismaPinger,
   createPrismaTenantRepositories,
@@ -12,10 +13,13 @@ import {
   createCleanupAbandonedUploads,
   createDocumentInspector,
   createInspectDocument,
+  createMemoryJobQueueMetrics,
   createMemoryObjectStorage,
   createNotifier,
+  createOutboxJobProcessor,
   createSizeLimitedObjectStorage,
   createSystemClock,
+  createSystemUnitIntervalRandom,
   createUuidIdGenerator,
 } from '@esign/application';
 import { createJobPoller } from './poller.js';
@@ -30,6 +34,7 @@ async function main(): Promise<void> {
   const database = createPrismaPinger(prisma);
   const clock = createSystemClock();
   const ids = createUuidIdGenerator();
+  const workerId = ids.next();
   const repos = createPrismaTenantRepositories(prisma);
   const unitOfWork = createPrismaUnitOfWork(prisma);
   const storage = createSizeLimitedObjectStorage(
@@ -61,25 +66,41 @@ async function main(): Promise<void> {
     directory: config.NOTIFICATION_PREVIEW_DIR,
   });
   const claimer = createPrismaOutboxClaimer(prisma);
+  const metrics = createMemoryJobQueueMetrics();
+  const queueHealth = createPrismaJobQueueHealth(prisma);
+  let acceptingWork = true;
+  const processor = createOutboxJobProcessor({
+    claimer,
+    clock,
+    random: createSystemUnitIntervalRandom(),
+    metrics,
+    backoff: {
+      baseDelayMs: config.WORKER_BACKOFF_BASE_MS,
+      maxDelayMs: config.WORKER_BACKOFF_MAX_MS,
+    },
+    leaseMs: config.WORKER_LEASE_MS,
+    logger: {
+      info: (fields, message) => logger.info(fields, message),
+      warn: (fields, message) => logger.warn(fields, message),
+      error: (fields, message) => logger.error(fields, message),
+    },
+    shouldStop: () => !acceptingWork,
+  });
 
   const poller = createJobPoller({
     intervalMs: config.WORKER_POLL_INTERVAL_MS,
     logger,
     poll: async () => {
       const ingestion = await processDocumentIngestionJobs({
-        claimer,
+        processor,
         inspect,
         cleanup,
-        clock,
-        logger,
-        workerId: 'document-ingestion',
+        workerId,
       });
       const notifications = await processSignerNotificationJobs({
-        claimer,
+        processor,
         notifier,
-        clock,
-        logger,
-        workerId: 'signer-notifications',
+        workerId,
       });
       return { jobsClaimed: ingestion.inspected + ingestion.abandoned + notifications.notified };
     },
@@ -91,6 +112,11 @@ async function main(): Promise<void> {
     logger,
     poller,
     database,
+    queueHealth,
+    metrics,
+    clock,
+    staleAfterMs: config.WORKER_STALE_QUEUE_MS,
+    pollStaleAfterMs: config.WORKER_POLL_INTERVAL_MS * 3,
   });
 
   let shuttingDown = false;
@@ -99,7 +125,8 @@ async function main(): Promise<void> {
       return;
     }
     shuttingDown = true;
-    logger.info({ signal }, 'received shutdown signal');
+    acceptingWork = false;
+    logger.info({ signal, workerId }, 'received shutdown signal');
 
     const timer = setTimeout(() => {
       logger.error({ timeoutMs: config.SHUTDOWN_TIMEOUT_MS }, 'shutdown timed out');
@@ -123,7 +150,7 @@ async function main(): Promise<void> {
       )
       .then(() => prisma.$disconnect())
       .then(() => {
-        logger.info('shutdown complete');
+        logger.info({ workerId }, 'shutdown complete');
         process.exit(0);
       })
       .catch((error: unknown) => {
@@ -140,7 +167,11 @@ async function main(): Promise<void> {
 
   healthServer.listen(config.WORKER_HEALTH_PORT, config.WORKER_HEALTH_HOST, () => {
     logger.info(
-      { host: config.WORKER_HEALTH_HOST, port: config.WORKER_HEALTH_PORT },
+      {
+        host: config.WORKER_HEALTH_HOST,
+        port: config.WORKER_HEALTH_PORT,
+        workerId,
+      },
       'worker health listening',
     );
     poller.start();

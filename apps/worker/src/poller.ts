@@ -8,7 +8,8 @@ export type JobPoller = {
 };
 
 /**
- * Placeholder outbox polling boundary. Does not claim jobs or finalize documents.
+ * Outbox polling loop. Claims work through the job processor; waits for in-flight
+ * handlers on graceful stop so leases are released by completion or later expiry.
  */
 export function createJobPoller(options: {
   intervalMs: number;

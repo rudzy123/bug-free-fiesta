@@ -86,6 +86,8 @@ describe('environment validation', () => {
     const worker = loadWorkerConfig(workerEnv());
     const web = loadWebConfig(webEnv());
     expect(worker.WORKER_HEALTH_PORT).toBe(4100);
+    expect(worker.WORKER_LEASE_MS).toBe(60_000);
+    expect(worker.WORKER_STALE_QUEUE_MS).toBe(120_000);
     expect(worker.OBJECT_STORAGE_FORCE_PATH_STYLE).toBe(true);
     expect(web.NEXT_PUBLIC_API_BASE_URL).toBe('http://localhost:4000');
   });

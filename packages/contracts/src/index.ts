@@ -148,3 +148,12 @@ export {
   type SendDocumentRequest,
   type SendDocumentResponse,
 } from './documents.js';
+export {
+  inspectDocumentJobPayloadSchema,
+  notifySignerJobPayloadSchema,
+  opaqueJobIdSchema,
+  workerQueueHealthSchema,
+  type InspectDocumentJobPayload,
+  type NotifySignerJobPayload,
+  type WorkerQueueHealth,
+} from './jobs.js';

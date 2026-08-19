@@ -94,6 +94,11 @@ export const BACKGROUND_JOB_STATUSES = [
 ] as const;
 export type BackgroundJobStatus = (typeof BACKGROUND_JOB_STATUSES)[number];
 
+export const JOB_ERROR_CATEGORIES = ['retryable', 'non_retryable'] as const;
+export type JobErrorCategory = (typeof JOB_ERROR_CATEGORIES)[number];
+
+export const DEFAULT_JOB_MAX_ATTEMPTS = 8;
+
 export const IDEMPOTENCY_PRINCIPAL_TYPES = ['account_user', 'signer', 'worker', 'system'] as const;
 export type IdempotencyPrincipalType = (typeof IDEMPOTENCY_PRINCIPAL_TYPES)[number];
 
@@ -320,6 +325,8 @@ export type OutboxEvent = {
   readonly payload: Readonly<Record<string, unknown>>;
   readonly requestId: string | null;
   readonly attemptCount: number;
+  readonly leaseOwner: string | null;
+  readonly leaseUntil: Date | null;
   readonly availableAt: Date;
   readonly processedAt: Date | null;
   readonly lastErrorCode: string | null;
@@ -336,6 +343,8 @@ export type BackgroundJob = {
   readonly status: BackgroundJobStatus;
   readonly attemptCount: number;
   readonly maxAttempts: number;
+  readonly leaseOwner: string | null;
+  readonly leaseUntil: Date | null;
   readonly availableAt: Date;
   readonly lastErrorCode: string | null;
   readonly requestId: string | null;

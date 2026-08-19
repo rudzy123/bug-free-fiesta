@@ -6,6 +6,7 @@ export {
   createSigningTokenGenerator,
   createSigningTokenHasher,
   createSystemClock,
+  createSystemUnitIntervalRandom,
   createUuidIdGenerator,
   issueSigningToken,
 } from './ports/node-crypto.js';
@@ -92,6 +93,15 @@ export {
   createCleanupAbandonedUploads,
   type CleanupAbandonedUploads,
 } from './documents/cleanup-abandoned-uploads.js';
+export { createMemoryJobQueueMetrics, createNoopJobQueueMetrics } from './jobs/metrics.js';
+export { createMemoryOutboxClaimer, type MemoryOutboxClaimer } from './jobs/memory-claimer.js';
+export {
+  createOutboxJobProcessor,
+  createSilentJobProcessLogger,
+  type JobProcessLogger,
+  type OutboxJobProcessor,
+  type ProcessOutboxResult,
+} from './jobs/process-outbox.js';
 export {
   createMemoryAuditWriter,
   createMemoryConsentStore,

@@ -3,6 +3,7 @@ import {
   NotFoundError,
   type AuditEvent,
   type AuditWriter,
+  type BackgroundJob,
   type ConsentRecord,
   type ConsentRecordRepository,
   type Document,
@@ -30,6 +31,8 @@ import {
   type UploadSession,
   type UploadSessionLookup,
   type UploadSessionRepository,
+  DEFAULT_JOB_MAX_ATTEMPTS,
+  assertSafeJobPayload,
 } from '@esign/domain';
 
 export type MemoryDocumentRepository = DocumentRepository & {
@@ -356,13 +359,17 @@ export function createMemoryAuditWriter(): MemoryAuditWriter {
   };
 }
 
-export type MemoryJobPublisher = JobPublisher & { events: OutboxEvent[] };
+export type MemoryJobPublisher = JobPublisher & { events: OutboxEvent[]; jobs: BackgroundJob[] };
 
 export function createMemoryJobPublisher(): MemoryJobPublisher {
   const events: OutboxEvent[] = [];
+  const jobs: BackgroundJob[] = [];
   return {
     events,
+    jobs,
     async publish(input: JobPublishInput) {
+      assertSafeJobPayload(input.payload);
+      const at = input.availableAt ?? new Date(0);
       const event: OutboxEvent = {
         id: input.id,
         organizationId: input.organizationId,
@@ -372,13 +379,34 @@ export function createMemoryJobPublisher(): MemoryJobPublisher {
         payload: input.payload,
         requestId: input.requestId ?? null,
         attemptCount: 0,
-        availableAt: input.availableAt ?? new Date(0),
+        leaseOwner: null,
+        leaseUntil: null,
+        availableAt: at,
         processedAt: null,
         lastErrorCode: null,
-        createdAt: input.availableAt ?? new Date(0),
-        updatedAt: input.availableAt ?? new Date(0),
+        createdAt: at,
+        updatedAt: at,
+      };
+      const job: BackgroundJob = {
+        id: input.jobId ?? input.id,
+        organizationId: input.organizationId,
+        documentId: input.documentId ?? null,
+        outboxEventId: input.id,
+        type: input.type,
+        status: 'pending',
+        attemptCount: 0,
+        maxAttempts: input.maxAttempts ?? DEFAULT_JOB_MAX_ATTEMPTS,
+        leaseOwner: null,
+        leaseUntil: null,
+        availableAt: at,
+        lastErrorCode: null,
+        requestId: input.requestId ?? null,
+        version: 1,
+        createdAt: at,
+        updatedAt: at,
       };
       events.push(event);
+      jobs.push(job);
       return event;
     },
   };

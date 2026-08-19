@@ -167,6 +167,7 @@ export function createSendDocument(deps: {
         });
         await scope.jobs.publish({
           id: deps.ids.next(),
+          jobId: deps.ids.next(),
           organizationId,
           documentId: document.id,
           type: NOTIFY_SIGNER_JOB_TYPE,

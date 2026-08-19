@@ -16,6 +16,7 @@ export type InspectDocumentInput = {
   readonly documentId: string;
   readonly revisionId: string;
   readonly jobId: string;
+  readonly outboxEventId?: string;
   readonly requestId: string | null;
 };
 
@@ -91,6 +92,7 @@ export function createInspectDocument(deps: {
           revisionId: input.revisionId,
           reasonCode: outcome.reasonCode,
           jobType: INSPECT_DOCUMENT_JOB_TYPE,
+          ...(input.outboxEventId ? { outboxEventId: input.outboxEventId } : {}),
         },
         requestId: input.requestId,
       });

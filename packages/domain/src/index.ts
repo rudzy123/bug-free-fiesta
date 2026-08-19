@@ -31,6 +31,8 @@ export {
   ACCOUNT_SECURITY_EVENT_TYPES,
   OUTBOX_STATUSES,
   BACKGROUND_JOB_STATUSES,
+  JOB_ERROR_CATEGORIES,
+  DEFAULT_JOB_MAX_ATTEMPTS,
   IDEMPOTENCY_PRINCIPAL_TYPES,
   type AccountSecurityEvent,
   type AccountSecurityEventType,
@@ -41,6 +43,7 @@ export {
   type AuditEventType,
   type BackgroundJob,
   type BackgroundJobStatus,
+  type JobErrorCategory,
   type ConsentRecord,
   type Document,
   type DocumentInspectionStatus,
@@ -137,6 +140,7 @@ export type {
   SigningTokenGenerator,
   SigningTokenHasher,
   StoredObjectMetadata,
+  UnitIntervalRandom,
 } from './ports/services.js';
 export type { AuthenticatedIdentity, IdentityProvider } from './ports/identity-provider.js';
 export type { AccountSessionRepository } from './ports/account-session.js';
@@ -176,3 +180,21 @@ export type {
 export { TENANT_REPOSITORY_TYPE_GUARDS } from './ports/repositories.js';
 export type { TransactionScope, UnitOfWork } from './ports/unit-of-work.js';
 export type { AssertTenantScopedRepository } from './ports/tenant-scope.js';
+export { assertSafeJobPayload } from './jobs/payload.js';
+export {
+  classifyJobFailure,
+  formatJobErrorCode,
+  type ClassifiedJobFailure,
+} from './jobs/failures.js';
+export { computeBackoffMs, type BackoffPolicy } from './jobs/backoff.js';
+export { jobCorrelation, type JobCorrelation } from './jobs/correlation.js';
+export {
+  isJobQueueStale,
+  type ClaimedOutboxWork,
+  type JobQueueDepth,
+  type JobQueueHealth,
+  type JobQueueMetrics,
+  type JobQueueMetricsSnapshot,
+  type OutboxClaimer,
+  type OutboxJobHandler,
+} from './ports/job-queue.js';

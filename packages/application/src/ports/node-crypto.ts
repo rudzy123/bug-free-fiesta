@@ -1,10 +1,11 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import type {
   Clock,
   Hashing,
   IdGenerator,
   SigningTokenGenerator,
   SigningTokenHasher,
+  UnitIntervalRandom,
 } from '@esign/domain';
 
 export function createSystemClock(): Clock {
@@ -16,6 +17,12 @@ export function createSystemClock(): Clock {
 export function createUuidIdGenerator(): IdGenerator {
   return {
     next: () => randomUUID(),
+  };
+}
+
+export function createSystemUnitIntervalRandom(): UnitIntervalRandom {
+  return {
+    next: () => randomInt(0, 2 ** 32) / 2 ** 32,
   };
 }
 

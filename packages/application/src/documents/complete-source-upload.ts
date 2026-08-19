@@ -155,6 +155,7 @@ export function createCompleteSourceUpload(deps: {
       });
       await scope.jobs.publish({
         id: deps.ids.next(),
+        jobId: deps.ids.next(),
         organizationId: session.organizationId,
         documentId: session.documentId,
         type: INSPECT_DOCUMENT_JOB_TYPE,

@@ -65,5 +65,6 @@ export {
   createPrismaUploadSessionLookup,
   createPrismaPreviewGrantLookup,
   createPrismaOutboxClaimer,
+  createPrismaJobQueueHealth,
 } from './infrastructure/index.js';
 export type { PrismaClientOrTx, OutboxClaimer } from './infrastructure/index.js';

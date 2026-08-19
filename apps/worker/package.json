@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "test:unit": "vitest run --coverage --exclude **/*.integration.test.ts",
+    "test:unit": "vitest run --coverage --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run --passWithNoTests integration.test"
   },
   "dependencies": {

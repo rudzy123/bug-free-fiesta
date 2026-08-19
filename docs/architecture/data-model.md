@@ -37,56 +37,56 @@ Source revisions (`document_revision_kind = source`) are immutable snapshots of 
 
 ## Indexes and target queries
 
-| Index                                                        | Target query                                                                          |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `users_email_key`                                            | Account login / lookup by normalized email.                                           |
-| `organization_memberships_user_id_idx`                       | List tenants for an authenticated account user.                                       |
-| `organization_memberships_organization_id_user_id_key`       | One membership per user per tenant; authorize `(org, user)`.                          |
-| `organization_memberships_organization_id_id_key`            | Composite FK from `documents.ownerMembershipId` so the owner belongs to the same org. |
-| `account_sessions_tokenHash_key`                             | Present account session cookie: hash then lookup.                                     |
-| `account_sessions_user_id_idx`                               | List or revoke sessions for an account user.                                          |
-| `account_sessions_expires_at_idx`                            | Expire account sessions from the server clock.                                        |
-| `account_security_events_actor_occurred_idx`                 | Account login/logout/revoke history for an opaque user id.                            |
-| `account_security_events_request_id_idx`                     | Correlate account security events with a request id.                                  |
-| `documents_organization_id_id_key`                           | Composite FK target for all document children (tenant-safe joins).                    |
-| `documents_organization_id_state_idx`                        | Tenant document lists filtered by state (`draft`, `sent`, …).                         |
-| `documents_organization_id_created_at_idx`                   | Tenant document lists ordered by recency.                                             |
-| `documents_state_expires_at_idx`                             | Expiry worker: `state IN ('sent','in_progress') AND expiresAt <= now`.                |
-| `documents_state_lease_until_idx`                            | Finalization claim / lease watchdog on `finalizing`.                                  |
-| `document_revisions_organization_id_id_key`                  | Composite FK from `documents.currentRevisionId` / `signingRevisionId` (same tenant).  |
-| `document_revisions_organization_id_document_id_idx`         | Load revisions for one document in a tenant.                                          |
-| `document_revisions_sha256_digest_idx`                       | Reconcile content-addressed object keys after a crash.                                |
-| `signers_organization_id_id_key`                             | Composite FK from sessions and fields to a signer in the same tenant.                 |
-| `signers_organization_id_document_id_routing_order_idx`      | Routing checks: who may sign now (ordered vs parallel).                               |
-| `signers_account_user_id_idx`                                | Optional link from account user to signer rows.                                       |
-| `signing_sessions_tokenHash_key`                             | Present bearer token: hash then lookup session.                                       |
-| `signing_sessions` `csrfTokenHash`                           | Double-submit CSRF for the exchanged signer cookie.                                   |
-| `signing_sessions_organization_id_id_key`                    | Composite FK from consent to session in the same tenant.                              |
-| `signing_sessions_organization_id_document_id_signer_id_idx` | List sessions for a signer on a document.                                             |
-| `signing_sessions_signer_id_status_idx`                      | Find issued/active session before re-issue.                                           |
-| `signing_sessions_expires_at_status_idx`                     | Expire sessions: `status IN ('issued','active') AND expiresAt <= now`.                |
-| `signing_sessions_one_open_per_signer_idx` (partial unique)  | At most one `issued` or `active` session per signer.                                  |
-| `signature_fields_organization_id_id_key`                    | Tenant-safe field identity.                                                           |
-| `signature_fields_organization_id_document_id_signer_id_idx` | Load server-owned fields for a signer (ignore client coordinates).                    |
-| `consent_records_sessionId_key`                              | One consent row per signing session.                                                  |
-| `consent_records_organization_id_document_id_idx`            | Consent history for a document (support / export).                                    |
-| `finalized_artifacts_documentId_key`                         | At most one artifact per document (finalization backstop).                            |
-| `finalized_artifacts_sha256_digest_idx`                      | Content-addressed artifact lookup / retry.                                            |
-| `audit_logs_document_id_sequence_key`                        | Per-document hash chain order.                                                        |
-| `audit_logs_organization_id_document_id_sequence_idx`        | Tenant-scoped chain walk / verification.                                              |
-| `audit_logs_request_id_idx`                                  | Correlate audit events with a request id.                                             |
-| `outbox_events_status_available_at_idx`                      | Poller: claim `pending` rows whose `availableAt` has passed.                          |
-| `outbox_events_organization_id_document_id_idx`              | Inspect outbox for a document.                                                        |
-| `outbox_events_request_id_idx`                               | Correlate outbox with the originating HTTP request.                                   |
-| `background_jobs_status_available_at_idx`                    | Worker lease/claim of jobs.                                                           |
-| `background_jobs_organization_id_document_id_idx`            | Jobs for a document.                                                                  |
-| `background_jobs_outbox_event_id_idx`                        | Find the job created from an outbox row.                                              |
-| `idempotency_records_org_principal_route_key_key`            | HTTP mutation replay: same tenant, principal, route, and key.                         |
-| `idempotency_records_expires_at_idx`                         | TTL purge of expired keys.                                                            |
-| `idempotency_records_request_id_idx`                         | Correlate stored responses with request ids.                                          |
-| `upload_sessions_tokenHash_key`                              | Present upload token: hash then lookup.                                               |
-| `upload_sessions_status_expires_at_idx`                      | Cleanup abandoned issued sessions past `expiresAt`.                                   |
-| `preview_grants_tokenHash_key`                               | Present preview token: hash then lookup.                                              |
+| Index                                                        | Target query                                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `users_email_key`                                            | Account login / lookup by normalized email.                                                          |
+| `organization_memberships_user_id_idx`                       | List tenants for an authenticated account user.                                                      |
+| `organization_memberships_organization_id_user_id_key`       | One membership per user per tenant; authorize `(org, user)`.                                         |
+| `organization_memberships_organization_id_id_key`            | Composite FK from `documents.ownerMembershipId` so the owner belongs to the same org.                |
+| `account_sessions_tokenHash_key`                             | Present account session cookie: hash then lookup.                                                    |
+| `account_sessions_user_id_idx`                               | List or revoke sessions for an account user.                                                         |
+| `account_sessions_expires_at_idx`                            | Expire account sessions from the server clock.                                                       |
+| `account_security_events_actor_occurred_idx`                 | Account login/logout/revoke history for an opaque user id.                                           |
+| `account_security_events_request_id_idx`                     | Correlate account security events with a request id.                                                 |
+| `documents_organization_id_id_key`                           | Composite FK target for all document children (tenant-safe joins).                                   |
+| `documents_organization_id_state_idx`                        | Tenant document lists filtered by state (`draft`, `sent`, …).                                        |
+| `documents_organization_id_created_at_idx`                   | Tenant document lists ordered by recency.                                                            |
+| `documents_state_expires_at_idx`                             | Expiry worker: `state IN ('sent','in_progress') AND expiresAt <= now`.                               |
+| `documents_state_lease_until_idx`                            | Finalization claim / lease watchdog on `finalizing`.                                                 |
+| `document_revisions_organization_id_id_key`                  | Composite FK from `documents.currentRevisionId` / `signingRevisionId` (same tenant).                 |
+| `document_revisions_organization_id_document_id_idx`         | Load revisions for one document in a tenant.                                                         |
+| `document_revisions_sha256_digest_idx`                       | Reconcile content-addressed object keys after a crash.                                               |
+| `signers_organization_id_id_key`                             | Composite FK from sessions and fields to a signer in the same tenant.                                |
+| `signers_organization_id_document_id_routing_order_idx`      | Routing checks: who may sign now (ordered vs parallel).                                              |
+| `signers_account_user_id_idx`                                | Optional link from account user to signer rows.                                                      |
+| `signing_sessions_tokenHash_key`                             | Present bearer token: hash then lookup session.                                                      |
+| `signing_sessions` `csrfTokenHash`                           | Double-submit CSRF for the exchanged signer cookie.                                                  |
+| `signing_sessions_organization_id_id_key`                    | Composite FK from consent to session in the same tenant.                                             |
+| `signing_sessions_organization_id_document_id_signer_id_idx` | List sessions for a signer on a document.                                                            |
+| `signing_sessions_signer_id_status_idx`                      | Find issued/active session before re-issue.                                                          |
+| `signing_sessions_expires_at_status_idx`                     | Expire sessions: `status IN ('issued','active') AND expiresAt <= now`.                               |
+| `signing_sessions_one_open_per_signer_idx` (partial unique)  | At most one `issued` or `active` session per signer.                                                 |
+| `signature_fields_organization_id_id_key`                    | Tenant-safe field identity.                                                                          |
+| `signature_fields_organization_id_document_id_signer_id_idx` | Load server-owned fields for a signer (ignore client coordinates).                                   |
+| `consent_records_sessionId_key`                              | One consent row per signing session.                                                                 |
+| `consent_records_organization_id_document_id_idx`            | Consent history for a document (support / export).                                                   |
+| `finalized_artifacts_documentId_key`                         | At most one artifact per document (finalization backstop).                                           |
+| `finalized_artifacts_sha256_digest_idx`                      | Content-addressed artifact lookup / retry.                                                           |
+| `audit_logs_document_id_sequence_key`                        | Per-document hash chain order.                                                                       |
+| `audit_logs_organization_id_document_id_sequence_idx`        | Tenant-scoped chain walk / verification.                                                             |
+| `audit_logs_request_id_idx`                                  | Correlate audit events with a request id.                                                            |
+| `outbox_events_status_available_at_idx`                      | Poller: claim `pending` / recoverable rows whose `availableAt` has passed. `FOR UPDATE SKIP LOCKED`. |
+| `outbox_events_organization_id_document_id_idx`              | Inspect outbox for a document.                                                                       |
+| `outbox_events_request_id_idx`                               | Correlate outbox with the originating HTTP request.                                                  |
+| `background_jobs_status_available_at_idx`                    | Worker lease/claim of jobs.                                                                          |
+| `background_jobs_organization_id_document_id_idx`            | Jobs for a document.                                                                                 |
+| `background_jobs_outbox_event_id_idx`                        | Find the job created from an outbox row.                                                             |
+| `idempotency_records_org_principal_route_key_key`            | HTTP mutation replay: same tenant, principal, route, and key.                                        |
+| `idempotency_records_expires_at_idx`                         | TTL purge of expired keys.                                                                           |
+| `idempotency_records_request_id_idx`                         | Correlate stored responses with request ids.                                                         |
+| `upload_sessions_tokenHash_key`                              | Present upload token: hash then lookup.                                                              |
+| `upload_sessions_status_expires_at_idx`                      | Cleanup abandoned issued sessions past `expiresAt`.                                                  |
+| `preview_grants_tokenHash_key`                               | Present preview token: hash then lookup.                                                             |
 
 Primary keys (UUID) support direct get-by-id **after** authorization has loaded the row and checked `organizationId`.
 

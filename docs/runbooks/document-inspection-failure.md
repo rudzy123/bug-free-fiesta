@@ -32,7 +32,7 @@ Signing remains denied until inspection is `accepted` **and** the document is `s
 
 ## Remediation
 
-- **Hung pending:** confirm the worker process; inspect jobs are idempotent. Re-queue by leaving the outbox `pending`.
+- **Hung pending:** confirm the worker process; inspect jobs are idempotent. Re-queue by leaving the outbox `pending`. See [outbox dead letter](outbox-dead-letter.md) if status is `failed`.
 - **Missing object:** restore shared private storage (S3/Azure/MinIO). Do not copy PDFs through tickets.
 - **Rejected:** tell the tenant the file was not accepted. They may create a new draft. Do not claim the file was malware unless a production scanner said so.
 - **fail_closed in production:** wire a real `DocumentInspector` adapter; keep fail-closed until then.

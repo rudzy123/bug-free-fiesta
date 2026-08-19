@@ -263,6 +263,10 @@ const workerEnvSchema = z
     WORKER_HEALTH_HOST: requiredString('WORKER_HEALTH_HOST', '0.0.0.0').default('0.0.0.0'),
     WORKER_HEALTH_PORT: portSchema,
     WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(5_000),
+    WORKER_LEASE_MS: z.coerce.number().int().min(1_000).default(60_000),
+    WORKER_BACKOFF_BASE_MS: z.coerce.number().int().min(100).default(1_000),
+    WORKER_BACKOFF_MAX_MS: z.coerce.number().int().min(1_000).default(300_000),
+    WORKER_STALE_QUEUE_MS: z.coerce.number().int().min(1_000).default(120_000),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     OBJECT_STORAGE_ENDPOINT: requiredString('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000').url(
       'OBJECT_STORAGE_ENDPOINT must be an absolute URL such as http://localhost:9000',

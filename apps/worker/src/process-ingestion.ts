@@ -1,65 +1,38 @@
-import { INSPECT_DOCUMENT_JOB_TYPE, isApplicationError, type Clock } from '@esign/domain';
-import type { CleanupAbandonedUploads, InspectDocument } from '@esign/application';
-import type { OutboxClaimer } from '@esign/database';
-import type { Logger } from '@esign/logger';
+import { INSPECT_DOCUMENT_JOB_TYPE, ValidationError } from '@esign/domain';
+import type {
+  CleanupAbandonedUploads,
+  InspectDocument,
+  OutboxJobProcessor,
+} from '@esign/application';
+import { inspectDocumentJobPayloadSchema } from '@esign/contracts';
 
 export async function processDocumentIngestionJobs(input: {
-  claimer: OutboxClaimer;
+  processor: OutboxJobProcessor;
   inspect: InspectDocument;
   cleanup: CleanupAbandonedUploads;
-  clock: Clock;
-  logger: Logger;
   workerId: string;
 }): Promise<{ inspected: number; abandoned: number }> {
   const abandoned = await input.cleanup();
-  let inspected = 0;
-  const now = input.clock.nowUtc();
-  const event = await input.claimer.claimNextByType({
+  const result = await input.processor.processNext({
     type: INSPECT_DOCUMENT_JOB_TYPE,
-    now,
     owner: input.workerId,
-    leaseUntil: new Date(now.getTime() + 60_000),
+    handler: async (claimed) => {
+      const parsed = inspectDocumentJobPayloadSchema.safeParse(claimed.event.payload);
+      if (!parsed.success) {
+        throw new ValidationError({ reason: 'invalid_payload' });
+      }
+      await input.inspect({
+        organizationId: claimed.event.organizationId,
+        documentId: parsed.data.documentId,
+        revisionId: parsed.data.revisionId,
+        jobId: claimed.job.id,
+        outboxEventId: claimed.event.id,
+        requestId: claimed.event.requestId,
+      });
+    },
   });
-  if (!event) {
-    return { inspected, abandoned: abandoned.abandoned };
-  }
-  const documentId = typeof event.payload.documentId === 'string' ? event.payload.documentId : null;
-  const revisionId = typeof event.payload.revisionId === 'string' ? event.payload.revisionId : null;
-  if (!documentId || !revisionId) {
-    await input.claimer.markFailed({
-      organizationId: event.organizationId,
-      outboxEventId: event.id,
-      errorCode: 'invalid_payload',
-      availableAt: new Date(now.getTime() + 60_000),
-    });
-    return { inspected, abandoned: abandoned.abandoned };
-  }
-  try {
-    await input.inspect({
-      organizationId: event.organizationId,
-      documentId,
-      revisionId,
-      jobId: event.id,
-      requestId: event.requestId,
-    });
-    await input.claimer.markProcessed({
-      organizationId: event.organizationId,
-      outboxEventId: event.id,
-      processedAt: input.clock.nowUtc(),
-    });
-    inspected = 1;
-  } catch (error: unknown) {
-    const code = isApplicationError(error) ? error.kind : 'inspect_failed';
-    input.logger.warn(
-      { correlationId: event.requestId, documentId, errorKind: code },
-      'document inspection job failed',
-    );
-    await input.claimer.markFailed({
-      organizationId: event.organizationId,
-      outboxEventId: event.id,
-      errorCode: code,
-      availableAt: new Date(input.clock.nowUtc().getTime() + 30_000),
-    });
-  }
-  return { inspected, abandoned: abandoned.abandoned };
+  return {
+    inspected: result.outcome === 'succeeded' ? 1 : 0,
+    abandoned: abandoned.abandoned,
+  };
 }
