@@ -1,12 +1,7 @@
 import {
-  AUDIT_CHAIN_SCHEMA_VERSION,
-  AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
   ConflictError,
   NotFoundError,
-  assertApprovedAuditPayload,
-  computeAuditEventHash,
   type AuditEvent,
-  type AuditLogRepository,
   type AuditWriter,
   type BackgroundJob,
   type ConsentRecord,

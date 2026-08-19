@@ -22,7 +22,6 @@ export {
   INSPECT_DOCUMENT_JOB_TYPE,
   NOTIFY_SIGNER_JOB_TYPE,
   FLATTEN_SIGNATURE_JOB_TYPE,
-  VERIFY_AUDIT_CHAIN_JOB_TYPE,
   SIGNER_STATUSES,
   SIGNING_SESSION_STATUSES,
   SIGNATURE_FIELD_TYPES,
@@ -124,41 +123,6 @@ export {
   tenantObjectKey,
   tenantObjectKeyPrefix,
 } from './object-keys.js';
-export {
-  AUDIT_CHAIN_SCHEMA_VERSION,
-  canonicalizeJsonValue,
-  computeAuditEventHash,
-  genesisPreviousEventHash,
-  serializeCanonicalJson,
-  sha256Hex,
-  toCanonicalAuditEventV1,
-  type AuditEventHashInput,
-  type CanonicalAuditEventV1,
-  type CanonicalJson,
-} from './audit/canonical.js';
-export { assertApprovedAuditPayload } from './audit/payload.js';
-export {
-  AUDIT_VERIFICATION_FAILURE_CODES,
-  AUDIT_VERIFICATION_WARNING_CODES,
-  isAuditVerificationFailureCode,
-  type AuditVerificationFailure,
-  type AuditVerificationFailureCode,
-  type AuditVerificationReport,
-  type AuditVerificationWarning,
-  type AuditVerificationWarningCode,
-  type OrganizationAuditVerificationReport,
-} from './audit/verification.js';
-export type {
-  AuditCheckpoint,
-  CheckpointPutResult,
-  ImmutableCheckpointStore,
-} from './ports/checkpoint-store.js';
-export type {
-  AuditVerificationAlert,
-  AuditVerificationAlertSink,
-  AuditVerificationMetrics,
-  AuditVerificationMetricsSnapshot,
-} from './ports/audit-verification.js';
 export type {
   Clock,
   Hashing,

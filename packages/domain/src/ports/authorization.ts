@@ -7,7 +7,6 @@ export const AUTHORIZATION_ACTIONS = [
   'document.send',
   'document.void',
   'document.download_artifact',
-  'audit.verify',
   'signing.session.act',
   'job.process',
 ] as const;
