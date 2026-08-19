@@ -222,6 +222,8 @@ export const signerSessionResponseSchema = z
   })
   .strict();
 
+export type SignerSessionResponse = z.infer<typeof signerSessionResponseSchema>;
+
 export const signerDocumentResponseSchema = z
   .object({
     documentId: z.string().uuid(),
@@ -231,6 +233,8 @@ export const signerDocumentResponseSchema = z
     signerDisplayName: z.string().min(1),
   })
   .strict();
+
+export type SignerDocumentResponse = z.infer<typeof signerDocumentResponseSchema>;
 
 export const signerFieldsResponseSchema = z
   .object({
@@ -251,6 +255,9 @@ export const signerFieldsResponseSchema = z
   })
   .strict();
 
+export type SignerFieldsResponse = z.infer<typeof signerFieldsResponseSchema>;
+export type SignerField = SignerFieldsResponse['fields'][number];
+
 export const signerConsentResponseSchema = z
   .object({
     copyId: z.string().min(1),
@@ -261,6 +268,8 @@ export const signerConsentResponseSchema = z
     accepted: z.boolean(),
   })
   .strict();
+
+export type SignerConsentResponse = z.infer<typeof signerConsentResponseSchema>;
 
 export const recordSignerConsentRequestSchema = z
   .object({
@@ -298,3 +307,49 @@ export const declineToSignResponseSchema = z
   .strict();
 
 export const signerPreviewResponseSchema = issuePreviewResponseSchema;
+
+export const signatureStrokePointSchema = z
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    t: z.number().nonnegative(),
+    p: z.number().min(0).max(1),
+  })
+  .strict();
+
+export const signatureInkPayloadSchema = z
+  .object({
+    pngBase64: z.string().min(1).max(400_000),
+    strokes: z
+      .array(
+        z
+          .object({
+            points: z.array(signatureStrokePointSchema).min(1).max(4_000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(32),
+    durationMs: z.number().int().nonnegative().max(90_000),
+  })
+  .strict();
+
+export const completeSigningRequestSchema = z
+  .object({
+    consentCopyId: z.string().min(1).max(120),
+    intentToSign: z.literal(true),
+    fieldIds: z.array(z.string().uuid()).min(1).max(200),
+    signature: signatureInkPayloadSchema.optional(),
+    initials: signatureInkPayloadSchema.optional(),
+  })
+  .strict();
+
+export type CompleteSigningRequest = z.infer<typeof completeSigningRequestSchema>;
+
+export const completeSigningResponseSchema = z
+  .object({
+    status: z.enum(['accepted', 'pending']),
+  })
+  .strict();
+
+export type CompleteSigningResponse = z.infer<typeof completeSigningResponseSchema>;

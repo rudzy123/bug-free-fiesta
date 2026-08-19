@@ -108,6 +108,24 @@ Allowed as **intent**: which field ids they believe they completed, signature pa
 
 Never trusted as **facts**: document state, other signers’ identities, field coordinates, tenant id, “all done” flags.
 
+## Signer UI (`apps/web`)
+
+The Next.js signing page lives at `/signing`. It bootstraps a session by exchanging a URL token in the JSON body (then stripping the query string), then calls the cookie-authenticated signer APIs through a same-origin `/signing/api/*` proxy.
+
+The page:
+
+- Loads safe document metadata, this signer’s server-owned fields, consent copy/version, and a short-lived PDF preview as a blob URL (preview tokens stay out of the iframe `src`).
+- Captures signatures on an HTML canvas with Pointer Events (mouse, pen, touch, and a keyboard plotting fallback). Points are normalized, timed, and grouped into strokes. The PNG is transparent. Bounds cap points, strokes, duration, and byte size.
+- Does **not** flatten or rewrite the PDF in the browser. Placement coordinates from the UI are display-only.
+- Requires the exact consent version returned by the API plus an intent-to-sign checkbox before review/submit.
+- Covers loading, unavailable, expired, revoked, declined, completed, network failure with retry, and in-progress finalization (submit stays disabled).
+
+Signing HTML responses set `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and a Content-Security-Policy with `default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, plus `img-src`/`frame-src` for `blob:` previews. Next.js hydration scripts require `'unsafe-inline'` (and `'unsafe-eval'` in development).
+
+Signature ink is kept in memory only. It is not written to `localStorage`, `sessionStorage`, analytics, or logs, and object URLs are revoked on completion, decline, expiry, or unmount.
+
+`POST /signing/complete` is the intended completion boundary (field ids + ink payload). The API may not persist completions yet; the UI still treats field ids as intent only.
+
 ## Related documents
 
 [Document lifecycle](document-lifecycle.md), [ADR-0007](adrs/0007-server-owned-signature-placement.md), [ADR-0009](adrs/0009-authentication-boundaries.md), [Threat model](../security/threat-model.md).
