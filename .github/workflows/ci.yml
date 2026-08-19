@@ -196,7 +196,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: TruffleHog verified secret scan
-        uses: trufflesecurity/trufflehog@7dc056a193116ba8d82154bf0549381c8fb8545c # v3.88.14
+        uses: trufflesecurity/trufflehog@bcfcf73aaf4759d4dadc2783177c245a02792318 # v3.97.0
         with:
           path: ./
           version: 3.88.14
