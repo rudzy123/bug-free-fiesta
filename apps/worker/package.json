@@ -21,6 +21,7 @@
     "@esign/database": "workspace:*",
     "@esign/domain": "workspace:*",
     "@esign/logger": "workspace:*",
+    "@esign/observability": "workspace:*",
     "pdf-lib": "1.17.1"
   },
   "devDependencies": {

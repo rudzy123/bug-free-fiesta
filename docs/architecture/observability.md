@@ -1,6 +1,6 @@
 # Observability
 
-How we see the system without leaking Restricted data. Pino is the log library; `packages/logger` is the only application logging facade.
+How we see the system without leaking Restricted data. Pino is the log library; `packages/logger` is the only application logging facade. Metrics and tracing live in `packages/observability`. Operator-facing configuration-as-code (SLOs, alerts, dashboards, sampling, PII classification) is in [`docs/observability/`](../observability/README.md).
 
 ## Correlation
 
@@ -21,9 +21,13 @@ Structured JSON. UTC timestamps. Level policy:
 
 Redact by default: headers named `authorization`, `cookie`, `set-cookie`; keys matching `token`, `password`, `secret`, `signature`; raw buffers.
 
-## Metrics (intended)
+## Metrics
 
-- HTTP: rate, latency, status class by route (no query strings).
+Implemented via `packages/observability`: a Prometheus registry exposed at `GET /metrics` on the API and the worker health server. Names are `esign_*`, base units seconds, labels bounded and non-sensitive. Full inventory (and which metrics are emitting vs reserved) is in [`docs/observability/README.md`](../observability/README.md).
+
+Coverage:
+
+- HTTP: rate, latency, status class by route template (no query strings).
 - Authz denials by reason code (not by email).
 - Outbox: pending / processing / failed depth, oldest claimable age, expired leases, claim count, recovered leases, attempt count, success latency, retryable vs terminal failures.
 - Finalization: success, retry, `finalization_failed`.
@@ -35,7 +39,7 @@ The worker `/health/ready` body includes a `queue` snapshot (`stale` when claima
 
 ## Tracing
 
-If tracing is added, span names are route or job type. Do not attach PDF bytes or tokens as span attributes. Propagation uses the correlation id.
+An OpenTelemetry-shaped abstraction (`Tracer`/`Span`) lives in `packages/observability`: `createNoopTracer` (default) and `createLoggingTracer` (used by the API). Wire the OpenTelemetry SDK behind the same interface for a collector. Span names are route or job type. Do not attach PDF bytes or tokens as span attributes. Propagation uses the correlation id. Sampling guidance: [`docs/observability/sampling.md`](../observability/sampling.md).
 
 ## Audit vs logs
 
@@ -51,6 +55,10 @@ Logs are operational and rotatable. Audit events are the product integrity recor
 
 Alert payloads follow the same deny list as logs.
 
+## Redaction enforcement
+
+The prohibited-field deny list is enforced in `packages/logger` (redaction with `remove: true`) and continuously verified: the redaction test suite feeds representative sensitive payloads through the logger and asserts none survive, and `pnpm --filter @esign/logger audit:redaction` runs the same audit as a script (non-zero exit on any leak). Per-field classification: [`docs/observability/pii-field-classification.md`](../observability/pii-field-classification.md).
+
 ## Related documents
 
-[Data classification](data-classification.md), [Testing strategy](testing-strategy.md), [Runbooks](../runbooks/document-finalization-failure.md).
+[Data classification](data-classification.md), [Testing strategy](testing-strategy.md), [SLOs](../observability/slos.md), [Alerts](../observability/alerts/prometheus-rules.yaml), [Runbooks](../runbooks/document-finalization-failure.md).

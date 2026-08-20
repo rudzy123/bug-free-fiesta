@@ -4,9 +4,16 @@ import helmet from 'helmet';
 import type { ApiConfig } from '@esign/config';
 import type { Logger } from '@esign/logger';
 import { createMemoryRateLimiter, createSystemClock } from '@esign/application';
+import {
+  createNoopTracer,
+  createObservabilityMetrics,
+  type ObservabilityMetrics,
+  type Tracer,
+} from '@esign/observability';
 import type { HealthService } from './application/health-service.js';
 import { createRequestIdMiddleware } from './http/middleware/request-id.js';
 import { createClientIpMiddleware } from './http/client-ip.js';
+import { createHttpMetrics } from './http/middleware/http-metrics.js';
 import { createRequestTimeout } from './http/middleware/request-timeout.js';
 import { createNoParameterPollution } from './http/middleware/no-parameter-pollution.js';
 import { createStrictContentType } from './http/middleware/strict-content-type.js';
@@ -17,11 +24,14 @@ import { createHttpLogger } from './http/middleware/http-logger.js';
 import { createErrorHandler } from './http/middleware/error-handler.js';
 import { notFoundHandler } from './http/middleware/not-found.js';
 import { createHealthRouter } from './http/routes/health.js';
+import { createMetricsRouter } from './http/routes/metrics.js';
 
 export type CreateApiAppOptions = {
   config: ApiConfig;
   logger: Logger;
   health: HealthService;
+  metrics?: ObservabilityMetrics;
+  tracer?: Tracer;
   extraRoutes?: (app: Express) => void;
   accountAuthRouter?: Router;
   documentRouter?: Router;
@@ -36,6 +46,9 @@ const ALLOWED_CONTENT_TYPES = [
 
 export function createApiApp(options: CreateApiAppOptions): Express {
   const { config, logger } = options;
+  const metrics = options.metrics ?? createObservabilityMetrics();
+  const tracer = options.tracer ?? createNoopTracer();
+
   const app = express();
   app.disable('x-powered-by');
   app.disable('etag');
@@ -72,6 +85,10 @@ export function createApiApp(options: CreateApiAppOptions): Express {
 
   app.use(createRequestIdMiddleware(config.CORRELATION_ID_HEADER));
   app.use(createClientIpMiddleware(config.TRUST_PROXY));
+  // Metrics/tracing wrap the request as early as possible so latency and status
+  // are captured even for requests shed by the timeout, overload, or rate-limit
+  // guards below.
+  app.use(createHttpMetrics(metrics, tracer));
   app.use(createRequestTimeout(config.API_REQUEST_TIMEOUT_MS, logger));
 
   app.use(
@@ -97,9 +114,10 @@ export function createApiApp(options: CreateApiAppOptions): Express {
   app.use(createCookieParser());
   app.use(createHttpLogger(logger));
 
-  // Liveness/readiness are mounted before overload and rate limiting so probes
-  // stay reliable while the API is shedding load.
-  app.use(createHealthRouter(options.health));
+  // Liveness/readiness and the metrics scrape are mounted before overload and
+  // rate limiting so probes and scrapes stay reliable while the API sheds load.
+  app.use(createHealthRouter(options.health, metrics));
+  app.use(createMetricsRouter(metrics));
 
   app.use(createOverloadGuard({ maxConcurrentRequests: config.API_MAX_CONCURRENT_REQUESTS }));
 
@@ -125,7 +143,7 @@ export function createApiApp(options: CreateApiAppOptions): Express {
   options.extraRoutes?.(app);
 
   app.use(notFoundHandler());
-  app.use(createErrorHandler(logger));
+  app.use(createErrorHandler(logger, metrics));
 
   return app;
 }

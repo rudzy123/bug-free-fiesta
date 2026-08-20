@@ -1,0 +1,121 @@
+# Prometheus alerting rules for the electronic-signature platform.
+# Each alert links to a runbook. Alert payloads must follow the same deny list
+# as logs: no tokens, PII, or storage URLs in labels or annotations.
+groups:
+  - name: esign-api
+    rules:
+      - alert: EsignApiHighErrorRate
+        expr: |
+          sum(rate(esign_http_requests_total{status_class="5xx"}[5m]))
+            / clamp_min(sum(rate(esign_http_requests_total[5m])), 1)
+            > 0.02
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: API 5xx error ratio above 2% for 10m
+          slo: API availability (99.9%)
+          runbook: docs/runbooks/document-finalization-failure.md
+
+      - alert: EsignApiLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum(rate(esign_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: API p99 latency above 1s for 10m
+          runbook: docs/runbooks/document-finalization-failure.md
+
+      - alert: EsignSignerSessionErrors
+        expr: |
+          sum(rate(esign_http_requests_total{route=~"/signing.*",status_class="5xx"}[5m]))
+            / clamp_min(sum(rate(esign_http_requests_total{route=~"/signing.*"}[5m])), 1)
+            > 0.01
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: Signer-facing API 5xx ratio above 1%
+          slo: Signer-session availability (99.9%)
+          runbook: docs/runbooks/document-finalization-failure.md
+
+  - name: esign-worker
+    rules:
+      - alert: EsignQueueBacklog
+        expr: esign_queue_depth{state="pending"} > 100
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Outbox pending depth above 100 for 15m
+          runbook: docs/runbooks/outbox-dead-letter.md
+
+      - alert: EsignExpiredLeases
+        expr: esign_queue_depth{state="expired_leases"} > 0
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Expired job leases detected (stuck workers)
+          runbook: docs/runbooks/outbox-dead-letter.md
+
+      - alert: EsignFinalizationFailures
+        expr: |
+          sum(rate(esign_job_duration_seconds_count{type="flatten_signature",outcome="failed"}[15m]))
+            / clamp_min(sum(rate(esign_job_duration_seconds_count{type="flatten_signature"}[15m])), 1)
+            > 0.005
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: Finalization failure ratio above 0.5%
+          slo: Finalization success (99.5%)
+          runbook: docs/runbooks/document-finalization-failure.md
+
+      - alert: EsignFinalizationLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(esign_job_duration_seconds_bucket{type="flatten_signature",outcome="succeeded"}[1h])) by (le)
+          ) > 30
+        for: 30m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Finalization p95 latency above 30s
+          slo: Finalization latency (p95 < 30s)
+          runbook: docs/runbooks/document-finalization-failure.md
+
+  - name: esign-integrity
+    rules:
+      - alert: EsignAuditVerificationFailure
+        expr: increase(esign_audit_verification_failures_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: page
+        annotations:
+          summary: Audit-chain verification failure — investigate immediately
+          slo: Audit verification (zero failures)
+          runbook: docs/runbooks/audit-verification-failure.md
+
+      - alert: EsignObjectStorageErrors
+        expr: sum(rate(esign_object_storage_errors_total[10m])) > 0
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Object-storage operation errors observed
+          runbook: docs/runbooks/document-upload-failure.md
+
+      - alert: EsignPdfFailuresSpike
+        expr: sum(rate(esign_pdf_failures_total[15m])) > 0.1
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Elevated PDF processing failures
+          runbook: docs/runbooks/document-inspection-failure.md

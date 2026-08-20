@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { Logger } from '@esign/logger';
 import type { DatabasePinger } from '@esign/database';
+import type { ObservabilityMetrics } from '@esign/observability';
 import { errorEnvelope } from '@esign/contracts';
 import {
   isJobQueueStale,
@@ -18,6 +19,7 @@ export function createWorkerHealthServer(options: {
   database: DatabasePinger;
   queueHealth: JobQueueHealth;
   metrics: JobQueueMetrics;
+  observability: ObservabilityMetrics;
   clock: Clock;
   staleAfterMs: number;
   pollStaleAfterMs: number;
@@ -34,6 +36,14 @@ export function createWorkerHealthServer(options: {
 
     if (req.method === 'GET' && (url === '/health' || url === '/health/live')) {
       send(200, { status: 'ok', service: 'worker', correlationId });
+      return;
+    }
+
+    if (req.method === 'GET' && url === '/metrics') {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'text/plain; version=0.0.4; charset=utf-8');
+      res.setHeader('cache-control', 'no-store');
+      res.end(options.observability.render());
       return;
     }
 

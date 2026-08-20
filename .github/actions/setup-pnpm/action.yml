@@ -12,4 +12,7 @@ runs:
         cache: pnpm
     - name: Install dependencies
       shell: bash
-      run: pnpm install --frozen-lockfile
+      # --prod=false so devDependencies (turbo, tsc, vitest, next, ...) are always
+      # installed even in jobs that set NODE_ENV=production (e.g. build), where pnpm
+      # would otherwise skip them and fail with "turbo: not found".
+      run: pnpm install --frozen-lockfile --prod=false
