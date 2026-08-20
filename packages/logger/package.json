@@ -19,7 +19,8 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --passWithNoTests",
-    "test:integration": "vitest run --passWithNoTests"
+    "test:integration": "vitest run --passWithNoTests",
+    "audit:redaction": "tsx src/redaction-audit.cli.ts"
   },
   "dependencies": {
     "pino": "9.6.0"
@@ -29,6 +30,7 @@
     "@esign/typescript-config": "workspace:*",
     "@types/node": "22.15.18",
     "eslint": "9.27.0",
+    "tsx": "4.19.4",
     "typescript-eslint": "8.32.1",
     "typescript": "5.8.3",
     "vitest": "3.2.7"
