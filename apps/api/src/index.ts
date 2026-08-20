@@ -1,5 +1,6 @@
 import { loadApiConfig } from '@esign/config';
 import { createLogger } from '@esign/logger';
+import { createLoggingTracer, createObservabilityMetrics } from '@esign/observability';
 import { createPrismaClient, createPrismaPinger } from '@esign/database';
 import { createHealthService } from './application/health-service.js';
 import { createAccountAuthFromPrisma } from './compose-account-auth.js';
@@ -10,6 +11,10 @@ import { installGracefulShutdown } from './shutdown.js';
 async function main(): Promise<void> {
   const config = loadApiConfig();
   const logger = createLogger({ name: 'api', level: config.LOG_LEVEL });
+  const metrics = createObservabilityMetrics();
+  const tracer = createLoggingTracer({
+    debug: (fields, message) => logger.debug(fields, message),
+  });
   const prisma = createPrismaClient(config.DATABASE_URL);
   const health = createHealthService(createPrismaPinger(prisma));
   const accountAuth = createAccountAuthFromPrisma({ config, prisma });
@@ -24,6 +29,8 @@ async function main(): Promise<void> {
     config,
     logger,
     health,
+    metrics,
+    tracer,
     accountAuthRouter: accountAuth.router,
     documentRouter: documents.router,
   });

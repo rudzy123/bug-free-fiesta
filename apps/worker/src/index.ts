@@ -1,5 +1,6 @@
 import { loadWorkerConfig } from '@esign/config';
 import { createLogger } from '@esign/logger';
+import { createObservabilityMetrics } from '@esign/observability';
 import {
   createPrismaClient,
   createPrismaJobQueueHealth,
@@ -28,6 +29,7 @@ import {
 } from '@esign/application';
 import { createJobPoller } from './poller.js';
 import { createWorkerHealthServer } from './health-server.js';
+import { withObservability } from './observability-metrics.js';
 import { processDocumentIngestionJobs } from './process-ingestion.js';
 import { processSignerNotificationJobs } from './process-notifications.js';
 import { processSignatureFlattenJobs } from './process-finalization.js';
@@ -97,7 +99,8 @@ async function main(): Promise<void> {
     directory: config.NOTIFICATION_PREVIEW_DIR,
   });
   const claimer = createPrismaOutboxClaimer(prisma);
-  const metrics = createMemoryJobQueueMetrics();
+  const observability = createObservabilityMetrics();
+  const metrics = withObservability(createMemoryJobQueueMetrics(), observability);
   const queueHealth = createPrismaJobQueueHealth(prisma);
   let acceptingWork = true;
   const processor = createOutboxJobProcessor({
@@ -148,6 +151,9 @@ async function main(): Promise<void> {
         const result = await cleanupOrphans({ organizationId: organization.id });
         orphansDeleted += result.deleted;
       }
+      // Refresh the queue-depth gauge once per poll so /metrics scrapes stay
+      // fresh without a database call on the scrape path.
+      metrics.recordQueueDepth(await queueHealth.snapshot(clock.nowUtc()));
       return {
         jobsClaimed:
           ingestion.inspected +
@@ -167,6 +173,7 @@ async function main(): Promise<void> {
     database,
     queueHealth,
     metrics,
+    observability,
     clock,
     staleAfterMs: config.WORKER_STALE_QUEUE_MS,
     pollStaleAfterMs: config.WORKER_POLL_INTERVAL_MS * 3,

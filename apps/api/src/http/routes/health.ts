@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import type { HealthService } from '../../application/health-service.js';
+import type { ObservabilityMetrics } from '@esign/observability';
 import { errorEnvelope } from '@esign/contracts';
 
-export function createHealthRouter(health: HealthService): Router {
+export function createHealthRouter(health: HealthService, metrics: ObservabilityMetrics): Router {
   const router = Router();
 
   router.get('/health', (req, res) => {
@@ -22,9 +23,15 @@ export function createHealthRouter(health: HealthService): Router {
   });
 
   router.get('/health/ready', (req, res, next) => {
+    const startedNs = process.hrtime.bigint();
     void health
       .ready()
       .then((result) => {
+        metrics.recordDbQuery({
+          operation: 'readiness_ping',
+          outcome: result.database === 'up' ? 'ok' : 'error',
+          durationSeconds: Number(process.hrtime.bigint() - startedNs) / 1e9,
+        });
         if (!result.ready) {
           res.status(503).json({
             ...errorEnvelope(
