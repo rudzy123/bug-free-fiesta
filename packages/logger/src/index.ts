@@ -11,6 +11,7 @@ export const PROHIBITED_LOG_FIELDS = [
   // Authentication material
   'password',
   'secret',
+  'SECRET',
   'token',
   'rawToken',
   'sessionToken',
@@ -129,7 +130,8 @@ const REDACT_PATHS = [
   'req.originalUrl',
   // Prohibited fields at the top level and at nested depths 1-3. fast-redact's
   // `*` matches a single key, so we enumerate a few depths rather than rely on a
-  // recursive wildcard (which it does not support).
+  // recursive wildcard (which it does not support). This superset already covers
+  // the specific token/secret/signature paths added on main.
   ...PROHIBITED_LOG_FIELDS,
   ...PROHIBITED_LOG_FIELDS.map((field) => `*.${field}`),
   ...PROHIBITED_LOG_FIELDS.map((field) => `*.*.${field}`),

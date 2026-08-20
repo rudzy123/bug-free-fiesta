@@ -39,6 +39,13 @@ async function main(): Promise<void> {
     logger.info({ host: config.API_HOST, port: config.API_PORT }, 'api listening');
   });
 
+  // Node HTTP server-level bounds complement the per-request timeout middleware:
+  // cap how long headers and full requests may take, and keep-alive idle time,
+  // so slow-loris style connections cannot pin sockets indefinitely.
+  server.requestTimeout = config.API_REQUEST_TIMEOUT_MS + 5_000;
+  server.headersTimeout = Math.min(config.API_REQUEST_TIMEOUT_MS, 15_000);
+  server.keepAliveTimeout = 5_000;
+
   await installGracefulShutdown({
     server,
     prisma,

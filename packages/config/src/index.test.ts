@@ -100,3 +100,37 @@ describe('environment validation', () => {
     );
   });
 });
+
+describe('API hardening configuration', () => {
+  it('applies safe defaults for the new hardening settings', () => {
+    const config = loadApiConfig(apiEnv());
+    expect(config.TRUST_PROXY).toBe(0);
+    expect(config.API_REQUEST_TIMEOUT_MS).toBe(30_000);
+    expect(config.API_MAX_CONCURRENT_REQUESTS).toBe(512);
+    expect(config.API_RATE_LIMIT_MAX).toBe(600);
+    expect(config.API_RATE_LIMIT_WINDOW_MS).toBe(60_000);
+    expect(config.AUTH_JSON_BODY_LIMIT).toBe('16kb');
+    expect(config.SIGNING_JSON_BODY_LIMIT).toBe('512kb');
+  });
+
+  it('parses a precise trusted-proxy hop count', () => {
+    expect(loadApiConfig(apiEnv({ TRUST_PROXY: '2' })).TRUST_PROXY).toBe(2);
+  });
+
+  it('refuses to enable trust proxy as a boolean', () => {
+    expect(() => loadApiConfig(apiEnv({ TRUST_PROXY: 'true' }))).toThrow(/TRUST_PROXY/);
+    expect(() => loadApiConfig(apiEnv({ TRUST_PROXY: 'false' }))).toThrow(/TRUST_PROXY/);
+  });
+
+  it('rejects a non-integer or out-of-range trusted-proxy count', () => {
+    expect(() => loadApiConfig(apiEnv({ TRUST_PROXY: '-1' }))).toThrow(/TRUST_PROXY/);
+    expect(() => loadApiConfig(apiEnv({ TRUST_PROXY: 'edge' }))).toThrow(/TRUST_PROXY/);
+    expect(() => loadApiConfig(apiEnv({ TRUST_PROXY: '99' }))).toThrow(/16 or fewer/);
+  });
+
+  it('rejects a malformed route-specific body limit', () => {
+    expect(() => loadApiConfig(apiEnv({ AUTH_JSON_BODY_LIMIT: 'huge' }))).toThrow(
+      EnvironmentValidationError,
+    );
+  });
+});

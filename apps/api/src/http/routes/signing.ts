@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import type { ApiConfig } from '@esign/config';
 import {
   completeSigningRequestSchema,
@@ -85,7 +85,12 @@ export function createSigningRouter(deps: SigningRouterDeps): Router {
   });
 
   const router = Router();
-  router.use('/signing', headers, rateLimit);
+  router.use(
+    '/signing',
+    express.json({ limit: deps.config.SIGNING_JSON_BODY_LIMIT }),
+    headers,
+    rateLimit,
+  );
 
   router.post(
     '/signing/exchange',
@@ -266,11 +271,15 @@ function requireSigningToken(req: { signingToken?: string }): string {
 
 function metadataFromRequest(req: {
   ip?: string;
+  clientIp?: string;
   header: (name: string) => string | undefined;
 }): ReturnType<typeof clientRequestMetadataFromHeaders> {
+  // Use the spoof-resistant client IP resolved from the trusted-proxy topology.
+  // The raw X-Forwarded-For header is intentionally not forwarded here so a
+  // signer cannot poison consent/audit metadata with a forged source IP.
   return clientRequestMetadataFromHeaders({
-    forwardedFor: req.header('x-forwarded-for'),
-    remoteAddress: req.ip,
+    forwardedFor: undefined,
+    remoteAddress: req.clientIp ?? req.ip,
     userAgent: req.header('user-agent'),
   });
 }
