@@ -20,7 +20,12 @@ export function createRequestTimeout(timeoutMs: number, logger: Logger): Request
       controller.abort();
       if (!res.headersSent) {
         logger.warn(
-          { correlationId: req.correlationId, method: req.method, path: req.path, timeoutMs: timeout },
+          {
+            correlationId: req.correlationId,
+            method: req.method,
+            path: req.path,
+            timeoutMs: timeout,
+          },
           'request timed out',
         );
         res
