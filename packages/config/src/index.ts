@@ -52,6 +52,36 @@ const jsonBodyLimitSchema = z
   .string()
   .regex(/^\d+(?:b|kb|mb|gb)$/i, 'JSON_BODY_LIMIT must look like 256kb or 1mb');
 
+/**
+ * Number of trusted reverse-proxy hops in front of the API. This is a precise
+ * topology count, never a boolean. Refusing `true` prevents blindly trusting
+ * every X-Forwarded-For hop, which would let clients spoof their source IP.
+ */
+const trustProxySchema = z
+  .string()
+  .default('0')
+  .superRefine((value, ctx) => {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === 'false') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'TRUST_PROXY must be a non-negative integer count of trusted reverse-proxy hops (e.g. 0 with no proxy, 1 behind one proxy). Do not set it to true; that would trust forged X-Forwarded-For headers.',
+      });
+      return;
+    }
+    if (!/^\d+$/.test(normalized)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'TRUST_PROXY must be a non-negative integer number of trusted reverse-proxy hops.',
+      });
+    }
+  })
+  .transform((value) => Number.parseInt(value.trim(), 10))
+  .refine((hops) => hops <= 16, {
+    message: 'TRUST_PROXY must be 16 or fewer hops.',
+  });
+
 function isAbsoluteHttpUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
@@ -98,9 +128,16 @@ const apiEnvSchema = z
       },
     ),
     JSON_BODY_LIMIT: jsonBodyLimitSchema.default('1mb'),
+    AUTH_JSON_BODY_LIMIT: jsonBodyLimitSchema.default('16kb'),
+    SIGNING_JSON_BODY_LIMIT: jsonBodyLimitSchema.default('512kb'),
     CORRELATION_ID_HEADER: requiredString('CORRELATION_ID_HEADER', 'x-correlation-id').default(
       'x-correlation-id',
     ),
+    TRUST_PROXY: trustProxySchema,
+    API_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
+    API_MAX_CONCURRENT_REQUESTS: z.coerce.number().int().min(1).max(100_000).default(512),
+    API_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+    API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     DATABASE_URL: databaseUrlSchema,
     AUTH_PROVIDER: z.enum(['local', 'oidc'], {

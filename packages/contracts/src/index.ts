@@ -8,8 +8,10 @@ export const errorCodeSchema = z.enum([
   'conflict',
   'idempotency_replay',
   'payload_too_large',
+  'unsupported_media_type',
   'rate_limited',
   'not_ready',
+  'service_unavailable',
   'external_service',
   'internal',
 ]);

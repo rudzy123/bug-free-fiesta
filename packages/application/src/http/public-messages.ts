@@ -8,8 +8,10 @@ export const PUBLIC_ERROR_MESSAGES = {
   conflict: 'The request conflicts with the current resource state.',
   idempotency_replay: 'This request was already processed.',
   payload_too_large: 'The request body is too large.',
+  unsupported_media_type: 'The request content type is not supported.',
   rate_limited: 'Too many requests. Try again later.',
   not_ready: 'The service is temporarily unavailable.',
+  service_unavailable: 'The service is temporarily unavailable. Try again later.',
   external_service: 'A downstream service is temporarily unavailable.',
   internal: 'An unexpected error occurred.',
 } as const satisfies Record<ErrorCode, string>;

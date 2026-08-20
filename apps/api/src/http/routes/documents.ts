@@ -75,6 +75,10 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
   });
 
   const router = Router();
+  // JSON bodies for organization-scoped endpoints. Scoped to /organizations so
+  // it does not run for the raw PDF upload path or the signing routes. The
+  // parser is a no-op for the application/pdf upload (handled by express.raw).
+  router.use('/organizations', express.json({ limit: deps.config.JSON_BODY_LIMIT }));
   const rawPdf = express.raw({
     type: ['application/pdf', 'application/octet-stream'],
     limit: deps.config.DOCUMENT_MAX_UPLOAD_BYTES,

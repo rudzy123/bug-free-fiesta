@@ -26,7 +26,7 @@ export function createSigningResponseHeaders(): RequestHandler {
 export function createSigningRateLimit(limiter: RateLimiter): RequestHandler {
   return (req, _res, next) => {
     void limiter
-      .consume(`signing:${req.ip ?? 'unknown'}`)
+      .consume(`signing:${req.clientIp ?? req.ip ?? 'unknown'}`)
       .then((decision) => {
         if (!decision.allowed) {
           throw new RateLimitError({ retryAfterSeconds: decision.retryAfterSeconds });
