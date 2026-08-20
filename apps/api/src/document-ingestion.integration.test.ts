@@ -676,7 +676,9 @@ describe('secure document ingestion', () => {
       .set(upload.tokenHeader, upload.token ?? '')
       .set('Content-Type', 'text/plain')
       .send(pdfBytes());
-    expect(malformedType.status).toBe(400);
+    // Strict content-type enforcement rejects unsupported media types up front.
+    expect(malformedType.status).toBe(415);
+    expect(errorEnvelopeSchema.parse(malformedType.body).error.code).toBe('unsupported_media_type');
   });
 
   it('denies cross-tenant document access', async () => {
