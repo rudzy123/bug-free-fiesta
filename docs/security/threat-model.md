@@ -66,9 +66,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Attacker sets `X-Forwarded-For`, `X-Tenant-Id`, `X-User-Id`, or `X-Organization-Id` to bypass authz or poison audit.
 
-**Mitigations:** Identity only from verified session/cookie/token. Organization access is loaded from authenticated membership, never from a client tenant header. Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
+**Mitigations:** Identity only from verified session/cookie/token. Organization access is loaded from authenticated membership, never from a client tenant header. Trusted-proxy topology is a precise hop count (`TRUST_PROXY`), never a boolean `true`; the client IP is resolved from that topology so forged `X-Forwarded-For` entries to the left of the trusted hops are ignored (`apps/api/src/http/client-ip.ts`, unit + integration tests). Rate limits and consent/audit IP metadata use this spoof-resistant IP, not the raw header. Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
 
-**Residual:** Misconfigured edge.
+**Residual:** Misconfigured edge (a proxy that does not overwrite/append the client IP, or a `TRUST_PROXY` count that does not match the real hop depth). Correct topology configuration remains an operational responsibility.
 
 ### Malformed or malicious PDFs
 
@@ -82,9 +82,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Denial of service, memory exhaustion.
 
-**Mitigations:** HTTP body limits, field-count limits, signature-image size limits, Zod max lengths, storage quotas per tenant (config).
+**Mitigations:** HTTP body limits, including route-specific JSON limits smaller than the global cap for auth (`AUTH_JSON_BODY_LIMIT`) and signing (`SIGNING_JSON_BODY_LIMIT`) endpoints; strict content-type enforcement (415 for unsupported media types); HTTP parameter-pollution rejection (array-valued query keys → 400); field-count limits, signature-image size limits, Zod max lengths, storage quotas per tenant (config).
 
-**Residual:** Slow-loris and authenticated bulk API abuse need rate limits.
+**Residual:** Slow-loris and authenticated bulk API abuse — mitigated by rate limits, server-level header/request/keep-alive timeouts, and the overload guard (see [Denial of service](#denial-of-service)).
 
 ### Object storage misconfiguration
 
@@ -210,9 +210,27 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** CPU on PDF parse, storage fill, email flood.
 
-**Mitigations:** Authn on owner APIs; rate limits; size limits; worker timeouts; tenant quotas.
+**Mitigations:** Authn on owner APIs; rate limits by endpoint sensitivity (a general per-IP limit plus stricter auth and signing limits), all keyed on the spoof-resistant client IP; a graceful overload guard that sheds load with `503` + `Retry-After` beyond a configured in-flight concurrency (`API_MAX_CONCURRENT_REQUESTS`) while leaving liveness/readiness probes unthrottled; per-request timeouts with an `AbortSignal` (`API_REQUEST_TIMEOUT_MS`) plus Node server-level header/request/keep-alive timeouts; size limits; worker timeouts; tenant quotas.
 
-**Residual:** Distributed volumetric DDoS needs edge/WAF (operations, not claimed as in-app).
+**Residual:** Distributed volumetric DDoS needs edge/WAF (operations, not claimed as in-app). In-process rate-limit and overload state is per instance; coordinated limits across replicas need shared state (operational).
+
+### API request hardening (implemented)
+
+**Impact:** Boundary weaknesses (spoofed source IP, unexpected content types, parameter pollution, oversized or slow requests, header downgrade, leaked internals) enable abuse, DoS, or information disclosure.
+
+**Mitigations (this iteration):**
+
+- Spoof-resistant client IP from a precise `TRUST_PROXY` hop count; `true` is refused at config load. Used for all rate limiting and consent/audit IP metadata.
+- Strict content-type allowlist (`application/json`, `application/pdf`, `application/octet-stream`) → 415 otherwise; bodyless requests are not blocked.
+- Route-specific JSON body limits for auth and signing; global limit for document JSON; raw PDF cap unchanged.
+- HTTP parameter-pollution rejection for array-valued query keys.
+- Rate limits by endpoint sensitivity (general + auth + signing) keyed on the trusted client IP.
+- Graceful overload shedding (`503` + `Retry-After`) with liveness/readiness kept before the guard; readiness still fails closed when the database is unusable, and is separate from liveness.
+- Per-request timeout with an `AbortSignal` and Node server-level header/request/keep-alive timeouts.
+- Helmet with an API-appropriate CSP (`default-src 'none'`), frameguard `deny`, cross-origin isolation, and HSTS gated to production.
+- Stable error envelopes with no stack traces; logger redaction of authorization, cookie, referer, query strings, and signing/session/CSRF tokens.
+
+**Residual:** Per-instance limiter/overload state (no cross-replica coordination); correct proxy topology and TLS termination remain operational; volumetric DDoS still needs edge/WAF; timing side channels and application-logic abuse are out of scope for this boundary layer.
 
 ## STRIDE summary
 

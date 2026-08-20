@@ -29,6 +29,12 @@ Technical controls we intend to implement. Presence of a control is **not** SOC 
 | C21 | Least-privilege DB roles (no audit UPDATE/DELETE)          | Deploy                                                                                                                                          |
 | C22 | Rate limits and payload caps                               | API edge                                                                                                                                        |
 
+| C23 | Trusted-proxy topology (hop count, never `true`) and spoof-resistant client IP | API composition root, `TRUST_PROXY`, `apps/api/src/http/client-ip.ts` |
+| C24 | Strict content-type (415), route-specific body limits, HTTP parameter-pollution rejection | API edge middleware |
+| C25 | Graceful overload shedding (503 + `Retry-After`), per-request timeout with abort, server-level timeouts | API edge, `apps/api/src/index.ts` |
+| C26 | Endpoint-sensitive rate limits (general + auth + signing) keyed on the trusted client IP | API edge middleware |
+| C27 | Production-gated HSTS; API-appropriate CSP, frameguard `deny`, cross-origin isolation | API composition root (helmet) |
+
 ## Explicitly not claimed
 
 - Hardware security modules or qualified signatures

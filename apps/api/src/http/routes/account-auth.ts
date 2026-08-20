@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import type { ApiConfig } from '@esign/config';
 import {
   currentAccountUserResponseSchema,
@@ -68,12 +68,15 @@ export function createAccountAuthRouter(deps: AccountAuthRouterDeps): Router {
   });
 
   const router = Router();
+  // Small, dedicated body limit for authentication payloads; scoped to /auth so
+  // it never widens the limit for document or signing routes.
+  router.use('/auth', express.json({ limit: deps.config.AUTH_JSON_BODY_LIMIT }));
 
   router.post(
     '/auth/login',
     requireOrigin,
     asyncRoute(async (req, res) => {
-      await consumeLoginRateLimit(deps, req.ip ?? 'unknown', req.body);
+      await consumeLoginRateLimit(deps, req.clientIp ?? req.ip ?? 'unknown', req.body);
       const parsed = loginRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         throw new ValidationError({ reason: 'invalid_login' });
