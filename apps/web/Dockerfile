@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22.14.0-alpine AS build
+FROM node:26.7.0-alpine AS build
 WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Build @esign/web and all of its workspace dependencies in topological order.
 RUN pnpm exec turbo build --filter=@esign/web
 
-FROM node:22.14.0-alpine AS runner
+FROM node:26.7.0-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
