@@ -17,7 +17,7 @@ import {
   createFlattenSignature,
   createInspectDocument,
   createMemoryJobQueueMetrics,
-  createMemoryObjectStorage,
+  createObjectStorageDriver,
   createNotifier,
   createOutboxJobProcessor,
   createSha256Hashing,
@@ -46,7 +46,10 @@ async function main(): Promise<void> {
   const repos = createPrismaTenantRepositories(prisma);
   const unitOfWork = createPrismaUnitOfWork(prisma);
   const storage = createSizeLimitedObjectStorage(
-    createMemoryObjectStorage(),
+    createObjectStorageDriver({
+      driver: config.OBJECT_STORAGE_DRIVER,
+      fsRoot: config.OBJECT_STORAGE_FS_ROOT,
+    }),
     config.DOCUMENT_MAX_UPLOAD_BYTES,
   );
   const inspect = createInspectDocument({

@@ -179,6 +179,11 @@ const apiEnvSchema = z
       'x-preview-token',
     ).default('x-preview-token'),
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
+    // Object-storage driver. `memory` (default) is per-process; `filesystem`
+    // shares a directory across the API and worker for local/dev and end-to-end
+    // testing. Production uses an S3/Azure-compatible port (not selectable here).
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_FS_ROOT: z.string().optional(),
     SIGNING_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
     SIGNING_SESSION_COOKIE_NAME: requiredString(
       'SIGNING_SESSION_COOKIE_NAME',
@@ -323,6 +328,8 @@ const workerEnvSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_FS_ROOT: z.string().optional(),
     DOCUMENT_MAX_UPLOAD_BYTES: z.coerce
       .number()
       .int()

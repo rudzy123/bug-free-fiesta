@@ -40,3 +40,6 @@ Thumbs.db
 docker-data
 minio-data
 postgres-data
+
+# Local object-storage and scratch artifacts
+tmp/

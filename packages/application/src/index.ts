@@ -12,6 +12,10 @@ export {
 } from './ports/node-crypto.js';
 export { createMemoryObjectStorage } from './ports/memory-object-storage.js';
 export {
+  createFilesystemObjectStorage,
+  createObjectStorageDriver,
+} from './documents/filesystem-object-storage.js';
+export {
   createLoadDocument,
   type LoadDocument,
   type LoadDocumentInput,

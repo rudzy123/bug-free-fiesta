@@ -19,8 +19,8 @@ import {
   createIssueSignerPreview,
   createLoadSignerSession,
   createMembershipAuthorizationPolicy,
-  createMemoryObjectStorage,
   createMemoryRateLimiter,
+  createObjectStorageDriver,
   createNotifier,
   createRecordSignerConsent,
   createRecordSignerViewed,
@@ -81,7 +81,10 @@ export function createDocumentIngestionFromPrisma(input: {
   const previewLookup = createPrismaPreviewGrantLookup(input.prisma);
   const signingLookup = createPrismaSigningTokenLookup(input.prisma);
   const storage = createSizeLimitedObjectStorage(
-    createMemoryObjectStorage(),
+    createObjectStorageDriver({
+      driver: input.config.OBJECT_STORAGE_DRIVER,
+      fsRoot: input.config.OBJECT_STORAGE_FS_ROOT,
+    }),
     input.config.DOCUMENT_MAX_UPLOAD_BYTES,
   );
   const inspector = createDocumentInspector({
