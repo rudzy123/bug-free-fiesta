@@ -42,6 +42,7 @@ export function createLoadSignerSession(deps: {
   hasher: SigningTokenHasher;
   clock: Clock;
   envelopePolicy: SigningEnvelopePolicy;
+  onSigningCompletion?: (input: { outcome: 'expired' }) => void;
 }) {
   const missHash = deps.hasher.hash('\0signing-token-miss');
 
@@ -69,6 +70,7 @@ export function createLoadSignerSession(deps: {
           sessionId: found.id,
           expiredAt: now,
         });
+        deps.onSigningCompletion?.({ outcome: 'expired' });
       }
       rejectToken();
     }

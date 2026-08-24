@@ -29,10 +29,12 @@ Coverage:
 
 - HTTP: rate, latency, status class by route template (no query strings).
 - Authz denials by reason code (not by email).
+- Database: query/ping latency by bounded operation label and outcome.
 - Outbox: pending / processing / failed depth, oldest claimable age, expired leases, claim count, recovered leases, attempt count, success latency, retryable vs terminal failures.
-- Finalization: success, retry, `finalization_failed`.
-- Signing: session issue, sign success, decline, expiry.
-- Storage: upload/download errors.
+- Finalization: success, retry, `finalization_failed`; PDF failures by category.
+- Signing: session completions (`completed` / `declined` / `expired`).
+- Storage: upload/download/list/delete errors.
+- Audit verification failures (must stay zero).
 - Payload rejections: oversize, invalid PDF, Zod failures.
 
 The worker `/health/ready` body includes a `queue` snapshot (`stale` when claimable work or expired leases are older than `WORKER_STALE_QUEUE_MS`) and an in-process `metrics` snapshot. Labels must not include names, emails, or tokens.

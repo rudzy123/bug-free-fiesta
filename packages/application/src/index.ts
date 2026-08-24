@@ -70,6 +70,13 @@ export {
   createLocalDevelopmentDocumentInspector,
 } from './documents/inspectors.js';
 export { createSizeLimitedObjectStorage } from './documents/size-limited-storage.js';
+export { withObjectStorageErrorMetrics } from './documents/instrumented-object-storage.js';
+export {
+  PDF_METRIC_CATEGORIES,
+  isPdfMetricCategory,
+  pdfFailureCategoryFromError,
+  pdfFailureCategoryFromReasonCode,
+} from './documents/pdf-failure-metrics.js';
 export { toPublicDocument, type PublicDocument } from './documents/public-document.js';
 export {
   createCreateDraftDocument,

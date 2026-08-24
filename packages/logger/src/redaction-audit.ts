@@ -34,10 +34,16 @@ export function sensitiveSamples(): Record<string, unknown> {
         initials: 'SENTINEL_initials',
         points: [{ x: 0.1, y: 0.2, note: 'SENTINEL_points' }],
         strokes: ['SENTINEL_strokes'],
+        pointerStream: 'SENTINEL_pointerStream',
         pdfBytes: 'SENTINEL_pdfBytes',
         documentContent: 'SENTINEL_documentContent',
       },
     },
+    // Explicit pointer-stream / PNG aliases
+    pointer: 'SENTINEL_pointer',
+    pointerStream: 'SENTINEL_top_pointerStream',
+    signaturePng: 'SENTINEL_top_signaturePng',
+    initialsPng: 'SENTINEL_initialsPng',
     // Worker/outbox shape
     event: {
       payload: {
@@ -53,6 +59,7 @@ export function sensitiveSamples(): Record<string, unknown> {
     downloadUrl: 'https://bucket.example/o/SENTINEL_downloadUrl',
     uploadUrl: 'https://bucket.example/o/SENTINEL_uploadUrl',
     previewUrl: 'https://bucket.example/o/SENTINEL_previewUrl',
+    objectUrl: 'https://bucket.example/o/SENTINEL_objectUrl',
     // Content buffers
     pdf: 'SENTINEL_pdf',
     content: 'SENTINEL_content',

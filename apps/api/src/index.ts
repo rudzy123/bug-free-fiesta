@@ -15,7 +15,11 @@ async function main(): Promise<void> {
   const tracer = createLoggingTracer({
     debug: (fields, message) => logger.debug(fields, message),
   });
-  const prisma = createPrismaClient(config.DATABASE_URL);
+  const prisma = createPrismaClient(config.DATABASE_URL, {
+    queryMetrics: {
+      record: (event) => metrics.recordDbQuery(event),
+    },
+  });
   const health = createHealthService(createPrismaPinger(prisma));
   const accountAuth = createAccountAuthFromPrisma({ config, prisma });
   const documents = createDocumentIngestionFromPrisma({
@@ -26,6 +30,9 @@ async function main(): Promise<void> {
     hasher: accountAuth.hasher,
     logError: (fields, message) => logger.error(fields, message),
     recordAuditVerificationFailure: () => metrics.recordAuditVerificationFailure(),
+    recordObjectStorageError: (event) => metrics.recordObjectStorageError(event),
+    recordPdfFailure: (event) => metrics.recordPdfFailure(event),
+    recordSigningCompletion: (event) => metrics.recordSigningCompletion(event),
   });
   const app = createApiApp({
     config,
