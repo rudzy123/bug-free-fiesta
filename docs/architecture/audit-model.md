@@ -22,9 +22,13 @@ Each event contains:
 | `prevHash`   | Hex digest of the previous event (`genesis` sentinel for sequence 0). |
 | `thisHash`   | Digest of canonical payload + `prevHash` + sequence metadata.         |
 
-`thisHash = H(canonical(prevHash, sequence, type, actorType, actorId, occurredAt, payload))`.
+`thisHash = SHA-256(canonical({ schemaVersion, previousEventHash, sequence, type, actorType, actorId, occurredAt, payload }))`.
 
-Canonicalization must be explicit (JCS or a documented field order) so verification is deterministic.
+Canonicalization sorts object keys, drops `undefined`, and serializes dates as UTC ISO-8601 (a documented subset of JCS, not a claim of RFC 8785 number serialization). The hashed document always includes the canonical payload, the previous event hash, and the schema version.
+
+Inserts for the same document are serialized with a PostgreSQL transaction advisory lock so concurrent workers cannot assign the same `sequence` or break `previousEventHash` order.
+
+Application role `esign_app` may `SELECT` and `INSERT` only. Triggers reject `UPDATE`, `DELETE`, and `TRUNCATE`. **The hash chain alone does not prevent a privileged database administrator from replacing the entire chain.** External checkpoint anchoring is required for that threat ([ADR-0015](adrs/0015-audit-checkpoint-anchoring.md)).
 
 ## Chain rules
 

@@ -18,6 +18,8 @@ describe('environment validation', () => {
     expect(config.DOCUMENT_INSPECTOR).toBe('local');
     expect(config.SIGNING_SESSION_TTL_SECONDS).toBe(604_800);
     expect(config.DOCUMENT_FIELD_OVERLAP_POLICY).toBe('prohibit');
+    expect(config.OBJECT_STORAGE_DRIVER).toBe('memory');
+    expect(config.AUDIT_CHECKPOINT_STORE).toBe('disabled');
   });
 
   it('rejects the local document inspector in production', () => {
@@ -90,6 +92,9 @@ describe('environment validation', () => {
     expect(worker.WORKER_STALE_QUEUE_MS).toBe(120_000);
     expect(worker.WORKER_PDF_TIMEOUT_MS).toBe(15_000);
     expect(worker.WORKER_ORPHAN_OBJECT_TTL_MS).toBe(86_400_000);
+    expect(worker.WORKER_AUDIT_VERIFY_INTERVAL_MS).toBe(300_000);
+    expect(worker.AUDIT_CHECKPOINT_STORE).toBe('disabled');
+    expect(worker.OBJECT_STORAGE_DRIVER).toBe('memory');
     expect(worker.OBJECT_STORAGE_FORCE_PATH_STYLE).toBe(true);
     expect(web.NEXT_PUBLIC_API_BASE_URL).toBe('http://localhost:4000');
   });
@@ -111,6 +116,15 @@ describe('API hardening configuration', () => {
     expect(config.API_RATE_LIMIT_WINDOW_MS).toBe(60_000);
     expect(config.AUTH_JSON_BODY_LIMIT).toBe('16kb');
     expect(config.SIGNING_JSON_BODY_LIMIT).toBe('512kb');
+  });
+
+  it('requires OBJECT_STORAGE_FS_ROOT when the filesystem driver is selected', () => {
+    expect(() => loadApiConfig(apiEnv({ OBJECT_STORAGE_DRIVER: 'filesystem' }))).toThrow(
+      /OBJECT_STORAGE_FS_ROOT/,
+    );
+    expect(() => loadWorkerConfig(workerEnv({ OBJECT_STORAGE_DRIVER: 'filesystem' }))).toThrow(
+      /OBJECT_STORAGE_FS_ROOT/,
+    );
   });
 
   it('parses a precise trusted-proxy hop count', () => {

@@ -179,6 +179,9 @@ const apiEnvSchema = z
       'x-preview-token',
     ).default('x-preview-token'),
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_FS_ROOT: z.string().optional(),
+    AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
     SIGNING_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
     SIGNING_SESSION_COOKIE_NAME: requiredString(
       'SIGNING_SESSION_COOKIE_NAME',
@@ -266,6 +269,16 @@ const apiEnvSchema = z
           'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
       });
     }
+    if (data.OBJECT_STORAGE_DRIVER === 'filesystem') {
+      const root = data.OBJECT_STORAGE_FS_ROOT;
+      if (root === undefined || root.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'OBJECT_STORAGE_FS_ROOT is required when OBJECT_STORAGE_DRIVER=filesystem. Example: tmp/object-storage',
+        });
+      }
+    }
   })
   .transform((data) => ({
     ...data,
@@ -323,6 +336,15 @@ const workerEnvSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_FS_ROOT: z.string().optional(),
+    AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
+    WORKER_AUDIT_VERIFY_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(10_000)
+      .max(86_400_000)
+      .default(300_000),
     DOCUMENT_MAX_UPLOAD_BYTES: z.coerce
       .number()
       .int()
@@ -343,6 +365,16 @@ const workerEnvSchema = z
         message:
           'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
       });
+    }
+    if (data.OBJECT_STORAGE_DRIVER === 'filesystem') {
+      const root = data.OBJECT_STORAGE_FS_ROOT;
+      if (root === undefined || root.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'OBJECT_STORAGE_FS_ROOT is required when OBJECT_STORAGE_DRIVER=filesystem. Example: tmp/object-storage',
+        });
+      }
     }
   });
 

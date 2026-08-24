@@ -1,7 +1,12 @@
 import {
+  AUDIT_CHAIN_SCHEMA_VERSION,
+  AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
   ConflictError,
   NotFoundError,
+  assertApprovedAuditPayload,
+  computeAuditEventHash,
   type AuditEvent,
+  type AuditLogRepository,
   type AuditWriter,
   type BackgroundJob,
   type ConsentRecord,
@@ -16,7 +21,6 @@ import {
   type IdempotencyRecordRepository,
   type JobPublishInput,
   type JobPublisher,
-  type NewAuditEvent,
   type OutboxEvent,
   type PreviewGrant,
   type PreviewGrantLookup,
@@ -455,31 +459,106 @@ export function createMemoryIdempotencyRecordRepository(): MemoryIdempotencyReco
   };
 }
 
-export type MemoryAuditWriter = AuditWriter & { events: NewAuditEvent[] };
+export type MemoryAuditWriter = AuditWriter & {
+  events: AuditEvent[];
+  logs: AuditLogRepository;
+};
 
-export function createMemoryAuditWriter(): MemoryAuditWriter {
-  const events: NewAuditEvent[] = [];
+function createDocumentLock(): (
+  key: string,
+  work: () => Promise<AuditEvent>,
+) => Promise<AuditEvent> {
+  const tails = new Map<string, Promise<unknown>>();
+  return async (key, work) => {
+    const previous = tails.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    tails.set(
+      key,
+      previous.then(
+        () => gate,
+        () => gate,
+      ),
+    );
+    await previous.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  };
+}
+
+export function createMemoryAuditWriter(seed: readonly AuditEvent[] = []): MemoryAuditWriter {
+  const events: AuditEvent[] = [...seed];
+  const serialize = createDocumentLock();
+
+  const logs: AuditLogRepository = {
+    async findLatest(input) {
+      const matching = events.filter(
+        (row) => row.organizationId === input.organizationId && row.documentId === input.documentId,
+      );
+      if (matching.length === 0) {
+        return null;
+      }
+      return matching.reduce((head, row) => (row.sequence > head.sequence ? row : head));
+    },
+    async listByDocument(input) {
+      return events.filter(
+        (row) => row.organizationId === input.organizationId && row.documentId === input.documentId,
+      );
+    },
+    async append(input) {
+      events.push(input.event);
+      return input.event;
+    },
+  };
+
   return {
     events,
+    logs,
     async append(event) {
-      events.push(event);
-      const stored: AuditEvent = {
-        id: event.id,
-        organizationId: event.organizationId,
-        documentId: event.documentId,
-        sequence: events.length - 1,
-        type: event.type,
-        actorType: event.actorType,
-        actorId: event.actorId,
-        occurredAt: event.occurredAt,
-        payload: event.payload,
-        previousEventHash: '0'.repeat(64),
-        eventHash: 'a'.repeat(64),
-        requestId: event.requestId ?? null,
-        chainVersion: 1,
-        createdAt: event.occurredAt,
-      };
-      return stored;
+      return serialize(`${event.organizationId}:${event.documentId}`, async () => {
+        assertApprovedAuditPayload(event.payload);
+        const latest = await logs.findLatest({
+          organizationId: event.organizationId,
+          documentId: event.documentId,
+        });
+        const sequence = latest ? latest.sequence + 1 : 0;
+        const previousEventHash = latest?.eventHash ?? AUDIT_GENESIS_PREVIOUS_EVENT_HASH;
+        const stored: AuditEvent = {
+          id: event.id,
+          organizationId: event.organizationId,
+          documentId: event.documentId,
+          sequence,
+          type: event.type,
+          actorType: event.actorType,
+          actorId: event.actorId,
+          occurredAt: event.occurredAt,
+          payload: event.payload,
+          previousEventHash,
+          eventHash: computeAuditEventHash({
+            schemaVersion: AUDIT_CHAIN_SCHEMA_VERSION,
+            previousEventHash,
+            sequence,
+            type: event.type,
+            actorType: event.actorType,
+            actorId: event.actorId,
+            occurredAt: event.occurredAt,
+            payload: event.payload,
+          }),
+          requestId: event.requestId ?? null,
+          chainVersion: AUDIT_CHAIN_SCHEMA_VERSION,
+          createdAt: event.occurredAt,
+        };
+        events.push(stored);
+        return stored;
+      });
     },
   };
 }

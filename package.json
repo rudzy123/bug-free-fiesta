@@ -19,6 +19,7 @@
     "test:integration": "turbo test:integration",
     "test:e2e": "turbo test:e2e --filter=@esign/web",
     "audit": "pnpm audit --audit-level=high",
+    "audit:verify": "pnpm --filter @esign/worker verify-audit",
     "db:generate": "pnpm --filter @esign/database db:generate",
     "db:migrate": "pnpm --filter @esign/database db:migrate",
     "db:migrate:deploy": "pnpm --filter @esign/database db:migrate:deploy",

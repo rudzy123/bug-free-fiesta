@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Prisma } from './generated/client/index.js';
 import { createPrismaClient } from './index.js';
+import { createPrismaAuditWriter } from './infrastructure/prisma-audit-writer.js';
 import {
   createDocumentRevision,
   createFinalizedArtifact,
@@ -222,6 +223,51 @@ describe.skipIf(!runInfraTests)('append-only audit', () => {
     const persisted = await prisma.auditLog.findUnique({ where: { id: event.id } });
     expect(persisted?.id).toBe(event.id);
     expect(persisted?.sequence).toBe(0);
+  });
+
+  it('rejects truncate and documents that esign_app cannot update or delete', async () => {
+    await expect(prisma.$executeRawUnsafe('TRUNCATE audit_logs')).rejects.toThrow(
+      /audit_logs are append-only/,
+    );
+    const grants = await prisma.$queryRaw<
+      { privilege_type: string }[]
+    >`SELECT privilege_type FROM information_schema.role_table_grants
+      WHERE table_name = 'audit_logs' AND grantee = 'esign_app'`;
+    const privileges = grants.map((row) => row.privilege_type).sort();
+    expect(privileges).toEqual(['INSERT', 'SELECT']);
+  });
+
+  it('serializes concurrent inserts per document so the chain stays ordered', async () => {
+    const graph = await createTenantDocumentGraph(prisma);
+    const writer = createPrismaAuditWriter(prisma);
+    await Promise.all([
+      writer.append({
+        id: crypto.randomUUID(),
+        organizationId: graph.organization.id,
+        documentId: graph.document.id,
+        type: 'document_created',
+        actorType: 'system',
+        actorId: 'system',
+        occurredAt: new Date('2026-08-19T12:00:00.000Z'),
+        payload: { documentId: graph.document.id, tag: 'a' },
+      }),
+      writer.append({
+        id: crypto.randomUUID(),
+        organizationId: graph.organization.id,
+        documentId: graph.document.id,
+        type: 'revision_added',
+        actorType: 'system',
+        actorId: 'system',
+        occurredAt: new Date('2026-08-19T12:00:00.001Z'),
+        payload: { documentId: graph.document.id, tag: 'b' },
+      }),
+    ]);
+    const rows = await prisma.auditLog.findMany({
+      where: { organizationId: graph.organization.id, documentId: graph.document.id },
+      orderBy: { sequence: 'asc' },
+    });
+    expect(rows.map((row) => row.sequence)).toEqual([0, 1]);
+    expect(rows[1]?.previousEventHash).toBe(rows[0]?.eventHash);
   });
 
   it('rejects update and delete on account security events', async () => {

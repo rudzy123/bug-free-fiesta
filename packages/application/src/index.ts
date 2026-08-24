@@ -12,6 +12,10 @@ export {
 } from './ports/node-crypto.js';
 export { createMemoryObjectStorage } from './ports/memory-object-storage.js';
 export {
+  createFilesystemObjectStorage,
+  createObjectStorageDriver,
+} from './documents/filesystem-object-storage.js';
+export {
   createLoadDocument,
   type LoadDocument,
   type LoadDocumentInput,
@@ -196,3 +200,35 @@ export {
   type CompleteSigningInput,
   type CompleteSigningResult,
 } from './signing/complete-signing.js';
+export {
+  createVerifyAuditChain,
+  createVerifyOrganizationAuditChains,
+  type VerifyAuditChain,
+  type VerifyAuditChainInput,
+  type VerifyOrganizationAuditChains,
+} from './audit/verify-audit-chain.js';
+export {
+  createDisabledCheckpointStore,
+  createMemoryCheckpointStore,
+} from './audit/memory-checkpoint-store.js';
+export {
+  auditCheckpointObjectKey,
+  createObjectStorageCheckpointStore,
+} from './audit/object-storage-checkpoint-store.js';
+export {
+  createLoggingAuditVerificationAlertSink,
+  createMemoryAuditVerificationMetrics,
+  createNoopAuditVerificationAlertSink,
+  createRecordingAuditVerificationAlertSink,
+  withAuditVerificationFailureHook,
+} from './audit/metrics.js';
+export {
+  createRunScheduledAuditVerification,
+  shouldRunScheduledAuditVerification,
+  type RunScheduledAuditVerification,
+  type ScheduledAuditVerificationResult,
+} from './audit/scheduled-verification.js';
+export {
+  createConfiguredCheckpointStore,
+  type AuditCheckpointStoreName,
+} from './audit/configured-checkpoint-store.js';

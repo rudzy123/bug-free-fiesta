@@ -120,4 +120,37 @@ describe('membership authorization policy', () => {
       ),
     ).not.toThrow();
   });
+
+  it('allows an organization admin to verify audit chains and denies members', () => {
+    expect(() =>
+      policy.assertAllowed(
+        {
+          type: 'account_user',
+          userId: USER,
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'admin',
+          },
+        },
+        'audit.verify',
+        { organizationId: ORG, documentId: DOC },
+      ),
+    ).not.toThrow();
+    expect(() =>
+      policy.assertAllowed(
+        {
+          type: 'account_user',
+          userId: USER,
+          membership: {
+            membershipId: '77777777-7777-4777-8777-777777777777',
+            organizationId: ORG,
+            role: 'member',
+          },
+        },
+        'audit.verify',
+        { organizationId: ORG, documentId: DOC },
+      ),
+    ).toThrow(AuthorizationError);
+  });
 });

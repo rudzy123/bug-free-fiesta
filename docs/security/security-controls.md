@@ -15,6 +15,8 @@ Technical controls we intend to implement. Presence of a control is **not** SOC 
 | C7  | Signing tokens hashed at rest; raw token never logged      | Sessions table, logger                                                                                                                          |
 | C8  | Server-owned signature fields                              | [ADR-0007](../architecture/adrs/0007-server-owned-signature-placement.md)                                                                       |
 | C9  | Append-only hash-chained audit                             | [ADR-0006](../architecture/adrs/0006-hash-chained-append-only-audit.md)                                                                         |
+| C9a | Audit verification job, admin API, and operator CLI        | Worker + `POST .../audit/verify` + `pnpm audit:verify`                                                                                          |
+| C9b | Optional external checkpoint anchoring                     | [ADR-0015](../architecture/adrs/0015-audit-checkpoint-anchoring.md)                                                                             |
 | C10 | Short DB transactions; no I/O inside                       | Repositories                                                                                                                                    |
 | C11 | Outbox + idempotent workers                                | [ADR-0011](../architecture/adrs/0011-outbox-pattern.md), [ADR-0008](../architecture/adrs/0008-idempotency-strategy.md)                          |
 | C12 | Conditional finalization lease; one artifact per document  | Document lifecycle                                                                                                                              |
@@ -43,6 +45,7 @@ Technical controls we intend to implement. Presence of a control is **not** SOC 
 - Guaranteed malware-free PDFs
 - Legal enforceability of signatures or consent
 - Immutable cloud WORM that survives a compromised cloud account
+- That the audit hash chain prevents a privileged database administrator from replacing the entire chain
 
 ## Related documents
 
