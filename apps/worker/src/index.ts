@@ -32,6 +32,7 @@ import {
   createUuidIdGenerator,
   createVerifyOrganizationAuditChains,
   withAuditVerificationFailureHook,
+  withObjectStorageErrorMetrics,
   PNG_MAX_BYTES,
 } from '@esign/application';
 import { createJobPoller } from './poller.js';
@@ -46,7 +47,12 @@ import { createScheduledAuditVerificationPoll } from './process-audit-verificati
 async function main(): Promise<void> {
   const config = loadWorkerConfig();
   const logger = createLogger({ name: 'worker', level: config.LOG_LEVEL });
-  const prisma = createPrismaClient(config.DATABASE_URL);
+  const observability = createObservabilityMetrics();
+  const prisma = createPrismaClient(config.DATABASE_URL, {
+    queryMetrics: {
+      record: (event) => observability.recordDbQuery(event),
+    },
+  });
   const database = createPrismaPinger(prisma);
   const clock = createSystemClock();
   const ids = createUuidIdGenerator();
@@ -55,10 +61,15 @@ async function main(): Promise<void> {
   const unitOfWork = createPrismaUnitOfWork(prisma);
   const hashing = createSha256Hashing();
   const storage = createSizeLimitedObjectStorage(
-    createObjectStorageDriver({
-      driver: config.OBJECT_STORAGE_DRIVER,
-      fsRoot: config.OBJECT_STORAGE_FS_ROOT,
-    }),
+    withObjectStorageErrorMetrics(
+      createObjectStorageDriver({
+        driver: config.OBJECT_STORAGE_DRIVER,
+        fsRoot: config.OBJECT_STORAGE_FS_ROOT,
+      }),
+      {
+        recordError: (event) => observability.recordObjectStorageError(event),
+      },
+    ),
     config.DOCUMENT_MAX_UPLOAD_BYTES,
   );
   const inspect = createInspectDocument({
@@ -72,6 +83,7 @@ async function main(): Promise<void> {
     unitOfWork,
     ids,
     clock,
+    onPdfFailure: (event) => observability.recordPdfFailure(event),
   });
   const flatten = createFlattenSignature({
     documents: repos.documents,
@@ -91,6 +103,7 @@ async function main(): Promise<void> {
     timeoutMs: config.WORKER_PDF_TIMEOUT_MS,
     maxPdfBytes: config.DOCUMENT_MAX_UPLOAD_BYTES,
     maxPngBytes: PNG_MAX_BYTES,
+    onPdfFailure: (event) => observability.recordPdfFailure(event),
   });
   const cleanup = createCleanupAbandonedUploads({
     uploadSessions: createPrismaUploadSessionLookup(prisma),
@@ -111,7 +124,6 @@ async function main(): Promise<void> {
     directory: config.NOTIFICATION_PREVIEW_DIR,
   });
   const claimer = createPrismaOutboxClaimer(prisma);
-  const observability = createObservabilityMetrics();
   const metrics = withObservability(createMemoryJobQueueMetrics(), observability);
   const auditMetrics = withAuditVerificationFailureHook(
     createMemoryAuditVerificationMetrics(),

@@ -20,21 +20,19 @@ Operational visibility for the electronic-signature platform without leaking Res
 
 ## Metric inventory
 
-| Metric                                    | Type      | Labels                            | Emitting                                                                         |
-| ----------------------------------------- | --------- | --------------------------------- | -------------------------------------------------------------------------------- |
-| `esign_http_request_duration_seconds`     | histogram | `method`, `route`, `status_class` | yes (API)                                                                        |
-| `esign_http_requests_total`               | counter   | `method`, `route`, `status_class` | yes (API)                                                                        |
-| `esign_http_errors_total`                 | counter   | `method`, `route`, `code`         | yes (API)                                                                        |
-| `esign_db_query_duration_seconds`         | histogram | `operation`, `outcome`            | yes (API readiness ping)                                                         |
-| `esign_queue_depth`                       | gauge     | `state`                           | yes (worker)                                                                     |
-| `esign_job_attempts_total`                | counter   | `type`                            | yes (worker)                                                                     |
-| `esign_job_duration_seconds`              | histogram | `type`, `outcome`                 | yes (worker; finalization = `flatten_signature`)                                 |
-| `esign_object_storage_errors_total`       | counter   | `operation`                       | defined; emit at the storage adapter                                             |
-| `esign_pdf_failures_total`                | counter   | `category`                        | defined; emit at PDF inspect/flatten categorization                              |
-| `esign_signing_completions_total`         | counter   | `outcome`                         | defined; emit in complete/decline/expire use cases                               |
-| `esign_audit_verification_failures_total` | counter   | –                                 | yes (admin verify + worker scheduled job + CLI when wired through the same sink) |
-
-The "defined" rows are registered and scrapeable (reading zero) with reserved names so dashboards and alerts are stable; their emit call sites are the documented next increment.
+| Metric                                    | Type      | Labels                            | Emitting                                              |
+| ----------------------------------------- | --------- | --------------------------------- | ----------------------------------------------------- |
+| `esign_http_request_duration_seconds`     | histogram | `method`, `route`, `status_class` | yes (API)                                             |
+| `esign_http_requests_total`               | counter   | `method`, `route`, `status_class` | yes (API)                                             |
+| `esign_http_errors_total`                 | counter   | `method`, `route`, `code`         | yes (API)                                             |
+| `esign_db_query_duration_seconds`         | histogram | `operation`, `outcome`            | yes (API readiness ping + Prisma query extension)     |
+| `esign_queue_depth`                       | gauge     | `state`                           | yes (worker)                                          |
+| `esign_job_attempts_total`                | counter   | `type`                            | yes (worker)                                          |
+| `esign_job_duration_seconds`              | histogram | `type`, `outcome`                 | yes (worker; finalization = `flatten_signature`)      |
+| `esign_object_storage_errors_total`       | counter   | `operation`                       | yes (API + worker storage adapter)                    |
+| `esign_pdf_failures_total`                | counter   | `category`                        | yes (inspect rejection + flatten PDF failure codes)   |
+| `esign_signing_completions_total`         | counter   | `outcome`                         | yes (complete / decline / session expiry)             |
+| `esign_audit_verification_failures_total` | counter   | –                                 | yes (admin verify + worker scheduled job + CLI hooks) |
 
 ## Never in any signal
 

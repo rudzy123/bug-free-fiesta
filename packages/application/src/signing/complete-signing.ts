@@ -61,6 +61,7 @@ export function createCompleteSigning(deps: {
   clock: Clock;
   idempotencyTtlMs: number;
   maxPngBytes: number;
+  onSigningCompletion?: (input: { outcome: 'completed' }) => void;
 }) {
   return async function completeSigning(
     input: CompleteSigningInput,
@@ -275,6 +276,7 @@ export function createCompleteSigning(deps: {
       responseStatus: 200,
       responseBody: result,
     });
+    deps.onSigningCompletion?.({ outcome: 'completed' });
     return result;
   };
 }

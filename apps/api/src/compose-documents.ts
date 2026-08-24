@@ -42,6 +42,7 @@ import {
   createVerifyAuditChain,
   createVerifyOrganizationAuditChains,
   withAuditVerificationFailureHook,
+  withObjectStorageErrorMetrics,
   PNG_MAX_BYTES,
 } from '@esign/application';
 import {
@@ -72,6 +73,9 @@ export function createDocumentIngestionFromPrisma(input: {
   hasher: SigningTokenHasher;
   logError?: (fields: Readonly<Record<string, unknown>>, message: string) => void;
   recordAuditVerificationFailure?: () => void;
+  recordObjectStorageError?: (input: { operation: string }) => void;
+  recordPdfFailure?: (input: { category: string }) => void;
+  recordSigningCompletion?: (input: { outcome: 'completed' | 'declined' | 'expired' }) => void;
 }): {
   router: Router;
   inspect: InspectDocument;
@@ -90,10 +94,15 @@ export function createDocumentIngestionFromPrisma(input: {
   const previewLookup = createPrismaPreviewGrantLookup(input.prisma);
   const signingLookup = createPrismaSigningTokenLookup(input.prisma);
   const storage = createSizeLimitedObjectStorage(
-    createObjectStorageDriver({
-      driver: input.config.OBJECT_STORAGE_DRIVER,
-      fsRoot: input.config.OBJECT_STORAGE_FS_ROOT,
-    }),
+    withObjectStorageErrorMetrics(
+      createObjectStorageDriver({
+        driver: input.config.OBJECT_STORAGE_DRIVER,
+        fsRoot: input.config.OBJECT_STORAGE_FS_ROOT,
+      }),
+      {
+        recordError: (event) => input.recordObjectStorageError?.(event),
+      },
+    ),
     input.config.DOCUMENT_MAX_UPLOAD_BYTES,
   );
   const inspector = createDocumentInspector({
@@ -121,6 +130,7 @@ export function createDocumentIngestionFromPrisma(input: {
     hasher,
     clock,
     envelopePolicy: createSigningEnvelopePolicy(),
+    onSigningCompletion: (event) => input.recordSigningCompletion?.(event),
   });
   const documentsRouter = createDocumentIngestionRouter({
     config: input.config,
@@ -316,6 +326,7 @@ export function createDocumentIngestionFromPrisma(input: {
       unitOfWork,
       ids,
       clock,
+      onSigningCompletion: (event) => input.recordSigningCompletion?.(event),
     }),
     complete: createCompleteSigning({
       loadSession,
@@ -331,6 +342,7 @@ export function createDocumentIngestionFromPrisma(input: {
       clock,
       idempotencyTtlMs: input.config.IDEMPOTENCY_TTL_SECONDS * 1000,
       maxPngBytes: PNG_MAX_BYTES,
+      onSigningCompletion: (event) => input.recordSigningCompletion?.(event),
     }),
   });
   const auditMetrics = withAuditVerificationFailureHook(
@@ -383,6 +395,7 @@ export function createDocumentIngestionFromPrisma(input: {
       unitOfWork,
       ids,
       clock,
+      onPdfFailure: (event) => input.recordPdfFailure?.(event),
     }),
     cleanupAbandoned: createCleanupAbandonedUploads({
       uploadSessions: uploadLookup,

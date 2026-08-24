@@ -26,6 +26,7 @@ import {
   type UnitOfWork,
 } from '@esign/domain';
 import { PDF_CONTENT_TYPE, assertPdfMagicBytes } from './pdf.js';
+import { pdfFailureCategoryFromError } from './pdf-failure-metrics.js';
 import { validateSignaturePng } from './png.js';
 import { withTimeout } from '../jobs/with-timeout.js';
 
@@ -59,6 +60,7 @@ export function createFlattenSignature(deps: {
   timeoutMs: number;
   maxPdfBytes: number;
   maxPngBytes: number;
+  onPdfFailure?: (input: { category: string }) => void;
 }) {
   return async function flattenSignature(input: FlattenSignatureInput): Promise<{
     status: 'finalized' | 'revised' | 'noop';
@@ -274,6 +276,10 @@ export function createFlattenSignature(deps: {
         sha256Digest: output.digest,
       };
     } catch (error: unknown) {
+      const pdfCategory = pdfFailureCategoryFromError(error);
+      if (pdfCategory !== null) {
+        deps.onPdfFailure?.({ category: pdfCategory });
+      }
       const classified = classifyJobFailure(error);
       if (!classified.retryable) {
         await deps.documents.markFinalizationFailed({

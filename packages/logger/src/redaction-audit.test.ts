@@ -21,6 +21,7 @@ describe('redaction audit', () => {
       'cookie',
       'signaturePng',
       'points',
+      'pointerStream',
       'pdfBytes',
       'documentContent',
       'signedUrl',

@@ -188,6 +188,7 @@ export function createDeclineToSign(deps: {
   unitOfWork: UnitOfWork;
   ids: IdGenerator;
   clock: Clock;
+  onSigningCompletion?: (input: { outcome: 'declined' }) => void;
 }) {
   return async function declineToSign(input: DeclineToSignInput): Promise<DeclineToSignResult> {
     const loaded = await deps.loadSession({
@@ -267,6 +268,7 @@ export function createDeclineToSign(deps: {
         requestId: input.requestId,
       });
     });
+    deps.onSigningCompletion?.({ outcome: 'declined' });
     return {
       documentId: loaded.document.id,
       signerId: loaded.signer.id,

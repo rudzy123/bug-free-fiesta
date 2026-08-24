@@ -10,6 +10,7 @@ import {
   type ObjectStorage,
   type UnitOfWork,
 } from '@esign/domain';
+import { pdfFailureCategoryFromReasonCode } from './pdf-failure-metrics.js';
 
 export type InspectDocumentInput = {
   readonly organizationId: string;
@@ -28,6 +29,7 @@ export function createInspectDocument(deps: {
   unitOfWork: UnitOfWork;
   ids: IdGenerator;
   clock: Clock;
+  onPdfFailure?: (input: { category: string }) => void;
 }) {
   return async function inspectDocument(input: InspectDocumentInput): Promise<{
     inspectionStatus: 'accepted' | 'rejected';
@@ -71,6 +73,13 @@ export function createInspectDocument(deps: {
       contentType: revision.contentType,
       body: stored.body,
     });
+
+    if (outcome.status === 'rejected') {
+      const category = pdfFailureCategoryFromReasonCode(outcome.reasonCode);
+      if (category !== null) {
+        deps.onPdfFailure?.({ category });
+      }
+    }
 
     const now = deps.clock.nowUtc();
     await deps.unitOfWork.run(async (scope) => {
