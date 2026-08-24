@@ -98,9 +98,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Cover-up of signing or voiding.
 
-**Mitigations:** Append-only application API; DB role without UPDATE/DELETE; hash chain; verification job; [runbook](../runbooks/audit-verification-failure.md).
+**Mitigations:** Append-only application API; DB role `esign_app` without UPDATE/DELETE/TRUNCATE; triggers; per-document insert serialization; versioned canonical hashing; verification job, admin endpoint, and CLI; checkpoint port for external WORM ([ADR-0015](../architecture/adrs/0015-audit-checkpoint-anchoring.md)); [runbook](../runbooks/audit-verification-failure.md).
 
-**Residual:** Superuser and backup rewrite ([insider](#insider-threats), [backup compromise](#backup-compromise)).
+**Residual:** A privileged database administrator (or anyone who can disable triggers and rewrite backups) can replace the entire chain with newly computed hashes. The hash chain does not prevent that. External anchoring to separately controlled immutable storage is required to detect wholesale replacement. Superuser and backup rewrite remain ([insider](#insider-threats), [backup compromise](#backup-compromise)).
 
 ### Insider threats
 

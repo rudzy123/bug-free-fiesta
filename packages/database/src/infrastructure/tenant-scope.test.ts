@@ -144,7 +144,11 @@ describe('Prisma audit writer and job publisher', () => {
       chainVersion: 1,
       createdAt: new Date('2026-08-17T12:00:00.000Z'),
     }));
-    const writer = createPrismaAuditWriter({ auditLog: { findFirst, create } } as never);
+    const executeRaw = vi.fn(async () => 0);
+    const writer = createPrismaAuditWriter({
+      $executeRaw: executeRaw,
+      auditLog: { findFirst, create },
+    } as never);
     await writer.append({
       id: '88888888-8888-4888-8888-888888888888',
       organizationId: ORG,
@@ -163,6 +167,7 @@ describe('Prisma audit writer and job publisher', () => {
       organizationId: ORG,
       documentId: DOC,
     });
+    expect(executeRaw).toHaveBeenCalled();
   });
 
   it('publishes outbox jobs with organizationId', async () => {
@@ -192,7 +197,10 @@ describe('Prisma audit writer and job publisher', () => {
     const findFirst = vi.fn();
     const create = vi.fn();
     await expect(
-      createPrismaAuditWriter({ auditLog: { findFirst, create } } as never).append({
+      createPrismaAuditWriter({
+        $executeRaw: vi.fn(async () => 0),
+        auditLog: { findFirst, create },
+      } as never).append({
         id: '88888888-8888-4888-8888-888888888888',
         organizationId: '',
         documentId: DOC,

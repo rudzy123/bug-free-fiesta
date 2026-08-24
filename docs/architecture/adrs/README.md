@@ -18,5 +18,6 @@ Numbered Architecture Decision Records. Status is Accepted unless a later ADR su
 | [0012](0012-utc-timestamp-handling.md)                | UTC timestamp handling                               |
 | [0013](0013-multi-tenancy-isolation.md)               | Multi-tenancy isolation strategy                     |
 | [0014](0014-typed-exceptions.md)                      | Typed exceptions at the application boundary         |
+| [0015](0015-audit-checkpoint-anchoring.md)            | External audit checkpoint anchoring                  |
 
 Index and risks: [decision summary](../decision-summary.md).
