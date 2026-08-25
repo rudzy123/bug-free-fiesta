@@ -23,7 +23,7 @@ Sender console UI is not built yet. Admin steps in e2e use authenticated HTTP fi
 2. `pnpm --filter @esign/web exec playwright install chromium`
 3. `pnpm test:e2e`
 
-Playwright global setup runs `infrastructure:up`, migrates, and seeds. It then starts the API, worker, and Next.js with `OBJECT_STORAGE_DRIVER=filesystem` so both processes share `tmp/e2e-object-storage`. Do not reuse a leftover API process that still uses in-memory storage.
+Playwright global setup runs `infrastructure:up`, migrates, and seeds (idempotent if CI already did so). It then starts the API, worker, and Next.js with `OBJECT_STORAGE_DRIVER=filesystem` so both processes share `tmp/e2e-object-storage`. Do not reuse a leftover API process that still uses in-memory storage. In GitHub Actions, Compose is started explicitly before Playwright so infra failures surface as dedicated steps.
 
 Tag filters:
 

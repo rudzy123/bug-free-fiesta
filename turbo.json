@@ -36,7 +36,33 @@
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["CI", "NEXT_PUBLIC_API_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH"]
+      "env": [
+        "CI",
+        "DATABASE_URL",
+        "NEXT_PUBLIC_API_BASE_URL",
+        "PLAYWRIGHT_BROWSERS_PATH",
+        "OBJECT_STORAGE_DRIVER",
+        "OBJECT_STORAGE_FS_ROOT"
+      ],
+      "passThroughEnv": [
+        "HOME",
+        "USER",
+        "PATH",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "XDG_CACHE_HOME",
+        "PWD",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "DISPLAY",
+        "DOCKER_HOST",
+        "GITHUB_WORKSPACE",
+        "GITHUB_ACTIONS",
+        "RUNNER_TEMP",
+        "RUNNER_TOOL_CACHE"
+      ]
     }
   }
 }

@@ -6,20 +6,11 @@ import {
   e2eApiEnv,
   e2eWebEnv,
   e2eWorkerEnv,
+  mergeProcessEnv,
   repoRoot,
 } from './e2e/env';
 
 process.env['DATABASE_URL'] ??= e2eApiEnv()['DATABASE_URL'];
-
-function mergeEnv(overrides: Record<string, string>): Record<string, string> {
-  const merged: Record<string, string> = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined) {
-      merged[key] = value;
-    }
-  }
-  return { ...merged, ...overrides };
-}
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,7 +22,7 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   forbidOnly: Boolean(process.env['CI']),
-  retries: process.env['CI'] ? 2 : 0,
+  retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI']
     ? [['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }], ['list']]
     : [['list']],
@@ -52,25 +43,25 @@ export default defineConfig({
       command: 'pnpm --filter @esign/api exec tsx src/index.ts',
       cwd: repoRoot,
       url: `${E2E_API_ORIGIN}/health/live`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-      env: mergeEnv(e2eApiEnv()),
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      env: mergeProcessEnv(e2eApiEnv()),
     },
     {
       command: 'pnpm --filter @esign/worker exec tsx src/index.ts',
       cwd: repoRoot,
       url: `${E2E_WORKER_ORIGIN}/health/live`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-      env: mergeEnv(e2eWorkerEnv()),
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      env: mergeProcessEnv(e2eWorkerEnv()),
     },
     {
-      command: 'pnpm --filter @esign/web dev',
+      command: 'pnpm --filter @esign/web exec next dev --port 3000',
       cwd: repoRoot,
       url: `${E2E_WEB_ORIGIN}/api/health`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-      env: mergeEnv(e2eWebEnv()),
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+      env: mergeProcessEnv(e2eWebEnv()),
     },
   ],
 });

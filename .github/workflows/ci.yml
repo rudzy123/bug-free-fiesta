@@ -134,15 +134,29 @@ jobs:
     timeout-minutes: 40
     permissions:
       contents: read
+    env:
+      OBJECT_STORAGE_DRIVER: filesystem
+      OBJECT_STORAGE_FS_ROOT: ${{ github.workspace }}/tmp/e2e-object-storage
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-pnpm
+      - name: Start PostgreSQL and MinIO
+        run: pnpm infrastructure:up
+      - name: Apply migrations and seed
+        run: |
+          pnpm db:migrate:deploy
+          pnpm db:seed
+      - name: Prepare filesystem object storage
+        run: mkdir -p "$OBJECT_STORAGE_FS_ROOT" tmp/e2e-signing-notifications
+      - name: Build web and workspace dependencies
+        run: pnpm --filter @esign/web... build
       - name: Install Playwright Chromium
         run: pnpm --filter @esign/web exec playwright install --with-deps chromium
       - name: End-to-end tests
-        run: pnpm test:e2e
+        # Run Playwright directly (not via turbo) so CI env is not filtered by Turbo strict mode.
+        run: pnpm --filter @esign/web exec playwright test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

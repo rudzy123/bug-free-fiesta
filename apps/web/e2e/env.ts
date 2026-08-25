@@ -1,7 +1,26 @@
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+function resolveRepoRoot(): string {
+  const candidates = [process.cwd(), dirname(fileURLToPath(import.meta.url))];
+  for (const start of candidates) {
+    let dir = start;
+    for (;;) {
+      if (existsSync(join(dir, 'pnpm-workspace.yaml'))) {
+        return dir;
+      }
+      const parent = dirname(dir);
+      if (parent === dir) {
+        break;
+      }
+      dir = parent;
+    }
+  }
+  throw new Error('could not resolve monorepo root (pnpm-workspace.yaml not found)');
+}
+
+export const repoRoot = resolveRepoRoot();
 export const objectStorageRoot = join(repoRoot, 'tmp', 'e2e-object-storage');
 
 export const E2E_WEB_ORIGIN = 'http://localhost:3000';
@@ -97,4 +116,15 @@ export function e2eWebEnv(): Record<string, string> {
     NODE_ENV: 'development',
     NEXT_PUBLIC_API_BASE_URL: E2E_API_ORIGIN,
   };
+}
+
+/** Merge process env with overrides, dropping undefined values for Playwright webServer typing. */
+export function mergeProcessEnv(overrides: Record<string, string>): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      merged[key] = value;
+    }
+  }
+  return { ...merged, ...overrides };
 }
