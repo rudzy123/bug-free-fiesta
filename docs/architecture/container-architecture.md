@@ -76,6 +76,8 @@ Each of API and worker is a composition root: construct config, logger, reposito
 | `packages/database`          | Prisma schema, migrations, client, and tenant-scoped repository adapters.           |
 | `packages/contracts`         | Zod request/response schemas shared by web, API, and worker payloads.               |
 | `packages/config`            | Typed environment. The only `process.env` reader.                                   |
+| `packages/object-storage`    | S3-compatible `ObjectStorage` adapter (`@aws-sdk/client-s3`); used by API/worker.   |
+| `packages/observability`     | Metrics and tracing helpers shared by API and worker.                               |
 | `packages/logger`            | Pino structured logging with redaction defaults.                                    |
 | `packages/eslint-config`     | Shared lint, including forbidden imports for domain/application.                    |
 | `packages/typescript-config` | Strict TypeScript, including `noUncheckedIndexedAccess`.                            |

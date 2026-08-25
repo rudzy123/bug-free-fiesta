@@ -17,7 +17,7 @@ This document describes intended product behavior. It is not a contract, not leg
 ## In scope (v1 intent)
 
 - Organizations (tenants) and membership roles.
-- PDF upload, virus/malware-untrusted handling, and revision history.
+- PDF upload, untrusted-document handling (structural inspection in production; commercial AV optional), and revision history.
 - Multiple signers; ordered and parallel routing.
 - Signing links bound to hashed bearer tokens and signing sessions.
 - Typed signature fields (signature, initials, date signed) owned by the server.
