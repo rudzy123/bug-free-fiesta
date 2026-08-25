@@ -92,7 +92,7 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Mitigations:** Private containers; no public ACL in IaC; presigned URLs short-lived and authorized; content-addressed keys without PII; object-key segment validation rejects path traversal (`..`) and filesystem root containment for the local driver (SEC-005); alerts on public ACL if the provider supports detection.
 
-**Residual:** Manual console change; leaked long-lived access keys. **No production S3/Azure adapter is implemented yet — only `memory`/`filesystem` drivers (SEC-001).** Filesystem driver remains local/e2e only.
+**Residual:** Manual console change; leaked long-lived access keys. Production requires `OBJECT_STORAGE_DRIVER=s3` via `@esign/object-storage` (SEC-001 fixed). Filesystem/memory drivers remain local/e2e only and are rejected in production.
 
 ### Audit record alteration or deletion
 

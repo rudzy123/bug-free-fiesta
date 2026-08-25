@@ -47,6 +47,7 @@ import {
   withObjectStorageErrorMetrics,
   PNG_MAX_BYTES,
 } from '@esign/application';
+import { resolveObjectStorage, s3OptionsFromConfig } from '@esign/object-storage';
 import {
   createPrismaPreviewGrantLookup,
   createPrismaSigningTokenLookup,
@@ -97,9 +98,11 @@ export function createDocumentIngestionFromPrisma(input: {
   const signingLookup = createPrismaSigningTokenLookup(input.prisma);
   const storage = createSizeLimitedObjectStorage(
     withObjectStorageErrorMetrics(
-      createObjectStorageDriver({
+      resolveObjectStorage({
         driver: input.config.OBJECT_STORAGE_DRIVER,
         fsRoot: input.config.OBJECT_STORAGE_FS_ROOT,
+        s3: s3OptionsFromConfig(input.config),
+        createDevDriver: createObjectStorageDriver,
       }),
       {
         recordError: (event) => input.recordObjectStorageError?.(event),

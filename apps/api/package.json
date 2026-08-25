@@ -24,6 +24,7 @@
     "@esign/database": "workspace:*",
     "@esign/domain": "workspace:*",
     "@esign/logger": "workspace:*",
+    "@esign/object-storage": "workspace:*",
     "@esign/observability": "workspace:*",
     "cors": "2.8.5",
     "express": "5.1.0",

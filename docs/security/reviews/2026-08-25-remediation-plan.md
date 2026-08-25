@@ -4,15 +4,14 @@ Ordered by severity. Implement one coherent batch per iteration.
 
 ## Decision blockers (not code-only)
 
-| Finding | Decision owner                | Why blocked                                                                                       |
-| ------- | ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| SEC-001 | Infrastructure / architecture | S3-compatible adapter must live outside domain/application (AWS SDK banned there); provider + IAM |
-| SEC-002 | Product + legal               | Malware/PDF scanner vendor; subprocessor review                                                   |
-| SEC-008 | Infrastructure                | Shared rate-limit store (e.g. Redis)                                                              |
-| SEC-011 | Legal + product               | Retention vs erasure vs legal hold                                                                |
-| SEC-012 | Operations                    | Backup/restore RPO/RTO drill                                                                      |
-| SEC-019 | Architecture + DBA            | RLS session GUC design                                                                            |
-| SEC-022 | Product                       | Production OIDC completeness                                                                      |
+| Finding | Decision owner     | Why blocked                                     |
+| ------- | ------------------ | ----------------------------------------------- |
+| SEC-002 | Product + legal    | Malware/PDF scanner vendor; subprocessor review |
+| SEC-008 | Infrastructure     | Shared rate-limit store (e.g. Redis)            |
+| SEC-011 | Legal + product    | Retention vs erasure vs legal hold              |
+| SEC-012 | Operations         | Backup/restore RPO/RTO drill                    |
+| SEC-019 | Architecture + DBA | RLS session GUC design                          |
+| SEC-022 | Product            | Production OIDC completeness                    |
 
 ## Dependencies
 
@@ -54,9 +53,13 @@ SEC-007 independent integrity hardening
 **Breaking:** SEC-004 query tokens only  
 **Regression tests:** passed after fix (failed before).
 
-### Batch 2 — Critical storage adapter (deferred)
+### Batch 2 — Critical storage adapter (completed 2026-08-25)
 
-SEC-001: S3-compatible port implementation + production driver gate.
+**Findings:** SEC-001 — **fixed**  
+**Decision:** New package `@esign/object-storage` (S3 API via `@aws-sdk/client-s3`; MinIO-compatible). Domain/application stay SDK-free.  
+**Schema:** none  
+**Breaking:** Production must set `OBJECT_STORAGE_DRIVER=s3` and credentials.  
+**Regression tests:** passed after fix.
 
 ### Batch 3 — Critical PDF inspection (deferred)
 
@@ -74,11 +77,11 @@ SEC-009, SEC-010.
 
 SEC-013, SEC-015, SEC-020, SEC-021.
 
-## Unresolved Critical / High (after Batch 1)
+## Unresolved Critical / High (after Batch 2)
 
 | ID      | Severity | Status            |
 | ------- | -------- | ----------------- |
-| SEC-001 | critical | deferred_decision |
+| SEC-001 | critical | **fixed**         |
 | SEC-002 | critical | deferred_decision |
 | SEC-003 | high     | **fixed**         |
 | SEC-004 | high     | **fixed**         |

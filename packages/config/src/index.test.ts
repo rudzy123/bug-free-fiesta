@@ -33,6 +33,12 @@ describe('environment validation', () => {
           AUTH_OIDC_CLIENT_SECRET: 'secret',
           AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
           DOCUMENT_INSPECTOR: 'local',
+          OBJECT_STORAGE_DRIVER: 's3',
+          OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+          OBJECT_STORAGE_REGION: 'us-east-1',
+          OBJECT_STORAGE_BUCKET: 'esign-documents',
+          OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+          OBJECT_STORAGE_SECRET_KEY: 'secret-key',
         }),
       ),
     ).toThrow(/DOCUMENT_INSPECTOR=local is not allowed in production/);
@@ -44,6 +50,13 @@ describe('environment validation', () => {
         apiEnv({
           NODE_ENV: 'production',
           AUTH_PROVIDER: 'local',
+          OBJECT_STORAGE_DRIVER: 's3',
+          OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+          OBJECT_STORAGE_REGION: 'us-east-1',
+          OBJECT_STORAGE_BUCKET: 'esign-documents',
+          OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+          OBJECT_STORAGE_SECRET_KEY: 'secret-key',
+          DOCUMENT_INSPECTOR: 'fail_closed',
         }),
       ),
     ).toThrow(/AUTH_PROVIDER=local is not allowed in production/);
@@ -116,6 +129,55 @@ describe('API hardening configuration', () => {
     expect(config.API_RATE_LIMIT_WINDOW_MS).toBe(60_000);
     expect(config.AUTH_JSON_BODY_LIMIT).toBe('16kb');
     expect(config.SIGNING_JSON_BODY_LIMIT).toBe('512kb');
+  });
+
+  it('rejects memory and filesystem object-storage drivers in production (SEC-001)', () => {
+    const productionOidc = {
+      NODE_ENV: 'production',
+      AUTH_PROVIDER: 'oidc',
+      AUTH_OIDC_ISSUER: 'https://idp.example.invalid/realms/esign',
+      AUTH_OIDC_CLIENT_ID: 'client',
+      AUTH_OIDC_CLIENT_SECRET: 'secret',
+      AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+      DOCUMENT_INSPECTOR: 'fail_closed',
+    } as const;
+    expect(() =>
+      loadApiConfig(apiEnv({ ...productionOidc, OBJECT_STORAGE_DRIVER: 'memory' })),
+    ).toThrow(/OBJECT_STORAGE_DRIVER=memory\|filesystem is not allowed in production/);
+    expect(() =>
+      loadWorkerConfig(
+        workerEnv({
+          NODE_ENV: 'production',
+          DOCUMENT_INSPECTOR: 'fail_closed',
+          OBJECT_STORAGE_DRIVER: 'filesystem',
+          OBJECT_STORAGE_FS_ROOT: 'tmp/object-storage',
+        }),
+      ),
+    ).toThrow(/OBJECT_STORAGE_DRIVER=memory\|filesystem is not allowed in production/);
+  });
+
+  it('accepts the S3 object-storage driver when credentials are present (SEC-001)', () => {
+    const config = loadApiConfig(
+      apiEnv({
+        NODE_ENV: 'production',
+        AUTH_PROVIDER: 'oidc',
+        AUTH_OIDC_ISSUER: 'https://idp.example.invalid/realms/esign',
+        AUTH_OIDC_CLIENT_ID: 'client',
+        AUTH_OIDC_CLIENT_SECRET: 'secret',
+        AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+        DOCUMENT_INSPECTOR: 'fail_closed',
+        OBJECT_STORAGE_DRIVER: 's3',
+        OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+        OBJECT_STORAGE_REGION: 'us-east-1',
+        OBJECT_STORAGE_BUCKET: 'esign-documents',
+        OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+        OBJECT_STORAGE_SECRET_KEY: 'secret-key',
+        OBJECT_STORAGE_FORCE_PATH_STYLE: 'false',
+      }),
+    );
+    expect(config.OBJECT_STORAGE_DRIVER).toBe('s3');
+    expect(config.OBJECT_STORAGE_ENDPOINT).toBe('https://s3.example.invalid');
+    expect(config.OBJECT_STORAGE_FORCE_PATH_STYLE).toBe(false);
   });
 
   it('requires OBJECT_STORAGE_FS_ROOT when the filesystem driver is selected', () => {

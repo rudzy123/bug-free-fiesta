@@ -26,22 +26,22 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 
 ### SEC-001 — No production object-storage adapter
 
-| Field        | Value                                                                                                                       |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Severity     | critical                                                                                                                    |
-| CWE          | CWE-922                                                                                                                     |
-| Status       | deferred_decision                                                                                                           |
-| Location     | `packages/config/src/index.ts` (`OBJECT_STORAGE_DRIVER`); `packages/application/src/documents/filesystem-object-storage.ts` |
-| Breaking fix | Yes — production must configure S3-compatible credentials                                                                   |
-| Migration    | No DB migration                                                                                                             |
+| Field        | Value                                                                                                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Severity     | critical                                                                                                             |
+| CWE          | CWE-922                                                                                                              |
+| Status       | fixed                                                                                                                |
+| Location     | `packages/config/src/index.ts` (`OBJECT_STORAGE_DRIVER`); `packages/object-storage`; composition roots in API/worker |
+| Breaking fix | Yes — production must configure S3-compatible credentials                                                            |
+| Migration    | No DB migration                                                                                                      |
 
 **Attack:** Deploy with `memory` or `filesystem`; scale or restart loses or diverges PDFs/signatures.
 
 **Impact:** Confidentiality/integrity failure for core artifacts.
 
-**Evidence:** Driver enum is only `memory` \| `filesystem`. Architecture tests forbid `@aws-sdk` in domain/application. MinIO Compose exists but is unused by the app driver.
+**Evidence:** Driver enum was only `memory` \| `filesystem`. Architecture tests forbid `@aws-sdk` in domain/application. MinIO Compose existed but was unused by the app driver. (Original defect observed 2026-08-25.)
 
-**Remediation (planned):** Ship S3-compatible `ObjectStorage` in an infrastructure-allowed package; refuse `memory`/`filesystem` when `NODE_ENV=production`. **Blocked on:** infrastructure package placement and provider choice (product/ops).
+**Remediation (2026-08-25 Batch 2):** Added `@esign/object-storage` with S3-compatible adapter (`@aws-sdk/client-s3`, MinIO-compatible). `OBJECT_STORAGE_DRIVER=s3` required in production; `memory`/`filesystem` rejected. API/worker resolve storage via `resolveObjectStorage`. Regression: `packages/config/src/index.test.ts` (production gate), `packages/object-storage/src/s3-object-storage.test.ts`.
 
 ---
 

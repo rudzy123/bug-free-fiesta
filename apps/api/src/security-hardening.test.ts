@@ -52,6 +52,13 @@ describe('security headers', () => {
       AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
       DOCUMENT_INSPECTOR: 'fail_closed',
       NOTIFICATION_ADAPTER: 'fail_closed',
+      OBJECT_STORAGE_DRIVER: 's3',
+      OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+      OBJECT_STORAGE_REGION: 'us-east-1',
+      OBJECT_STORAGE_BUCKET: 'esign-documents',
+      OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+      OBJECT_STORAGE_SECRET_KEY: 'secret-key',
+      OBJECT_STORAGE_FORCE_PATH_STYLE: 'false',
     });
     const response = await request(app).get('/health/live');
     expect(response.headers['strict-transport-security']).toContain('max-age=63072000');

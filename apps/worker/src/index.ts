@@ -35,6 +35,7 @@ import {
   withObjectStorageErrorMetrics,
   PNG_MAX_BYTES,
 } from '@esign/application';
+import { resolveObjectStorage, s3OptionsFromConfig } from '@esign/object-storage';
 import { createJobPoller } from './poller.js';
 import { createWorkerHealthServer } from './health-server.js';
 import { withObservability } from './observability-metrics.js';
@@ -62,9 +63,11 @@ async function main(): Promise<void> {
   const hashing = createSha256Hashing();
   const storage = createSizeLimitedObjectStorage(
     withObjectStorageErrorMetrics(
-      createObjectStorageDriver({
+      resolveObjectStorage({
         driver: config.OBJECT_STORAGE_DRIVER,
         fsRoot: config.OBJECT_STORAGE_FS_ROOT,
+        s3: s3OptionsFromConfig(config),
+        createDevDriver: createObjectStorageDriver,
       }),
       {
         recordError: (event) => observability.recordObjectStorageError(event),

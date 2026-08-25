@@ -179,8 +179,17 @@ const apiEnvSchema = z
       'x-preview-token',
     ).default('x-preview-token'),
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(86_400),
-    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem', 's3']).default('memory'),
     OBJECT_STORAGE_FS_ROOT: z.string().optional(),
+    OBJECT_STORAGE_ENDPOINT: z.string().optional(),
+    OBJECT_STORAGE_REGION: z.string().optional(),
+    OBJECT_STORAGE_BUCKET: z.string().optional(),
+    OBJECT_STORAGE_ACCESS_KEY: z.string().optional(),
+    OBJECT_STORAGE_SECRET_KEY: z.string().optional(),
+    OBJECT_STORAGE_FORCE_PATH_STYLE: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((value) => (value === undefined ? true : value === 'true')),
     AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
     SIGNING_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
     SIGNING_SESSION_COOKIE_NAME: requiredString(
@@ -269,6 +278,16 @@ const apiEnvSchema = z
           'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
       });
     }
+    if (
+      data.NODE_ENV === 'production' &&
+      (data.OBJECT_STORAGE_DRIVER === 'memory' || data.OBJECT_STORAGE_DRIVER === 'filesystem')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'OBJECT_STORAGE_DRIVER=memory|filesystem is not allowed in production. Use OBJECT_STORAGE_DRIVER=s3 with a private S3-compatible bucket (MinIO is local-only).',
+      });
+    }
     if (data.OBJECT_STORAGE_DRIVER === 'filesystem') {
       const root = data.OBJECT_STORAGE_FS_ROOT;
       if (root === undefined || root.trim() === '') {
@@ -276,6 +295,34 @@ const apiEnvSchema = z
           code: z.ZodIssueCode.custom,
           message:
             'OBJECT_STORAGE_FS_ROOT is required when OBJECT_STORAGE_DRIVER=filesystem. Example: tmp/object-storage',
+        });
+      }
+    }
+    if (data.OBJECT_STORAGE_DRIVER === 's3') {
+      const requiredS3: ReadonlyArray<readonly [keyof typeof data, string]> = [
+        ['OBJECT_STORAGE_ENDPOINT', 'https://s3.example.invalid'],
+        ['OBJECT_STORAGE_REGION', 'us-east-1'],
+        ['OBJECT_STORAGE_BUCKET', 'esign-documents'],
+        ['OBJECT_STORAGE_ACCESS_KEY', 'access-key-from-secrets-manager'],
+        ['OBJECT_STORAGE_SECRET_KEY', 'secret-key-from-secrets-manager'],
+      ];
+      for (const [field, example] of requiredS3) {
+        const value = data[field];
+        if (typeof value !== 'string' || value.trim() === '') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${String(field)} is required when OBJECT_STORAGE_DRIVER=s3. Example: ${example}`,
+          });
+        }
+      }
+      if (
+        typeof data.OBJECT_STORAGE_ENDPOINT === 'string' &&
+        data.OBJECT_STORAGE_ENDPOINT.trim() !== '' &&
+        !isAbsoluteHttpUrl(data.OBJECT_STORAGE_ENDPOINT)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'OBJECT_STORAGE_ENDPOINT must be an absolute URL such as http://localhost:9000',
         });
       }
     }
@@ -291,6 +338,7 @@ const apiEnvSchema = z
     AUTH_CSRF_HEADER_NAME: data.AUTH_CSRF_HEADER_NAME.toLowerCase(),
     DOCUMENT_UPLOAD_TOKEN_HEADER: data.DOCUMENT_UPLOAD_TOKEN_HEADER.toLowerCase(),
     DOCUMENT_PREVIEW_TOKEN_HEADER: data.DOCUMENT_PREVIEW_TOKEN_HEADER.toLowerCase(),
+    OBJECT_STORAGE_FORCE_PATH_STYLE: data.OBJECT_STORAGE_FORCE_PATH_STYLE ?? true,
     SIGNING_SESSION_TTL_SECONDS: data.SIGNING_SESSION_TTL_SECONDS,
     SIGNING_SESSION_COOKIE_NAME: data.SIGNING_SESSION_COOKIE_NAME,
     SIGNING_CSRF_COOKIE_NAME: data.SIGNING_CSRF_COOKIE_NAME,
@@ -336,7 +384,7 @@ const workerEnvSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform((value) => value === 'true'),
-    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem']).default('memory'),
+    OBJECT_STORAGE_DRIVER: z.enum(['memory', 'filesystem', 's3']).default('memory'),
     OBJECT_STORAGE_FS_ROOT: z.string().optional(),
     AUDIT_CHECKPOINT_STORE: z.enum(['disabled', 'object_storage']).default('disabled'),
     WORKER_AUDIT_VERIFY_INTERVAL_MS: z.coerce
@@ -364,6 +412,16 @@ const workerEnvSchema = z
         code: z.ZodIssueCode.custom,
         message:
           'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
+      });
+    }
+    if (
+      data.NODE_ENV === 'production' &&
+      (data.OBJECT_STORAGE_DRIVER === 'memory' || data.OBJECT_STORAGE_DRIVER === 'filesystem')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'OBJECT_STORAGE_DRIVER=memory|filesystem is not allowed in production. Use OBJECT_STORAGE_DRIVER=s3 with a private S3-compatible bucket (MinIO is local-only).',
       });
     }
     if (data.OBJECT_STORAGE_DRIVER === 'filesystem') {

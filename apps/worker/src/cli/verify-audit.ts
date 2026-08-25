@@ -12,6 +12,7 @@ import {
   createSystemClock,
   createVerifyOrganizationAuditChains,
 } from '@esign/application';
+import { resolveObjectStorage, s3OptionsFromConfig } from '@esign/object-storage';
 import { parseVerifyAuditArgs } from './verify-audit-args.js';
 
 export async function runVerifyAuditCli(argv: readonly string[]): Promise<void> {
@@ -21,9 +22,11 @@ export async function runVerifyAuditCli(argv: readonly string[]): Promise<void> 
   const prisma = createPrismaClient(config.DATABASE_URL);
   const hashing = createSha256Hashing();
   const storage = createSizeLimitedObjectStorage(
-    createObjectStorageDriver({
+    resolveObjectStorage({
       driver: config.OBJECT_STORAGE_DRIVER,
       fsRoot: config.OBJECT_STORAGE_FS_ROOT,
+      s3: s3OptionsFromConfig(config),
+      createDevDriver: createObjectStorageDriver,
     }),
     config.DOCUMENT_MAX_UPLOAD_BYTES,
   );

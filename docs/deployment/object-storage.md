@@ -1,18 +1,20 @@
 # Private object storage
 
-Use an S3-compatible or Azure Blob endpoint through the repository’s storage port. MinIO is for local development only.
+Use an S3-compatible endpoint through `@esign/object-storage` (`OBJECT_STORAGE_DRIVER=s3`). MinIO is for local development against the same S3 API. The `memory` and `filesystem` drivers are for unit/e2e only and are **rejected when `NODE_ENV=production`**.
 
 ## Configuration
 
+- `OBJECT_STORAGE_DRIVER=s3` in production (enforced by `@esign/config`).
 - Private bucket/container; block public ACLs and public policies.
-- TLS to the endpoint; path-style vs virtual-hosted as required by the provider (`OBJECT_STORAGE_*` in config).
+- TLS to the endpoint; path-style vs virtual-hosted as required by the provider (`OBJECT_STORAGE_FORCE_PATH_STYLE`).
 - Credentials from secrets manager — never image env defaults.
-- Optional filesystem driver (`OBJECT_STORAGE_DRIVER=filesystem`) is for local/e2e only, not production.
+- Optional `filesystem` / `memory` drivers are local/e2e only.
 
 ## Keys and integrity
 
 - Prefer content-addressed / immutable object keys for finalized artifacts.
-- Store digests in PostgreSQL; verify on download and during audit verification.
+- Store digests in PostgreSQL; S3 object metadata also carries `sha256-digest` for read-back checks.
+- Verify on download and during audit verification.
 - Incomplete multipart uploads: lifecycle expiry rules.
 
 ## Retention and versioning
