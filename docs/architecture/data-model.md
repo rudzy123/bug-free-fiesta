@@ -1,6 +1,6 @@
 # Data model (PostgreSQL / Prisma)
 
-Physical schema for v1. Signing product behavior is not implemented in application services yet; this document describes tables, tenant isolation, and indexes.
+Physical schema for v1 as implemented in Prisma. Application services persist and query these tables through `packages/database` adapters.
 
 `Organization` is the tenant. ADR-0013’s `tenantId` is `organizations.id`, stored as `organizationId` on every tenant-owned row. Account `User` rows are not tenant-owned; access is through `OrganizationMembership`.
 
@@ -16,7 +16,7 @@ v1 enforcement:
 
 1. Composite foreign keys `(organizationId, parentId)` so a child row cannot point at another tenant’s parent.
 2. Unique constraints that include `organizationId` where the natural key is per-tenant (membership, idempotency).
-3. Repository queries (when implemented) **must** include `organizationId` from the authorized membership or signing session. Missing tenant context is deny-by-default.
+3. Repository queries **must** include `organizationId` from the authorized membership or signing session. Missing tenant context is deny-by-default.
 4. Integration tests in `packages/database` cover cross-tenant foreign keys and `findMany` scoped by `organizationId`.
 
 RLS policies would still be valuable as defense in depth (a `SET LOCAL` tenant GUC plus `USING (organization_id = current_setting(...))`). They are not a substitute for those repository predicates and are not in this migration.

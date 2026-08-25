@@ -57,7 +57,14 @@ Signer-facing cookies (after `POST /signing/exchange`):
 | `SIGNING_RATE_LIMIT_MAX`       | `30`              | Per IP for `/signing/*`.                 |
 | `SIGNING_RATE_LIMIT_WINDOW_MS` | `60000`           | Fixed window in the API process.         |
 
-The URL token is consumed during exchange. Do not log query strings that may contain it.
+Exchange uses `POST /signing/exchange` with the one-time token in the JSON body (query-string tokens are rejected). Do not log request bodies or Authorization headers that may contain tokens.
+
+## Production secrets related to hashing and metrics
+
+| Variable               | Notes                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `TOKEN_HASH_PEPPER`    | Required unique production secret for HMAC token hashes. Rotating invalidates existing hashes. |
+| `METRICS_BEARER_TOKEN` | Required in production for `GET /metrics` scrapers (`Authorization: Bearer`).                  |
 
 ## What not to do
 

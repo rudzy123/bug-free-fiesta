@@ -1,12 +1,15 @@
 # AGENTS.md
 
-Guidance for coding agents working in this Electronic Signature SaaS monorepo. Humans should also read [CONTRIBUTING.md](CONTRIBUTING.md). The workspace is scaffolded. Do not implement electronic-signature business logic unless explicitly asked.
+Guidance for coding agents working in this Electronic Signature SaaS monorepo. Humans should also read [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The workspace is an implemented monorepo (web, API, worker, and shared packages). Do **not** invent electronic-signature product behavior, legal claims, or new compliance assertions unless explicitly asked. Prefer small, reviewable changes that match existing architecture and security rules.
 
 ## Before changing code
 
 1. Inspect the current tree, existing conventions, and the matching files under `.cursor/rules/`.
 2. Summarize current state, assumptions, a concise plan, security-sensitive changes, and the exact files you expect to touch.
 3. If requirements conflict (including with these docs), stop and explain the conflict. Do not patch around it.
+4. For security findings, read [docs/security/reviews/](docs/security/reviews/) so you do not reopen fixed items or treat deferred decisions as code-only work.
 
 ## Rules index (do not duplicate)
 
@@ -19,14 +22,13 @@ Guidance for coding agents working in this Electronic Signature SaaS monorepo. H
 | Next.js UI                               | [`.cursor/rules/frontend.mdc`](.cursor/rules/frontend.mdc)         | `apps/web`                      |
 | Express API and worker                   | [`.cursor/rules/api.mdc`](.cursor/rules/api.mdc)                   | `apps/api`, `apps/worker`       |
 
-While those packages do not exist yet, still follow the matching rule when creating them.
-
 ## Implementation
 
 - Change code in small coherent batches. Do not rewrite unrelated files.
 - Add or update tests with behavior changes. Add migrations; never edit applied migrations.
 - Use `packages/config` for environment; `packages/contracts` for Zod at boundaries; `packages/logger` for Pino.
-- Local infrastructure is Docker Compose; object storage is an S3/Azure-compatible port, with MinIO locally when needed.
+- Object storage: inject the domain `ObjectStorage` port. Production uses `@esign/object-storage` (`s3`). MinIO is local-only.
+- Conventional Commits: allowed types are `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `perf`, `revert`, `style`, `build`. Prefer `fix(security): …` over a bare `security:` type (CI commitlint rejects unknown types).
 
 ## After changing code
 

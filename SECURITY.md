@@ -2,6 +2,8 @@
 
 This project is an electronic-signature platform under active development. Technical controls in the repository are **not** a claim of ESIGN, UETA, eIDAS, HIPAA, SOC 2, ISO 27001, or any other compliance.
 
+Current engineering controls and residual risk: [docs/security/threat-model.md](docs/security/threat-model.md), [docs/security/security-controls.md](docs/security/security-controls.md), and [docs/security/reviews/](docs/security/reviews/).
+
 ## Report a vulnerability
 
 Use **[GitHub Security Advisories](https://github.com/rudzy123/bug-free-fiesta/security/advisories/new)** for suspected vulnerabilities.
@@ -24,10 +26,11 @@ Please give us a reasonable window to patch before public disclosure. Ninety day
 
 - Enable GitHub [secret scanning](https://docs.github.com/en/code-security/secret-scanning) and [push protection](https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection) on this repository (see [branch protection recommendations](docs/governance/branch-protection.md)).
 - CI also runs TruffleHog on the checked-out tree. That scan does not receive repository secrets as inputs.
+- Dependency and image scanning: `pnpm audit --audit-level=high` and Trivy on container images in CI.
 
 ## Supported versions
 
-Only the default branch (`main`) and tagged releases, when they exist, receive security fixes. There is no production deployment from this repository yet.
+Only the default branch (`main`) and tagged releases, when they exist, receive security fixes. Operators must not treat an untagged `main` SHA as a production release without completing the [production-readiness checklist](docs/deployment/production-readiness-checklist.md).
 
 ## Safe harbor
 

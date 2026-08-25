@@ -14,7 +14,7 @@ Full-repository review (read-only analysis). Threat actors: authenticated tenant
 | Low           | 5     |
 | Informational | 3     |
 
-Scaffolding shows strong design intent (tenant compound keys, hashed one-time tokens, CSRF, append-only audit, outbox `SKIP LOCKED`, finalization digests). The platform is **not** production-ready for legally important documents until Critical findings are addressed.
+Original review noted strong design intent (tenant compound keys, hashed one-time tokens, CSRF, append-only audit, outbox `SKIP LOCKED`, finalization digests) and Critical gaps. **Remediation (2026-08-25):** Batches 1–6 fixed the code-owned Critical/High findings and selected Medium/Low items. Deferred decision items remain. The platform is still **not** a legal/compliance attestation — complete the [production-readiness checklist](../../deployment/production-readiness-checklist.md) and legal review before customer documents.
 
 ## Findings
 
