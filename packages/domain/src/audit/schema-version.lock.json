@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "fingerprintAlgorithm": "sha256",
+  "fingerprint": "669eeda3cd2fe66919995e6ca2c03ddd80b377388f28b54f8304874f36d69207",
+  "source": "packages/domain/src/audit/canonical.ts",
+  "note": "Do not change fingerprint for an existing schemaVersion. Bump AUDIT_CHAIN_SCHEMA_VERSION and update this lock together."
+}

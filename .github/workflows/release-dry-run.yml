@@ -1,0 +1,43 @@
+name: Release dry-run
+
+# Manual only. Generates changelog dry-run artifacts. Does NOT tag, publish, or deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_ref:
+        description: Optional git ref/tag to treat as previous release (empty = last tag)
+        required: false
+        default: ''
+
+permissions: {}
+
+jobs:
+  dry-run:
+    name: changelog-dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+      - name: Release checks
+        run: pnpm release:check
+        env:
+          RELEASE_CHECK_BASE: origin/main
+      - name: Changelog dry-run
+        run: pnpm changelog:dry-run
+        env:
+          RELEASE_CHANGELOG_FROM: ${{ inputs.from_ref }}
+      - name: Upload dry-run artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dry-run
+          path: |
+            CHANGELOG.dry-run.md
+            .github/RELEASE_NOTES_TEMPLATE.md
+          if-no-files-found: error
