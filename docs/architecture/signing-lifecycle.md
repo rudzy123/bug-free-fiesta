@@ -17,8 +17,8 @@ sequenceDiagram
   API->>API: Freeze preparation; store only token hashes
   API->>API: Audit + outbox notify_signer atomically
   API->>Mail: Invitation (raw token only in transit)
-  Signer->>API: POST /signing/exchange (URL token)
-  API->>API: Hash token; rotate to HttpOnly cookie; consume URL token
+  Signer->>API: POST /signing/exchange (body or Bearer token)
+  API->>API: Hash token; rotate to HttpOnly cookie; consume one-time token
   Signer->>API: GET /signing/session (cookie)
   API->>API: Lookup token hash; start session
   Signer->>API: Record viewed and consent
@@ -29,9 +29,9 @@ sequenceDiagram
 
 Without the diagram: owners add server-owned fields and signers while the document is `draft` or `prepared`. Send freezes preparation, stores SHA-256 hashes of cryptographically random bearer tokens, appends audit, and writes `notify_signer` outbox events in one transaction. The raw token is given to a provider-agnostic notifier for first delivery and is never persisted.
 
-The signer-facing API does not require an account unless envelope policy requires one. `POST /signing/exchange` is the one-time landing: the URL token is hashed immediately, compared only as a hash (with a constant-time check against the stored digest), rotated into an HttpOnly `esign_sign` cookie plus a readable CSRF cookie, and consumed so replay fails. Later signer routes load identity from that hashed cookie (or the rotated bearer token). `signerId`, `organizationId`, and `documentId` in the body are not authorization evidence.
+The signer-facing API does not require an account unless envelope policy requires one. `POST /signing/exchange` is the one-time landing: the raw token is accepted only from the JSON body or `Authorization: Bearer` (query-string tokens are rejected). It is hashed immediately, compared only as a hash (with a constant-time check against the stored digest), rotated into an HttpOnly `esign_sign` cookie plus a readable CSRF cookie, and consumed so replay fails. Later signer routes load identity from that hashed cookie (or the rotated bearer token). `signerId`, `organizationId`, and `documentId` in the body are not authorization evidence.
 
-Invalid, expired, revoked, and unknown tokens share the same public 401. Signing routes set `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and a restrictive Content-Security-Policy. Query strings are not logged; Pino redacts `req.query` and `req.url` because email links may carry tokens. Mutations that use the signer cookie require CSRF and an allowed Origin. IP and user agent are captured only through `ClientRequestMetadata`.
+Invalid, expired, revoked, and unknown tokens share the same public 401. Signing routes set `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and a restrictive Content-Security-Policy. Query strings are not logged; Pino redacts `req.query` and `req.url`. Mutations that use the signer cookie require CSRF and an allowed Origin. IP and user agent are captured only through `ClientRequestMetadata`.
 
 Field types: `signature`, `initials`, `date_signed`, `signer_name`. Coordinates are normalized to the page (0–1). Page numbers must exist on the stored PDF. Overlap is rejected when `DOCUMENT_FIELD_OVERLAP_POLICY=prohibit`.
 

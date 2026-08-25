@@ -16,7 +16,7 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Attacker who obtains the URL may sign as that signer until expiry or revoke.
 
-**Mitigations:** High-entropy tokens; HTTPS; short session TTL; hash-at-rest; revoke on void/re-issue; rate limits; show only that signer’s fields; prefer stripping tokens from query strings after first load.
+**Mitigations:** High-entropy tokens; HTTPS; short session TTL; hash-at-rest; revoke on void/re-issue; rate limits; show only that signer’s fields; one-time exchange via POST body or `Authorization` only (query-string tokens rejected — SEC-004); strip tokens from the browser URL after exchange in the signing UI.
 
 **Residual:** Email forwards, malware, and shoulder surfing still work. This is not identity proofing.
 
@@ -26,9 +26,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Tokens in server logs, browser history, Referer headers, analytics, or crash dumps.
 
-**Mitigations:** Never log tokens or `Authorization`; redaction in `packages/logger`; avoid durable query-string tokens; no third-party analytics on signer pages by default; hash only at rest.
+**Mitigations:** Never log tokens or `Authorization`; redaction in `packages/logger`; reject durable query-string exchange tokens at the API (SEC-004); no third-party analytics on signer pages by default; hash only at rest.
 
-**Residual:** Misconfigured log sinks or browser extensions.
+**Residual:** Misconfigured log sinks or browser extensions; invitation channels that still put tokens in email URLs before first exchange.
 
 ### IDOR and broken tenant isolation
 
@@ -36,7 +36,7 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Mitigations:** Opaque ids; every query constrained by `tenantId` from the **membership** of the authenticated account user (or from the signing session binding), never from a client tenant header; deny-by-default; tests for cross-tenant IDs ([ADR-0013](../architecture/adrs/0013-multi-tenancy-isolation.md)).
 
-**Residual:** Missing `WHERE tenant_id` in a new query; insider DB access.
+**Residual:** Missing `WHERE tenant_id` in a new query; insider DB access; no PostgreSQL RLS yet (SEC-019).
 
 ### Client-supplied signer or document IDs
 
@@ -66,17 +66,17 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Attacker sets `X-Forwarded-For`, `X-Tenant-Id`, `X-User-Id`, or `X-Organization-Id` to bypass authz or poison audit.
 
-**Mitigations:** Identity only from verified session/cookie/token. Organization access is loaded from authenticated membership, never from a client tenant header. Trusted-proxy topology is a precise hop count (`TRUST_PROXY`), never a boolean `true`; the client IP is resolved from that topology so forged `X-Forwarded-For` entries to the left of the trusted hops are ignored (`apps/api/src/http/client-ip.ts`, unit + integration tests). Rate limits and consent/audit IP metadata use this spoof-resistant IP, not the raw header. Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
+**Mitigations:** Identity only from verified session/cookie/token. Organization access is loaded from authenticated membership, never from a client tenant header. Trusted-proxy topology is a precise hop count (`TRUST_PROXY`), never a boolean `true`; the client IP is resolved from that topology so forged `X-Forwarded-For` entries to the left of the trusted hops are ignored (`apps/api/src/http/client-ip.ts`, unit + integration tests). Rate limits and consent/audit IP metadata use this spoof-resistant IP, not the raw header. The Next.js signing BFF must **not** copy browser `X-Forwarded-For`; it may forward only a trusted `x-real-ip` as a single `X-Forwarded-For` hop (SEC-003). Reverse-proxy configuration trusted only at the edge that strips incoming spoofed forwarded headers. IP in consent is untrusted metadata.
 
-**Residual:** Misconfigured edge (a proxy that does not overwrite/append the client IP, or a `TRUST_PROXY` count that does not match the real hop depth). Correct topology configuration remains an operational responsibility.
+**Residual:** Misconfigured edge (a proxy that does not overwrite/append the client IP, or a `TRUST_PROXY` count that does not match the real hop depth). When the BFF omits `X-Forwarded-For`, API `TRUST_PROXY=0` keys rate limits on the Next→API socket (shared budget). Correct topology configuration remains an operational responsibility.
 
 ### Malformed or malicious PDFs
 
 **Impact:** Parser crash, infinite loops, embedded JavaScript, SSRF via remote streams, worker RCE in a library.
 
-**Mitigations:** Treat all PDFs as untrusted; size limits at proxy, API, and object storage; validate content type, extension, and `%PDF-` magic bytes; inspect via a port (local stub is non-production); process advanced PDF work in the worker; disable external stream fetches; timeout and memory limits; keep pdf-lib and OS packages pinned.
+**Mitigations:** Treat all PDFs as untrusted; size limits at proxy, API, and object storage; validate content type, extension, and `%PDF-` magic bytes; inspect via a port (local stub is non-production; production must not use the local stub — SEC-002 open); process advanced PDF work in the worker; disable external stream fetches; timeout and memory limits; keep pdf-lib and OS packages pinned.
 
-**Residual:** Zero-days in PDF libraries (dependency compromise overlap).
+**Residual:** Zero-days in PDF libraries (dependency compromise overlap). **No production malware/PDF sanitizer is wired yet (SEC-002).**
 
 ### Oversized payloads
 
@@ -90,9 +90,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Public bucket listing or world-readable PDFs.
 
-**Mitigations:** Private containers; no public ACL in IaC; presigned URLs short-lived and authorized; content-addressed keys without PII; alerts on public ACL if the provider supports detection.
+**Mitigations:** Private containers; no public ACL in IaC; presigned URLs short-lived and authorized; content-addressed keys without PII; object-key segment validation rejects path traversal (`..`) and filesystem root containment for the local driver (SEC-005); alerts on public ACL if the provider supports detection.
 
-**Residual:** Manual console change; leaked long-lived access keys.
+**Residual:** Manual console change; leaked long-lived access keys. **No production S3/Azure adapter is implemented yet — only `memory`/`filesystem` drivers (SEC-001).** Filesystem driver remains local/e2e only.
 
 ### Audit record alteration or deletion
 

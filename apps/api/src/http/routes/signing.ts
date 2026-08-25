@@ -103,7 +103,6 @@ export function createSigningRouter(deps: SigningRouterDeps): Router {
       const rawToken = extractExchangeToken({
         bodyToken: parsed.data.token,
         authorization: req.header('authorization'),
-        queryToken: typeof req.query.token === 'string' ? req.query.token : undefined,
       });
       const result = await deps.exchange({
         rawToken,

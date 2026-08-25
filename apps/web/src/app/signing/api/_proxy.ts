@@ -22,9 +22,13 @@ export function isAllowedSigningPath(parts: readonly string[]): boolean {
   return first !== undefined && ALLOWED_SIGNING_PATHS.has(first);
 }
 
-export async function proxyToApi(request: Request, apiPath: string): Promise<Response> {
-  const config = loadWebConfig();
-  const origin = new URL(request.url).origin;
+/**
+ * Builds headers for the API hop. Never copies browser-controlled
+ * `X-Forwarded-For` (SEC-003). When a trusted edge in front of Next sets
+ * `x-real-ip`, forward that single verified address so the API can use
+ * `TRUST_PROXY=1` safely.
+ */
+export function buildUpstreamSigningHeaders(request: Request, origin: string): Headers {
   const headers = new Headers();
   copyHeader(request, headers, 'cookie');
   copyHeader(request, headers, 'content-type');
@@ -33,8 +37,18 @@ export async function proxyToApi(request: Request, apiPath: string): Promise<Res
   copyHeader(request, headers, 'x-correlation-id');
   copyHeader(request, headers, IDEMPOTENCY_KEY_HEADER);
   copyHeader(request, headers, 'user-agent');
-  copyHeader(request, headers, 'x-forwarded-for');
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp !== undefined && realIp !== '') {
+    headers.set('x-forwarded-for', realIp);
+  }
   headers.set('origin', origin);
+  return headers;
+}
+
+export async function proxyToApi(request: Request, apiPath: string): Promise<Response> {
+  const config = loadWebConfig();
+  const origin = new URL(request.url).origin;
+  const headers = buildUpstreamSigningHeaders(request, origin);
 
   const method = request.method.toUpperCase();
   const body =

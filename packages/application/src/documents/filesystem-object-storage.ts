@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile, rename, rm, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, join, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import {
   IntegrityError,
@@ -47,11 +47,20 @@ export function createObjectStorageDriver(input: {
   return createMemoryObjectStorage();
 }
 
+function resolveUnderRoot(rootDir: string, key: string): string {
+  const absoluteRoot = resolve(rootDir);
+  const candidate = resolve(absoluteRoot, ...key.split('/'));
+  if (candidate !== absoluteRoot && !candidate.startsWith(`${absoluteRoot}${sep}`)) {
+    throw new IntegrityError({ reason: 'object_key_escapes_root' });
+  }
+  return candidate;
+}
+
 export function createFilesystemObjectStorage(options: { rootDir: string }): ObjectStorage {
   const root = options.rootDir;
   const hashing = createSha256Hashing();
 
-  const bodyPath = (key: string): string => join(root, ...key.split('/'));
+  const bodyPath = (key: string): string => resolveUnderRoot(root, key);
   const metaPath = (key: string): string => `${bodyPath(key)}.meta.json`;
 
   const writeAtomic = async (target: string, data: Uint8Array | string): Promise<void> => {
@@ -131,7 +140,7 @@ export function createFilesystemObjectStorage(options: { rootDir: string }): Obj
 
     async listKeys(input) {
       const prefix = tenantObjectKey(input.organizationId, input.prefix);
-      const prefixDir = join(root, ...prefix.split('/'));
+      const prefixDir = resolveUnderRoot(root, prefix.endsWith('/') ? prefix.slice(0, -1) : prefix);
       const searchDir = existsSync(prefixDir) ? prefixDir : dirname(prefixDir);
       const keys: string[] = [];
       await collectKeys(searchDir, root, async (key) => {

@@ -119,6 +119,17 @@ describe('filesystem object storage', () => {
     const read = await other.getObject({ organizationId: ORG, key: `${PREFIX}shared` });
     expect(new TextDecoder().decode(read?.body)).toBe('shared-bytes');
   });
+
+  it('rejects object keys that would escape the storage root (SEC-005)', async () => {
+    await expect(
+      storage.putObject({
+        organizationId: ORG,
+        key: `${PREFIX}revisions/../../escape`,
+        body: new TextEncoder().encode('nope'),
+        contentType: 'application/pdf',
+      }),
+    ).rejects.toBeInstanceOf(IntegrityError);
+  });
 });
 
 describe('createObjectStorageDriver', () => {

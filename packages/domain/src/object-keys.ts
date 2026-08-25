@@ -7,19 +7,44 @@ export function tenantObjectKeyPrefix(organizationId: string): string {
   return `org/${requireOrganizationId(organizationId)}/`;
 }
 
+/**
+ * Rejects path traversal and other unsafe object-key segments before any
+ * filesystem or cloud key materialization. Content-addressed digests never
+ * need `.` / `..` / empty / backslash segments. A single trailing `/` is
+ * allowed so list prefixes can remain boundary-safe (`…/revisions/`).
+ */
+export function assertSafeObjectKeySegments(key: string): string {
+  if (key.includes('\\') || key.includes('\0')) {
+    throw new IntegrityError({ reason: 'object_key_unsafe_segment' });
+  }
+  const forCheck = key.endsWith('/') ? key.slice(0, -1) : key;
+  if (forCheck === '' || forCheck.startsWith('/')) {
+    throw new IntegrityError({ reason: 'object_key_unsafe_segment' });
+  }
+  const segments = forCheck.split('/');
+  for (const segment of segments) {
+    if (segment === '' || segment === '.' || segment === '..') {
+      throw new IntegrityError({ reason: 'object_key_unsafe_segment' });
+    }
+  }
+  return key;
+}
+
 export function tenantObjectKey(organizationId: string, relativeKey: string): string {
   const prefix = tenantObjectKeyPrefix(organizationId);
   const trimmed = relativeKey.replace(/^\/+/, '');
+  assertSafeObjectKeySegments(trimmed);
   if (trimmed.startsWith('org/')) {
     if (!trimmed.startsWith(prefix)) {
       throw new IntegrityError({ reason: 'object_key_tenant_mismatch' });
     }
     return trimmed;
   }
-  return `${prefix}${trimmed}`;
+  return assertSafeObjectKeySegments(`${prefix}${trimmed}`);
 }
 
 export function assertTenantObjectKey(organizationId: string, key: string): string {
+  assertSafeObjectKeySegments(key);
   const prefix = tenantObjectKeyPrefix(organizationId);
   if (!key.startsWith(prefix)) {
     throw new IntegrityError({ reason: 'object_key_not_tenant_prefixed' });

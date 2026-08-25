@@ -603,23 +603,17 @@ paths:
           description: Session revoked
   /signing/exchange:
     post:
-      summary: Exchange a URL signing token for a session cookie
+      summary: Exchange a one-time signing token for a session cookie
       operationId: exchangeSigningToken
       description: >
-        One-time exchange. The presented token is hashed immediately and looked
-        up by hash. A new HttpOnly cookie token is stored as a hash; the URL
-        token cannot be replayed. Invalid, expired, revoked, and unknown tokens
-        share the same 401. Query-string tokens are accepted only here so they
-        can be consumed; prefer the JSON body. Signer, document, and organization
-        ids in the body are not authorization evidence and are rejected.
+        One-time exchange. Present the raw token in the JSON body (`token`) or as
+        `Authorization: Bearer`. Query-string tokens are rejected (SEC-004) because
+        they leak via history, Referer, and access logs. The presented token is
+        hashed immediately and looked up by hash. A new HttpOnly cookie token is
+        stored as a hash; the presented token cannot be replayed. Invalid, expired,
+        revoked, and unknown tokens share the same 401. Signer, document, and
+        organization ids in the body are not authorization evidence and are rejected.
       security: []
-      parameters:
-        - name: token
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Optional URL token from an email link. Consumed on success. Never log.
       requestBody:
         required: false
         content:

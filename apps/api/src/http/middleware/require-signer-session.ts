@@ -88,7 +88,6 @@ export function createRequireSignerCsrf(deps: {
 export function extractExchangeToken(input: {
   bodyToken: string | undefined;
   authorization: string | undefined;
-  queryToken: string | undefined;
 }): string {
   const fromBody = typeof input.bodyToken === 'string' ? input.bodyToken.trim() : '';
   if (fromBody !== '') {
@@ -98,10 +97,7 @@ export function extractExchangeToken(input: {
   if (fromBearer !== undefined) {
     return fromBearer;
   }
-  const query = input.queryToken?.trim();
-  if (query !== undefined && query !== '') {
-    return query;
-  }
+  // Query-string tokens are rejected: they leak via history, Referer, and access logs.
   throw new AuthenticationError({ reason: 'signing_token' });
 }
 

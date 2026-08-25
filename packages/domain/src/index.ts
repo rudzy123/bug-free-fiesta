@@ -118,6 +118,7 @@ export {
 export {
   AUDIT_GENESIS_PREVIOUS_EVENT_HASH,
   artifactObjectKey,
+  assertSafeObjectKeySegments,
   assertTenantObjectKey,
   signatureImageObjectKey,
   sourceRevisionObjectKey,
