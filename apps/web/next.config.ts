@@ -7,9 +7,7 @@ const monorepoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const SIGNING_CSP = [
   "default-src 'self'",
-  isProduction
-    ? "script-src 'self' 'unsafe-inline'"
-    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  isProduction ? "script-src 'self'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self'",

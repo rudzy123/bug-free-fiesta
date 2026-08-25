@@ -237,6 +237,7 @@ test(
     expect(headers['referrer-policy']).toBe('no-referrer');
     expect(headers['cache-control']).toContain('no-store');
     expect(headers['content-security-policy']).toContain("default-src 'self'");
+    expect(headers['content-security-policy']).toMatch(/script-src 'self'/);
   },
 );
 

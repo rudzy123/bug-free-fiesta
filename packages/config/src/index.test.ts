@@ -32,6 +32,8 @@ describe('environment validation', () => {
           AUTH_OIDC_CLIENT_ID: 'client',
           AUTH_OIDC_CLIENT_SECRET: 'secret',
           AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+          METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+          TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
           DOCUMENT_INSPECTOR: 'local',
           OBJECT_STORAGE_DRIVER: 's3',
           OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
@@ -53,6 +55,8 @@ describe('environment validation', () => {
         AUTH_OIDC_CLIENT_ID: 'client',
         AUTH_OIDC_CLIENT_SECRET: 'secret',
         AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+        METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+        TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
         DOCUMENT_INSPECTOR: 'structural',
         OBJECT_STORAGE_DRIVER: 's3',
         OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
@@ -69,6 +73,7 @@ describe('environment validation', () => {
         workerEnv({
           NODE_ENV: 'production',
           DOCUMENT_INSPECTOR: 'structural',
+          METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
           OBJECT_STORAGE_DRIVER: 's3',
           OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
           OBJECT_STORAGE_REGION: 'us-east-1',
@@ -94,6 +99,8 @@ describe('environment validation', () => {
           OBJECT_STORAGE_ACCESS_KEY: 'access-key',
           OBJECT_STORAGE_SECRET_KEY: 'secret-key',
           DOCUMENT_INSPECTOR: 'fail_closed',
+          METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+          TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
         }),
       ),
     ).toThrow(/AUTH_PROVIDER=local is not allowed in production/);
@@ -176,6 +183,8 @@ describe('API hardening configuration', () => {
       AUTH_OIDC_CLIENT_ID: 'client',
       AUTH_OIDC_CLIENT_SECRET: 'secret',
       AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+      METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+      TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
       DOCUMENT_INSPECTOR: 'fail_closed',
     } as const;
     expect(() =>
@@ -186,6 +195,7 @@ describe('API hardening configuration', () => {
         workerEnv({
           NODE_ENV: 'production',
           DOCUMENT_INSPECTOR: 'fail_closed',
+          METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
           OBJECT_STORAGE_DRIVER: 'filesystem',
           OBJECT_STORAGE_FS_ROOT: 'tmp/object-storage',
         }),
@@ -202,6 +212,8 @@ describe('API hardening configuration', () => {
         AUTH_OIDC_CLIENT_ID: 'client',
         AUTH_OIDC_CLIENT_SECRET: 'secret',
         AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+        METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+        TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
         DOCUMENT_INSPECTOR: 'fail_closed',
         OBJECT_STORAGE_DRIVER: 's3',
         OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID } from 'node:crypto';
 import type {
   Clock,
   Hashing,
@@ -42,11 +42,21 @@ export function createSigningTokenGenerator(): SigningTokenGenerator {
   };
 }
 
+/**
+ * Hashes bearer/signing/session tokens at rest. When `pepper` is set (required
+ * in production via config), uses HMAC-SHA256 so a DB dump alone is insufficient
+ * to verify guessed tokens (SEC-020). Output remains 64 lowercase hex chars.
+ */
 export function createSigningTokenHasher(
   hashing: Hashing = createSha256Hashing(),
+  options?: { pepper?: string },
 ): SigningTokenHasher {
+  const pepper = options?.pepper?.trim() || undefined;
   return {
     hash(rawToken: string): string {
+      if (pepper !== undefined) {
+        return createHmac('sha256', pepper).update(rawToken, 'utf8').digest('hex');
+      }
       return hashing.sha256Hex(rawToken);
     },
   };

@@ -114,9 +114,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Tokens or PII in centralized logs.
 
-**Mitigations:** Deny list in [data classification](../architecture/data-classification.md); logger redaction; no logging of document bytes.
+**Mitigations:** Deny list in [data classification](../architecture/data-classification.md); logger redaction; no logging of document bytes; production `GET /metrics` requires `METRICS_BEARER_TOKEN` (SEC-009).
 
-**Residual:** `console.log` in a dependency; mis-tagged fields.
+**Residual:** `console.log` in a dependency; mis-tagged fields; metrics scrape token leakage if mis-handled like a password.
 
 ### CSRF
 
@@ -146,9 +146,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Script in the web app steals account sessions or signing tokens.
 
-**Mitigations:** React default escaping; strict Content-Security-Policy; no `dangerouslySetInnerHTML` for document titles or PDF text; treat metadata as untrusted; HTTP-only cookies for account sessions.
+**Mitigations:** React default escaping; strict Content-Security-Policy on signing routes (`script-src 'self'` in production — SEC-010); no `dangerouslySetInnerHTML` for document titles or PDF text; treat metadata as untrusted; HTTP-only cookies for account sessions.
 
-**Residual:** Future markdown/HTML features.
+**Residual:** Future markdown/HTML features; `style-src 'unsafe-inline'` remains for CSS.
 
 ### SSRF
 

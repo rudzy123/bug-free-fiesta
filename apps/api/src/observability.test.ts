@@ -51,6 +51,29 @@ describe('API observability', () => {
     expect(body).not.toMatch(/token|authorization|cookie/i);
   });
 
+  it('rejects unauthenticated metrics scrapes when a bearer token is configured (SEC-009)', async () => {
+    const config = loadApiConfig(
+      apiEnv({
+        METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+      }),
+    );
+    const logger = createLogger({ name: 'obs-test', level: 'silent' });
+    const metrics = createObservabilityMetrics();
+    const app = createApiApp({
+      config,
+      logger,
+      health: createHealthService(okPinger()),
+      metrics,
+    });
+    const denied = await request(app).get('/metrics');
+    expect(denied.status).toBe(401);
+    const allowed = await request(app)
+      .get('/metrics')
+      .set('Authorization', 'Bearer ci-metrics-bearer-token');
+    expect(allowed.status).toBe(200);
+    expect(allowed.text).toContain('esign_http_requests_total');
+  });
+
   it('records readiness DB latency with an ok outcome', async () => {
     const { app, metrics } = buildApp();
     await request(app).get('/health/ready');

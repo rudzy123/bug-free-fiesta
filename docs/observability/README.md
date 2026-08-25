@@ -15,7 +15,7 @@ Operational visibility for the electronic-signature platform without leaking Res
 ## Signals
 
 - **Logs** — structured JSON via `packages/logger` (Pino), redacted by default. Correlation id on every record.
-- **Metrics** — `packages/observability` registry exposed at `GET /metrics` (Prometheus text) on both the API and the worker health server. Metric names are `esign_*`, base units are seconds, and labels are bounded, non-sensitive dimensions.
+- **Metrics** — `packages/observability` registry exposed at `GET /metrics` (Prometheus text) on both the API and the worker health server. In production, scrapers must send `Authorization: Bearer $METRICS_BEARER_TOKEN`. Metric names are `esign_*`, base units are seconds, and labels are bounded, non-sensitive dimensions.
 - **Traces** — OpenTelemetry-shaped abstraction in `packages/observability` (`Tracer`/`Span`). The default is a no-op; the API uses a logging tracer. Wire the OpenTelemetry SDK behind the same interface for a collector.
 
 ## Metric inventory

@@ -257,6 +257,7 @@ async function main(): Promise<void> {
     clock,
     staleAfterMs: config.WORKER_STALE_QUEUE_MS,
     pollStaleAfterMs: config.WORKER_POLL_INTERVAL_MS * 3,
+    metricsBearerToken: config.METRICS_BEARER_TOKEN,
   });
 
   let shuttingDown = false;

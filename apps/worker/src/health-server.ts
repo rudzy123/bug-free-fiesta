@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { Logger } from '@esign/logger';
 import type { DatabasePinger } from '@esign/database';
@@ -11,6 +12,26 @@ import {
 } from '@esign/domain';
 import type { JobPoller } from './poller.js';
 
+function metricsAuthorized(
+  authorizationHeader: string | undefined,
+  expectedToken: string | undefined,
+): boolean {
+  if (expectedToken === undefined || expectedToken.trim() === '') {
+    return true;
+  }
+  const match = /^Bearer\s+(.+)$/i.exec((authorizationHeader ?? '').trim());
+  const presented = match?.[1]?.trim();
+  if (presented === undefined) {
+    return false;
+  }
+  const left = Buffer.from(presented);
+  const right = Buffer.from(expectedToken);
+  if (left.byteLength !== right.byteLength) {
+    return false;
+  }
+  return timingSafeEqual(left, right);
+}
+
 export function createWorkerHealthServer(options: {
   host: string;
   port: number;
@@ -23,6 +44,7 @@ export function createWorkerHealthServer(options: {
   clock: Clock;
   staleAfterMs: number;
   pollStaleAfterMs: number;
+  metricsBearerToken?: string;
 }): Server {
   const server = createServer((req, res) => {
     const correlationId = 'worker-health';
@@ -40,6 +62,10 @@ export function createWorkerHealthServer(options: {
     }
 
     if (req.method === 'GET' && url === '/metrics') {
+      if (!metricsAuthorized(req.headers.authorization, options.metricsBearerToken)) {
+        send(401, errorEnvelope('authentication', 'Metrics scrape unauthorized', correlationId));
+        return;
+      }
       res.statusCode = 200;
       res.setHeader('content-type', 'text/plain; version=0.0.4; charset=utf-8');
       res.setHeader('cache-control', 'no-store');

@@ -308,29 +308,9 @@ export const declineToSignResponseSchema = z
 
 export const signerPreviewResponseSchema = issuePreviewResponseSchema;
 
-export const signatureStrokePointSchema = z
-  .object({
-    x: z.number().min(0).max(1),
-    y: z.number().min(0).max(1),
-    t: z.number().nonnegative(),
-    p: z.number().min(0).max(1),
-  })
-  .strict();
-
 export const signatureInkPayloadSchema = z
   .object({
     pngBase64: z.string().min(1).max(400_000),
-    strokes: z
-      .array(
-        z
-          .object({
-            points: z.array(signatureStrokePointSchema).min(1).max(4_000),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(32),
-    durationMs: z.number().int().nonnegative().max(90_000),
   })
   .strict();
 

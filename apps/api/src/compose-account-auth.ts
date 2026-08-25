@@ -36,7 +36,7 @@ export function createAccountAuthFromPrisma(input: { config: ApiConfig; prisma: 
   hasher: SigningTokenHasher;
 } {
   const hashing = createSha256Hashing();
-  const hasher = createSigningTokenHasher(hashing);
+  const hasher = createSigningTokenHasher(hashing, { pepper: input.config.TOKEN_HASH_PEPPER });
   const clock = createSystemClock();
   const ids = createUuidIdGenerator();
   const tokens = createSigningTokenGenerator();

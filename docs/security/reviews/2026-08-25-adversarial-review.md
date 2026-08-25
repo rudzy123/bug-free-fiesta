@@ -173,8 +173,12 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | ------------------------------------- |
 | Severity | medium                                |
 | CWE      | CWE-200                               |
-| Status   | open                                  |
+| Status   | fixed                                 |
 | Location | `apps/api/src/http/routes/metrics.ts` |
+
+**Evidence:** `GET /metrics` was mounted without authentication on API and worker health servers. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 5):** Optional `METRICS_BEARER_TOKEN`; required in production. Scrapers must send `Authorization: Bearer`. Regression: `apps/api/src/observability.test.ts`.
 
 ---
 
@@ -184,8 +188,12 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | ------------------------- |
 | Severity | medium                    |
 | CWE      | CWE-79                    |
-| Status   | open                      |
+| Status   | fixed                     |
 | Location | `apps/web/next.config.ts` |
+
+**Evidence:** Production signing CSP used `script-src 'self' 'unsafe-inline'`. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 5):** Production `script-src 'self'` only (dev retains unsafe-inline/eval for Next tooling). Style-src still allows unsafe-inline for CSS. Residual: style XSS surface.
 
 ---
 
@@ -217,8 +225,12 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | --------------------------------------- |
 | Severity | low                                     |
 | CWE      | CWE-113                                 |
-| Status   | open                                    |
+| Status   | fixed                                   |
 | Location | `apps/api/src/http/routes/documents.ts` |
+
+**Evidence:** Only `"` was stripped from filenames before `Content-Disposition`. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 6):** `contentDispositionHeader` strips CR/LF/NUL, sanitizes ASCII fallback, emits RFC 5987 `filename*`. Regression: `content-disposition.test.ts`.
 
 ---
 
@@ -239,8 +251,12 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | ------------------------------------------------------ |
 | Severity | low                                                    |
 | CWE      | CWE-362                                                |
-| Status   | open                                                   |
+| Status   | fixed                                                  |
 | Location | `packages/application/src/signing/signer-mutations.ts` |
+
+**Evidence:** `findBySession` then `create` outside a single transactional check; unique `sessionId` could fail the loser. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 6):** Re-check inside `unitOfWork`; map Prisma `P2002` to `consent_exists` and re-read winner.
 
 ---
 
@@ -286,24 +302,32 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 
 ### SEC-020 — Token hashing plain SHA-256 vs keyed HMAC
 
-| Field        | Value                        |
-| ------------ | ---------------------------- |
-| Severity     | low                          |
-| CWE          | CWE-916                      |
-| Status       | open                         |
-| Breaking fix | Yes — rehash/re-issue tokens |
-| Migration    | Yes if pepper added          |
+| Field        | Value                                   |
+| ------------ | --------------------------------------- |
+| Severity     | low                                     |
+| CWE          | CWE-916                                 |
+| Status       | fixed                                   |
+| Breaking fix | Yes — rehash/re-issue tokens            |
+| Migration    | Invalidate sessions after pepper change |
+
+**Evidence:** `createSigningTokenHasher` used unsalted SHA-256. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 6):** HMAC-SHA256 with `TOKEN_HASH_PEPPER` (production forbids local-dev default). Rotating pepper invalidates stored hashes. Regression: `node-crypto.test.ts`.
 
 ---
 
 ### SEC-021 — Complete schema accepts unused stroke payloads
 
-| Field        | Value                            |
-| ------------ | -------------------------------- |
-| Severity     | low                              |
-| CWE          | CWE-400                          |
-| Status       | open                             |
-| Breaking fix | Possible if clients send strokes |
+| Field        | Value                         |
+| ------------ | ----------------------------- |
+| Severity     | low                           |
+| CWE          | CWE-400                       |
+| Status       | fixed                         |
+| Breaking fix | Yes if clients sent `strokes` |
+
+**Evidence:** `signatureInkPayloadSchema` required large stroke arrays unused by complete-signing. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 6):** Ink schema is `pngBase64` only. Regression: `documents.signing-schema.test.ts`.
 
 ---
 

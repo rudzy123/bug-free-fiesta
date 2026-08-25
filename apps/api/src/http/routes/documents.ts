@@ -34,6 +34,7 @@ import type {
   AssertAccountAction,
 } from '@esign/application';
 import { asyncRoute } from '../async-route.js';
+import { contentDispositionHeader } from '../content-disposition.js';
 import {
   createRequireAccountSession,
   createRequireCsrf,
@@ -189,10 +190,7 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Referrer-Policy', 'no-referrer');
-      res.setHeader(
-        'Content-Disposition',
-        `inline; filename="${result.displayName.replaceAll('"', '')}"`,
-      );
+      res.setHeader('Content-Disposition', contentDispositionHeader('inline', result.displayName));
       res.status(200).send(Buffer.from(result.body));
     }),
   );
@@ -321,7 +319,7 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
       res.setHeader('Referrer-Policy', 'no-referrer');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="${result.displayName.replaceAll('"', '')}"`,
+        contentDispositionHeader('attachment', result.displayName),
       );
       res.status(200).send(Buffer.from(result.body));
     }),

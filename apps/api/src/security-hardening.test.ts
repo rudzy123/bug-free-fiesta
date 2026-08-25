@@ -52,6 +52,8 @@ describe('security headers', () => {
       AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
       DOCUMENT_INSPECTOR: 'fail_closed',
       NOTIFICATION_ADAPTER: 'fail_closed',
+      METRICS_BEARER_TOKEN: 'ci-metrics-bearer-token',
+      TOKEN_HASH_PEPPER: 'production-test-token-hash-pepper-ok!!',
       OBJECT_STORAGE_DRIVER: 's3',
       OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
       OBJECT_STORAGE_REGION: 'us-east-1',

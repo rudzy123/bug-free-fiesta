@@ -23,6 +23,7 @@ import {
 } from '@esign/domain';
 import {
   OutboxStatus,
+  Prisma,
   SigningSessionStatus,
   UploadSessionStatus,
 } from '../generated/client/index.js';
@@ -1133,22 +1134,29 @@ export function createPrismaConsentRecordRepository(
     async create(input) {
       assertSameOrganization(input.organizationId, input.consent.organizationId);
       const organizationId = requireOrganizationId(input.organizationId);
-      const row = await prisma.consentRecord.create({
-        data: {
-          id: input.consent.id,
-          organizationId,
-          documentId: input.consent.documentId,
-          signerId: input.consent.signerId,
-          sessionId: input.consent.sessionId,
-          consentCopyId: input.consent.consentCopyId,
-          acceptedAt: input.consent.acceptedAt,
-          requestId: input.consent.requestId,
-          untrustedClientIp: input.consent.untrustedClientIp,
-          untrustedUserAgent: input.consent.untrustedUserAgent,
-          createdAt: input.consent.createdAt,
-        },
-      });
-      return toDomainConsent(row);
+      try {
+        const row = await prisma.consentRecord.create({
+          data: {
+            id: input.consent.id,
+            organizationId,
+            documentId: input.consent.documentId,
+            signerId: input.consent.signerId,
+            sessionId: input.consent.sessionId,
+            consentCopyId: input.consent.consentCopyId,
+            acceptedAt: input.consent.acceptedAt,
+            requestId: input.consent.requestId,
+            untrustedClientIp: input.consent.untrustedClientIp,
+            untrustedUserAgent: input.consent.untrustedUserAgent,
+            createdAt: input.consent.createdAt,
+          },
+        });
+        return toDomainConsent(row);
+      } catch (error: unknown) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictError({ reason: 'consent_exists' });
+        }
+        throw error;
+      }
     },
   };
 }

@@ -138,6 +138,8 @@ const apiEnvSchema = z
     API_MAX_CONCURRENT_REQUESTS: z.coerce.number().int().min(1).max(100_000).default(512),
     API_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
+    METRICS_BEARER_TOKEN: z.string().min(16).optional(),
+    TOKEN_HASH_PEPPER: z.string().min(32).default('local-dev-only-token-hash-pepper-32chars'),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     DATABASE_URL: databaseUrlSchema,
     AUTH_PROVIDER: z.enum(['local', 'oidc'], {
@@ -280,6 +282,26 @@ const apiEnvSchema = z
     }
     if (
       data.NODE_ENV === 'production' &&
+      (data.METRICS_BEARER_TOKEN === undefined || data.METRICS_BEARER_TOKEN.trim() === '')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'METRICS_BEARER_TOKEN is required in production (min 16 chars). Scrapers must send Authorization: Bearer <token>.',
+      });
+    }
+    if (
+      data.NODE_ENV === 'production' &&
+      data.TOKEN_HASH_PEPPER.startsWith('local-dev-only-token-hash-pepper')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'TOKEN_HASH_PEPPER must be set to a unique production secret (not the local-dev default). Rotating it invalidates existing hashed tokens/sessions.',
+      });
+    }
+    if (
+      data.NODE_ENV === 'production' &&
       (data.OBJECT_STORAGE_DRIVER === 'memory' || data.OBJECT_STORAGE_DRIVER === 'filesystem')
     ) {
       ctx.addIssue({
@@ -373,6 +395,7 @@ const workerEnvSchema = z
       .max(604_800_000)
       .default(86_400_000),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+    METRICS_BEARER_TOKEN: z.string().min(16).optional(),
     OBJECT_STORAGE_ENDPOINT: requiredString('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000').url(
       'OBJECT_STORAGE_ENDPOINT must be an absolute URL such as http://localhost:9000',
     ),
@@ -412,6 +435,16 @@ const workerEnvSchema = z
         code: z.ZodIssueCode.custom,
         message:
           'DOCUMENT_INSPECTOR=local is not allowed in production. Use DOCUMENT_INSPECTOR=structural (or fail_closed as an ops kill-switch).',
+      });
+    }
+    if (
+      data.NODE_ENV === 'production' &&
+      (data.METRICS_BEARER_TOKEN === undefined || data.METRICS_BEARER_TOKEN.trim() === '')
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'METRICS_BEARER_TOKEN is required in production (min 16 chars). Scrapers must send Authorization: Bearer <token>.',
       });
     }
     if (

@@ -76,22 +76,30 @@ SEC-007 independent integrity hardening
 **Breaking:** none (fail closed on integrity mismatch)  
 **Regression tests:** `document-ingestion.test.ts` SEC-006/SEC-007 cases.
 
-### Batch 5 — Edge observability & CSP
+### Batch 5 — Edge observability & CSP (completed 2026-08-25)
 
-SEC-009, SEC-010.
+**Findings:** SEC-009, SEC-010 — **fixed**  
+**Schema:** none  
+**Breaking:** Production requires `METRICS_BEARER_TOKEN`; scrapers must authenticate.  
+**Regression tests:** observability + signing CSP headers.
 
-### Batch 6 — Low priority
+### Batch 6 — Low priority (completed 2026-08-25)
 
-SEC-013, SEC-015, SEC-020, SEC-021.
+**Findings:** SEC-013, SEC-015, SEC-020, SEC-021 — **fixed**  
+**Schema:** none (SEC-020 invalidates existing token hashes when pepper changes)  
+**Breaking:** SEC-020 pepper; SEC-021 clients must not send strokes.  
+**Regression tests:** content-disposition, consent race handling, HMAC hasher, contracts schema.
 
-## Unresolved Critical / High (after Batch 4)
+## Unresolved Critical / High (after Batch 6)
 
-| ID      | Severity | Status    |
-| ------- | -------- | --------- |
-| SEC-001 | critical | **fixed** |
-| SEC-002 | critical | **fixed** |
-| SEC-003 | high     | **fixed** |
-| SEC-004 | high     | **fixed** |
-| SEC-005 | high     | **fixed** |
+All accepted critical/high remain **fixed**.
 
-Accepted critical/high remain fixed. Open mediums include SEC-008 (deferred), SEC-009, SEC-010, plus lows.
+## Still deferred (decision / ops — not code-only today)
+
+| ID      | Severity | Status            |
+| ------- | -------- | ----------------- |
+| SEC-008 | medium   | deferred_decision |
+| SEC-011 | medium   | deferred_decision |
+| SEC-012 | medium   | deferred_decision |
+| SEC-019 | medium   | deferred_decision |
+| SEC-022 | medium   | deferred_decision |

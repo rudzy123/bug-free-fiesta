@@ -132,7 +132,6 @@ export {
   recordSignerConsentResponseSchema,
   recordSignerViewedResponseSchema,
   signatureInkPayloadSchema,
-  signatureStrokePointSchema,
   completeSigningRequestSchema,
   completeSigningResponseSchema,
   type CompleteSigningRequest,

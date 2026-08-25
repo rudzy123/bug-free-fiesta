@@ -117,7 +117,11 @@ export function createApiApp(options: CreateApiAppOptions): Express {
   // Liveness/readiness and the metrics scrape are mounted before overload and
   // rate limiting so probes and scrapes stay reliable while the API sheds load.
   app.use(createHealthRouter(options.health, metrics));
-  app.use(createMetricsRouter(metrics));
+  app.use(
+    createMetricsRouter(metrics, {
+      bearerToken: config.METRICS_BEARER_TOKEN,
+    }),
+  );
 
   app.use(createOverloadGuard({ maxConcurrentRequests: config.API_MAX_CONCURRENT_REQUESTS }));
 

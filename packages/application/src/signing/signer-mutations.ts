@@ -4,6 +4,7 @@ import {
   assertDocumentTransition,
   canSignerActNow,
   ConflictError,
+  isApplicationError,
   ValidationError,
   type AuthorizationPolicy,
   type ClientRequestMetadata,
@@ -142,39 +143,64 @@ export function createRecordSignerConsent(deps: {
     }
     const now = deps.clock.nowUtc();
     const consentId = deps.ids.next();
-    await deps.unitOfWork.run(async (scope) => {
-      await scope.consentRecords.create({
+    const recorded = await deps.unitOfWork.run(async (scope) => {
+      const raced = await scope.consentRecords.findBySession({
         organizationId: loaded.actor.organizationId,
-        consent: {
-          id: consentId,
+        sessionId: loaded.session.id,
+      });
+      if (raced) {
+        return raced;
+      }
+      try {
+        const created = await scope.consentRecords.create({
+          organizationId: loaded.actor.organizationId,
+          consent: {
+            id: consentId,
+            organizationId: loaded.actor.organizationId,
+            documentId: loaded.document.id,
+            signerId: loaded.signer.id,
+            sessionId: loaded.session.id,
+            consentCopyId: disclosure.copyId,
+            acceptedAt: now,
+            requestId: input.requestId,
+            untrustedClientIp: input.metadata.untrustedClientIp,
+            untrustedUserAgent: input.metadata.untrustedUserAgent,
+            createdAt: now,
+          },
+        });
+        await scope.audit.append({
+          id: deps.ids.next(),
           organizationId: loaded.actor.organizationId,
           documentId: loaded.document.id,
-          signerId: loaded.signer.id,
-          sessionId: loaded.session.id,
-          consentCopyId: disclosure.copyId,
-          acceptedAt: now,
+          type: 'consent_recorded',
+          actorType: actorType(loaded.actor),
+          actorId: actorId(loaded.actor),
+          occurredAt: now,
+          payload: { sessionId: loaded.session.id, consentCopyId: disclosure.copyId },
           requestId: input.requestId,
-          untrustedClientIp: input.metadata.untrustedClientIp,
-          untrustedUserAgent: input.metadata.untrustedUserAgent,
-          createdAt: now,
-        },
-      });
-      await scope.audit.append({
-        id: deps.ids.next(),
-        organizationId: loaded.actor.organizationId,
-        documentId: loaded.document.id,
-        type: 'consent_recorded',
-        actorType: actorType(loaded.actor),
-        actorId: actorId(loaded.actor),
-        occurredAt: now,
-        payload: { sessionId: loaded.session.id, consentCopyId: disclosure.copyId },
-        requestId: input.requestId,
-      });
+        });
+        return created;
+      } catch (error: unknown) {
+        if (
+          isApplicationError(error) &&
+          error instanceof ConflictError &&
+          error.details.reason === 'consent_exists'
+        ) {
+          const winner = await scope.consentRecords.findBySession({
+            organizationId: loaded.actor.organizationId,
+            sessionId: loaded.session.id,
+          });
+          if (winner) {
+            return winner;
+          }
+        }
+        throw error;
+      }
     });
     return {
-      consentId,
-      copyId: disclosure.copyId,
-      acceptedAt: now.toISOString(),
+      consentId: recorded.id,
+      copyId: recorded.consentCopyId,
+      acceptedAt: recorded.acceptedAt.toISOString(),
     };
   };
 }

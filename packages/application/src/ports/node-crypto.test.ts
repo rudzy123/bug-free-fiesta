@@ -19,6 +19,18 @@ describe('node crypto ports', () => {
     expect(issued.tokenHash).not.toBe(issued.rawToken);
     expect(createSha256Hashing().sha256Hex(issued.rawToken)).toBe(issued.tokenHash);
   });
+
+  it('HMAC-peppers token hashes when configured (SEC-020)', () => {
+    const hashing = createSha256Hashing();
+    const hasher = createSigningTokenHasher(hashing, {
+      pepper: 'production-test-token-hash-pepper-ok!!',
+    });
+    const raw = 'opaque-token-value';
+    const digest = hasher.hash(raw);
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(digest).not.toBe(hashing.sha256Hex(raw));
+    expect(hasher.hash(raw)).toBe(digest);
+  });
 });
 
 describe('memory object storage', () => {
