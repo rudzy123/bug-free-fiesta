@@ -68,7 +68,10 @@ export {
   createDocumentInspector,
   createFailClosedDocumentInspector,
   createLocalDevelopmentDocumentInspector,
+  createStructuralDocumentInspector,
+  type DocumentInspectorName,
 } from './documents/inspectors.js';
+export { findPdfMagicOffset, inspectPdfStructure } from './documents/structural-pdf-inspector.js';
 export { createSizeLimitedObjectStorage } from './documents/size-limited-storage.js';
 export { withObjectStorageErrorMetrics } from './documents/instrumented-object-storage.js';
 export {

@@ -74,9 +74,9 @@ Each threat lists impact, mitigations we intend to build, and residual risk. Den
 
 **Impact:** Parser crash, infinite loops, embedded JavaScript, SSRF via remote streams, worker RCE in a library.
 
-**Mitigations:** Treat all PDFs as untrusted; size limits at proxy, API, and object storage; validate content type, extension, and `%PDF-` magic bytes; inspect via a port (local stub is non-production; production must not use the local stub — SEC-002 open); process advanced PDF work in the worker; disable external stream fetches; timeout and memory limits; keep pdf-lib and OS packages pinned.
+**Mitigations:** Treat all PDFs as untrusted; size limits at proxy, API, and object storage; validate content type, extension, and `%PDF-` magic bytes; inspect via a port — production uses `DOCUMENT_INSPECTOR=structural` (rejects active PDF features, encryption, polyglot prefixes; SEC-002 fixed); `local` stub is non-production only; `fail_closed` remains an ops kill-switch; process advanced PDF work in the worker; disable external stream fetches; timeout and memory limits; keep pdf-lib and OS packages pinned.
 
-**Residual:** Zero-days in PDF libraries (dependency compromise overlap). **No production malware/PDF sanitizer is wired yet (SEC-002).**
+**Residual:** Zero-days in PDF libraries (dependency compromise overlap). Structural inspection is not commercial antivirus; novel name encodings and non-declared malware payloads may still pass. Optional vendor AV/sanitizer remains a product/legal follow-up.
 
 ### Oversized payloads
 

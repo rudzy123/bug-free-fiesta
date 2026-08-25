@@ -1,8 +1,14 @@
 # Runbook: failed document inspection
 
-**Severity:** high if a valid source PDF never becomes eligible to send. Inspection `rejected` is expected for malware or invalid PDF structure.
+**Severity:** high if a valid source PDF never becomes eligible to send. Inspection `rejected` is expected for malware-like structure, encryption, or invalid PDF.
 
-The local inspector (`DOCUMENT_INSPECTOR=local`) is **NON-PRODUCTION**. It is not malware scanning. Production must not use it.
+Inspectors:
+
+| Value         | Use                                                       |
+| ------------- | --------------------------------------------------------- |
+| `local`       | **NON-PRODUCTION** stub (magic + test reject marker only) |
+| `structural`  | **Production** structural denylist (not commercial AV)    |
+| `fail_closed` | Ops kill-switch — always rejects                          |
 
 ## Symptoms
 
@@ -19,14 +25,16 @@ The local inspector (`DOCUMENT_INSPECTOR=local`) is **NON-PRODUCTION**. It is no
 
 ## Diagnosis
 
-| Observation                                    | Likely cause                                                           |
-| ---------------------------------------------- | ---------------------------------------------------------------------- |
-| `pending` and outbox still `pending`           | Worker not running or poll interval lag                                |
-| `pending` and outbox retrying `missing_object` | Upload wrote metadata but object storage is not shared with the worker |
-| `rejected` / `not_pdf`                         | Magic bytes or content type failed inspection                          |
-| `rejected` / `local_stub_reject_marker`        | Local-dev stub saw `%ESIGN-LOCAL-REJECT%` (tests only)                 |
-| `rejected` / `inspector_unconfigured`          | `DOCUMENT_INSPECTOR=fail_closed`                                       |
-| `accepted` but `availableForSigning=false`     | Document is still `draft`; send has not run. This is expected          |
+| Observation                                                                            | Likely cause                                                           |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `pending` and outbox still `pending`                                                   | Worker not running or poll interval lag                                |
+| `pending` and outbox retrying `missing_object`                                         | Upload wrote metadata but object storage is not shared with the worker |
+| `rejected` / `not_pdf`                                                                 | Magic bytes, content type, or polyglot prefix failed inspection        |
+| `rejected` / `pdf_missing_eof`                                                         | Truncated or non-PDF body                                              |
+| `rejected` / `pdf_javascript` / `pdf_launch` / `pdf_embedded_file` / `pdf_encrypt` / … | Structural inspector denied a dangerous or encrypted PDF feature       |
+| `rejected` / `local_stub_reject_marker`                                                | Local-dev stub saw `%ESIGN-LOCAL-REJECT%` (tests only)                 |
+| `rejected` / `inspector_unconfigured`                                                  | `DOCUMENT_INSPECTOR=fail_closed`                                       |
+| `accepted` but `availableForSigning=false`                                             | Document is still `draft`; send has not run. This is expected          |
 
 Signing remains denied until inspection is `accepted` **and** the document is `sent` or `in_progress`.
 
@@ -34,8 +42,8 @@ Signing remains denied until inspection is `accepted` **and** the document is `s
 
 - **Hung pending:** confirm the worker process; inspect jobs are idempotent. Re-queue by leaving the outbox `pending`. See [outbox dead letter](outbox-dead-letter.md) if status is `failed`.
 - **Missing object:** restore shared private storage (S3/Azure/MinIO). Do not copy PDFs through tickets.
-- **Rejected:** tell the tenant the file was not accepted. They may create a new draft. Do not claim the file was malware unless a production scanner said so.
-- **fail_closed in production:** wire a real `DocumentInspector` adapter; keep fail-closed until then.
+- **Rejected (structural):** tell the tenant the file was not accepted (active content, encryption, or invalid structure). They may create a new draft. Do not claim commercial antivirus detected malware.
+- **fail_closed in production:** set `DOCUMENT_INSPECTOR=structural` when ready to accept uploads again.
 
 ## Related documents
 

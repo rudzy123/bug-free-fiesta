@@ -169,7 +169,7 @@ const apiEnvSchema = z
       .default(26_214_400),
     DOCUMENT_UPLOAD_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
     DOCUMENT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(120),
-    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed']).default('local'),
+    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed', 'structural']).default('local'),
     DOCUMENT_UPLOAD_TOKEN_HEADER: requiredString(
       'DOCUMENT_UPLOAD_TOKEN_HEADER',
       'x-upload-token',
@@ -275,7 +275,7 @@ const apiEnvSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
+          'DOCUMENT_INSPECTOR=local is not allowed in production. Use DOCUMENT_INSPECTOR=structural (or fail_closed as an ops kill-switch).',
       });
     }
     if (
@@ -399,7 +399,7 @@ const workerEnvSchema = z
       .min(1024)
       .max(104_857_600)
       .default(26_214_400),
-    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed']).default('local'),
+    DOCUMENT_INSPECTOR: z.enum(['local', 'fail_closed', 'structural']).default('local'),
     NOTIFICATION_ADAPTER: z.enum(['local', 'fail_closed']).default('local'),
     NOTIFICATION_PREVIEW_DIR: requiredString(
       'NOTIFICATION_PREVIEW_DIR',
@@ -411,7 +411,7 @@ const workerEnvSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          'DOCUMENT_INSPECTOR=local is not allowed in production. Use fail_closed until a production malware/PDF adapter is configured.',
+          'DOCUMENT_INSPECTOR=local is not allowed in production. Use DOCUMENT_INSPECTOR=structural (or fail_closed as an ops kill-switch).',
       });
     }
     if (

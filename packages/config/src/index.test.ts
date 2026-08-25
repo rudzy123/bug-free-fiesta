@@ -44,6 +44,43 @@ describe('environment validation', () => {
     ).toThrow(/DOCUMENT_INSPECTOR=local is not allowed in production/);
   });
 
+  it('accepts the structural document inspector in production (SEC-002)', () => {
+    const config = loadApiConfig(
+      apiEnv({
+        NODE_ENV: 'production',
+        AUTH_PROVIDER: 'oidc',
+        AUTH_OIDC_ISSUER: 'https://idp.example.invalid/realms/esign',
+        AUTH_OIDC_CLIENT_ID: 'client',
+        AUTH_OIDC_CLIENT_SECRET: 'secret',
+        AUTH_OIDC_REDIRECT_URI: 'https://api.example.invalid/auth/oidc/callback',
+        DOCUMENT_INSPECTOR: 'structural',
+        OBJECT_STORAGE_DRIVER: 's3',
+        OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+        OBJECT_STORAGE_REGION: 'us-east-1',
+        OBJECT_STORAGE_BUCKET: 'esign-documents',
+        OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+        OBJECT_STORAGE_SECRET_KEY: 'secret-key',
+        OBJECT_STORAGE_FORCE_PATH_STYLE: 'false',
+      }),
+    );
+    expect(config.DOCUMENT_INSPECTOR).toBe('structural');
+    expect(
+      loadWorkerConfig(
+        workerEnv({
+          NODE_ENV: 'production',
+          DOCUMENT_INSPECTOR: 'structural',
+          OBJECT_STORAGE_DRIVER: 's3',
+          OBJECT_STORAGE_ENDPOINT: 'https://s3.example.invalid',
+          OBJECT_STORAGE_REGION: 'us-east-1',
+          OBJECT_STORAGE_BUCKET: 'esign-documents',
+          OBJECT_STORAGE_ACCESS_KEY: 'access-key',
+          OBJECT_STORAGE_SECRET_KEY: 'secret-key',
+          OBJECT_STORAGE_FORCE_PATH_STYLE: 'false',
+        }),
+      ).DOCUMENT_INSPECTOR,
+    ).toBe('structural');
+  });
+
   it('rejects the local identity adapter in production', () => {
     expect(() =>
       loadApiConfig(

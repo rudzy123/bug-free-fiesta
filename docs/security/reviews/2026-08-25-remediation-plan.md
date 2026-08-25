@@ -4,14 +4,14 @@ Ordered by severity. Implement one coherent batch per iteration.
 
 ## Decision blockers (not code-only)
 
-| Finding | Decision owner     | Why blocked                                     |
-| ------- | ------------------ | ----------------------------------------------- |
-| SEC-002 | Product + legal    | Malware/PDF scanner vendor; subprocessor review |
-| SEC-008 | Infrastructure     | Shared rate-limit store (e.g. Redis)            |
-| SEC-011 | Legal + product    | Retention vs erasure vs legal hold              |
-| SEC-012 | Operations         | Backup/restore RPO/RTO drill                    |
-| SEC-019 | Architecture + DBA | RLS session GUC design                          |
-| SEC-022 | Product            | Production OIDC completeness                    |
+| Finding | Decision owner                | Why blocked                                                                       |
+| ------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| SEC-002 | Product + legal (optional AV) | Structural inspector shipped; commercial AV/sanitizer still optional subprocessor |
+| SEC-008 | Infrastructure                | Shared rate-limit store (e.g. Redis)                                              |
+| SEC-011 | Legal + product               | Retention vs erasure vs legal hold                                                |
+| SEC-012 | Operations                    | Backup/restore RPO/RTO drill                                                      |
+| SEC-019 | Architecture + DBA            | RLS session GUC design                                                            |
+| SEC-022 | Product                       | Production OIDC completeness                                                      |
 
 ## Dependencies
 
@@ -61,9 +61,13 @@ SEC-007 independent integrity hardening
 **Breaking:** Production must set `OBJECT_STORAGE_DRIVER=s3` and credentials.  
 **Regression tests:** passed after fix.
 
-### Batch 3 — Critical PDF inspection (deferred)
+### Batch 3 — Critical PDF inspection (completed 2026-08-25)
 
-SEC-002: production inspector adapter after vendor decision.
+**Findings:** SEC-002 — **fixed** (structural inspector; commercial AV deferred as optional)  
+**Decision:** Ship `DOCUMENT_INSPECTOR=structural` as the production adapter (denylist of active/dangerous PDF features). Keep `fail_closed` as kill-switch. Do not claim antivirus.  
+**Schema:** none  
+**Breaking:** Production should use `structural` for upload acceptance (config enum extended).  
+**Regression tests:** passed after fix.
 
 ### Batch 4 — Integrity hardening
 
@@ -77,12 +81,14 @@ SEC-009, SEC-010.
 
 SEC-013, SEC-015, SEC-020, SEC-021.
 
-## Unresolved Critical / High (after Batch 2)
+## Unresolved Critical / High (after Batch 3)
 
-| ID      | Severity | Status            |
-| ------- | -------- | ----------------- |
-| SEC-001 | critical | **fixed**         |
-| SEC-002 | critical | deferred_decision |
-| SEC-003 | high     | **fixed**         |
-| SEC-004 | high     | **fixed**         |
-| SEC-005 | high     | **fixed**         |
+| ID      | Severity | Status    |
+| ------- | -------- | --------- |
+| SEC-001 | critical | **fixed** |
+| SEC-002 | critical | **fixed** |
+| SEC-003 | high     | **fixed** |
+| SEC-004 | high     | **fixed** |
+| SEC-005 | high     | **fixed** |
+
+No accepted critical or high findings remain open. Next: Batch 4 (medium integrity).

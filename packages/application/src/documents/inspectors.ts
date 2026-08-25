@@ -1,11 +1,14 @@
 import { ValidationError, type DocumentInspector } from '@esign/domain';
 import { PDF_CONTENT_TYPE, PDF_MAGIC } from './pdf.js';
+import { createStructuralDocumentInspector } from './structural-pdf-inspector.js';
 
 /**
  * Marker recognized only by the local-development inspector stub.
  * Production scanners must ignore this string.
  */
 export const LOCAL_INSPECTOR_REJECT_MARKER = '%ESIGN-LOCAL-REJECT%';
+
+export type DocumentInspectorName = 'local' | 'fail_closed' | 'structural';
 
 function hasMagic(body: Uint8Array): boolean {
   if (body.byteLength < PDF_MAGIC.byteLength) {
@@ -54,8 +57,8 @@ export function createLocalDevelopmentDocumentInspector(): DocumentInspector {
 }
 
 /**
- * Fail-closed inspector used until a production malware/PDF adapter is wired.
- * Always rejects. Never fetches URLs or executes document content.
+ * Fail-closed inspector used as an ops kill-switch or until structural inspection
+ * is enabled. Always rejects. Never fetches URLs or executes document content.
  */
 export function createFailClosedDocumentInspector(): DocumentInspector {
   return {
@@ -66,7 +69,7 @@ export function createFailClosedDocumentInspector(): DocumentInspector {
 }
 
 export function createDocumentInspector(input: {
-  name: 'local' | 'fail_closed';
+  name: DocumentInspectorName;
   nodeEnv: string;
 }): DocumentInspector {
   if (input.name === 'local') {
@@ -75,5 +78,10 @@ export function createDocumentInspector(input: {
     }
     return createLocalDevelopmentDocumentInspector();
   }
+  if (input.name === 'structural') {
+    return createStructuralDocumentInspector();
+  }
   return createFailClosedDocumentInspector();
 }
+
+export { createStructuralDocumentInspector } from './structural-pdf-inspector.js';

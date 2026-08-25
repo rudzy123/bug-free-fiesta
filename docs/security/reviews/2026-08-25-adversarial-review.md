@@ -51,16 +51,18 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | ------------ | ------------------------------------------------------------------------------------------ |
 | Severity     | critical                                                                                   |
 | CWE          | CWE-434                                                                                    |
-| Status       | deferred_decision                                                                          |
+| Status       | fixed                                                                                      |
 | Location     | `packages/application/src/documents/inspectors.ts`; `packages/config` `DOCUMENT_INSPECTOR` |
 | Breaking fix | Yes — upload acceptance changes                                                            |
 | Migration    | Policy decision for existing drafts                                                        |
 
 **Attack:** Hostile PDF with JS/actions/polyglot malware; or production stuck on fail-closed rejecting all uploads.
 
-**Evidence:** Local stub checks `%PDF-` magic only; fail-closed always rejects; production forbids `local`.
+**Evidence:** Local stub checks `%PDF-` magic only; fail-closed always rejects; production forbids `local`. (Original defect observed 2026-08-25.)
 
-**Remediation (planned):** Production sanitizer/scanner behind `DocumentInspector`. **Blocked on:** product/vendor selection and legal review of scanning subprocessors.
+**Remediation (2026-08-25 Batch 3):** Added `DOCUMENT_INSPECTOR=structural` — production structural PDF inspector that rejects non-PDFs, polyglot prefixes, missing `%%EOF`, encryption, and dangerous PDF name tokens (`/JavaScript`, `/Launch`, `/EmbeddedFile`, `/OpenAction`, `/AA`, XFA, remote GoTo, form submit/import, RichMedia). `local` remains forbidden in production; `fail_closed` kept as ops kill-switch. **Residual:** Not commercial antivirus; novel encodings and PDF-library zero-days remain. Vendor AV/sanitizer still a product/legal option later.
+
+**Regression:** `packages/application/src/documents/structural-pdf-inspector.test.ts`; `packages/config/src/index.test.ts` (production accepts `structural`).
 
 ---
 

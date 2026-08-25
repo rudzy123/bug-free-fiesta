@@ -43,5 +43,14 @@ export function pdfFailureCategoryFromReasonCode(
   if (reasonCode === null) {
     return null;
   }
-  return isPdfMetricCategory(reasonCode) ? reasonCode : null;
+  if (isPdfMetricCategory(reasonCode)) {
+    return reasonCode;
+  }
+  if (reasonCode === 'pdf_encrypt') {
+    return 'ENCRYPTED_PDF_UNSUPPORTED';
+  }
+  if (reasonCode.startsWith('pdf_')) {
+    return 'INVALID_PDF';
+  }
+  return null;
 }
