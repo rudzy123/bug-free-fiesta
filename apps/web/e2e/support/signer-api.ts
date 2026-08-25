@@ -57,24 +57,43 @@ export function createSignerApi(request: APIRequestContext) {
       });
     },
 
+    async listFieldIds(): Promise<string[]> {
+      return signerFieldsResponseSchema
+        .parse(await (await request.get(`${E2E_API_ORIGIN}/signing/fields`)).json())
+        .fields.map((field) => field.fieldId);
+    },
+
+    async consentCopyId(): Promise<string> {
+      return signerConsentResponseSchema.parse(
+        await (await request.get(`${E2E_API_ORIGIN}/signing/consent`)).json(),
+      ).copyId;
+    },
+
     async complete(
       options: {
         fieldIds?: readonly string[];
+        consentCopyId?: string;
         includeSignature?: boolean;
         png?: Uint8Array;
         idempotencyKey?: string;
         extra?: Record<string, unknown>;
       } = {},
     ): Promise<APIResponse> {
-      const fields = signerFieldsResponseSchema.parse(
-        await (await request.get(`${E2E_API_ORIGIN}/signing/fields`)).json(),
-      );
-      const consent = signerConsentResponseSchema.parse(
-        await (await request.get(`${E2E_API_ORIGIN}/signing/consent`)).json(),
-      );
-      const fieldIds = options.fieldIds ?? fields.fields.map((field) => field.fieldId);
+      // Skip live field/consent GETs when callers already supply ids — after a
+      // successful complete those endpoints may fail closed, which breaks
+      // idempotent replay tests that must POST the same body twice.
+      const fieldIds =
+        options.fieldIds ??
+        signerFieldsResponseSchema
+          .parse(await (await request.get(`${E2E_API_ORIGIN}/signing/fields`)).json())
+          .fields.map((field) => field.fieldId);
+      const consentCopyId =
+        options.consentCopyId ??
+        signerConsentResponseSchema.parse(
+          await (await request.get(`${E2E_API_ORIGIN}/signing/consent`)).json(),
+        ).copyId;
       const body: Record<string, unknown> = {
-        consentCopyId: consent.copyId,
+        consentCopyId,
         intentToSign: true,
         fieldIds,
         ...options.extra,

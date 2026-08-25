@@ -267,10 +267,14 @@ test.describe('signing and tenant security', { tag: ['@security', '@regression']
     const signer = createSignerApi(request);
     expect((await signer.exchange(envelope.token)).status()).toBe(200);
     await signer.recordConsent();
-    const key = crypto.randomUUID();
-    const first = await signer.complete({ idempotencyKey: key });
+    const payload = {
+      idempotencyKey: crypto.randomUUID(),
+      fieldIds: await signer.listFieldIds(),
+      consentCopyId: await signer.consentCopyId(),
+    };
+    const first = await signer.complete(payload);
     expect(first.status()).toBe(200);
-    const second = await signer.complete({ idempotencyKey: key });
+    const second = await signer.complete(payload);
     expect(second.status()).toBe(200);
   });
 
