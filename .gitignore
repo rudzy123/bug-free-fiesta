@@ -23,6 +23,8 @@ test-results
 blob-report
 playwright/.cache
 
+CHANGELOG.dry-run.md
+
 *.log
 npm-debug.log*
 pnpm-debug.log*

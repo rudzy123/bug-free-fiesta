@@ -249,3 +249,4 @@ export {
   createConfiguredCheckpointStore,
   type AuditCheckpointStoreName,
 } from './audit/configured-checkpoint-store.js';
+export { createEnvFeatureFlags, createStaticFeatureFlags } from './feature-flags/adapters.js';

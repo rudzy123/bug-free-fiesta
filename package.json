@@ -29,7 +29,11 @@
     "db:reset": "pnpm --filter @esign/database db:reset",
     "db:seed": "pnpm --filter @esign/database db:seed",
     "infrastructure:up": "docker compose up -d --wait postgres minio && docker compose run --rm minio-init",
-    "infrastructure:down": "docker compose down"
+    "infrastructure:down": "docker compose down",
+    "release:check": "node scripts/release-checks/run-all.mjs",
+    "changelog:dry-run": "node scripts/release-checks/changelog-dry-run.mjs",
+    "commitlint": "node scripts/release-checks/commitlint.mjs",
+    "commitlint:ci": "node scripts/release-checks/commitlint.mjs --verbose"
   },
   "devDependencies": {
     "prettier": "3.5.3",

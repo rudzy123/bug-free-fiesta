@@ -1,6 +1,6 @@
 # Conventional commits
 
-Use [Conventional Commits](https://www.conventionalcommits.org/). The GitHub history and future changelog depend on the `type`.
+Use [Conventional Commits](https://www.conventionalcommits.org/). The GitHub history and changelog dry-run depend on the `type`. Pull requests are validated with **commitlint** (`pnpm commitlint:ci --from origin/main --to HEAD`).
 
 ## Format
 

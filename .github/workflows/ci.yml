@@ -45,6 +45,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: ./.github/actions/setup-pnpm
       - name: Format check
         run: pnpm format:check
@@ -56,6 +57,16 @@ jobs:
         run: pnpm typecheck
       - name: Log redaction audit
         run: pnpm audit:redaction
+      - name: Fetch base for release checks
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=1 origin ${{ github.base_ref }}
+      - name: Release engineering checks
+        run: pnpm release:check
+        env:
+          RELEASE_CHECK_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}
+      - name: Commitlint
+        if: github.event_name == 'pull_request'
+        run: pnpm commitlint:ci --from origin/${{ github.base_ref }} --to HEAD
 
   unit:
     name: unit

@@ -230,6 +230,7 @@ export type {
   CheckpointPutResult,
   ImmutableCheckpointStore,
 } from './ports/checkpoint-store.js';
+export type { FeatureFlagContext, FeatureFlagPort } from './ports/feature-flags.js';
 export type {
   AuditVerificationAlert,
   AuditVerificationAlertSink,

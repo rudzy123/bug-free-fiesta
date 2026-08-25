@@ -11,7 +11,8 @@ A change is done when all of the following are true. The [pull request template]
 - External input is validated at the boundary with Zod contracts
 - Authorization remains deny-by-default for any new sensitive operation
 - The browser is not the source of truth for document, signer, or field state
-- Schema changes include a new Prisma migration (never an edit to an applied migration)
+- Schema changes include a new Prisma migration (never an edit to an applied migration); `pnpm release:check` passes when relevant
+- Contract or route shape changes update OpenAPI; audit schema changes bump `AUDIT_CHAIN_SCHEMA_VERSION` with the lock file
 - Documentation updated in the same change (ADR, OpenAPI, runbook, or this governance set)
 - No secrets committed; `.env` files stay local
 - No legal or compliance claims (including ESIGN, HIPAA, SOC 2, ISO 27001)
