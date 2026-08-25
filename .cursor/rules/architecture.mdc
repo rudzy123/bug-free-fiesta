@@ -17,6 +17,8 @@ Production Electronic Signature SaaS. Prefer Node.js 22 LTS unless `package.json
 - `packages/database`: Prisma schema, migrations, client, and infrastructure adapters
 - `packages/contracts`: shared Zod request/response schemas
 - `packages/config`: typed environment configuration (the only `process.env` reader)
+- `packages/object-storage`: S3-compatible object-storage adapter (Azure Blob via the same port)
+- `packages/observability`: metrics and tracing abstractions
 - `packages/logger`: Pino structured logging
 - `packages/eslint-config`, `packages/typescript-config`, `packages/test-utils`
 - `docs`: ADRs, threat model, runbooks, OpenAPI

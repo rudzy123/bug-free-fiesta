@@ -1,8 +1,27 @@
 # Electronic signature SaaS
 
-pnpm / Turborepo monorepo for a multi-tenant electronic-signature platform: Next.js signing UI, Express API, asynchronous worker, PostgreSQL/Prisma, and private S3-compatible object storage.
+pnpm / Turborepo monorepo for a multi-tenant electronic-signature platform maintained for long-term production use.
 
 This software is under active engineering. Technical controls are **not** legal, regulatory, or cryptographic compliance. Do not claim ESIGN, UETA, eIDAS, HIPAA, SOC 2, ISO 27001, or similar from this repository alone. Start with [docs/README.md](docs/README.md).
+
+## Stack
+
+| Area              | Technology                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| Runtime           | Node.js 22 LTS, TypeScript strict (`noUncheckedIndexedAccess`)                              |
+| Monorepo          | pnpm workspaces, Turborepo; lockfile-pinned dependencies                                    |
+| Frontend          | Next.js App Router, React, Tailwind CSS                                                     |
+| API               | Express, TypeScript, [OpenAPI](docs/api/openapi.yaml)                                       |
+| Data              | PostgreSQL, Prisma                                                                          |
+| Validation        | Zod (`packages/contracts`)                                                                  |
+| PDF               | pdf-lib (worker only; treat all PDFs as untrusted)                                          |
+| Object storage    | S3-compatible port (`packages/object-storage`); MinIO locally; Azure Blob via the same port |
+| Logging / metrics | Pino (`packages/logger`); Prometheus (`packages/observability`)                             |
+| Testing           | Vitest (unit/integration), Playwright (e2e)                                                 |
+| CI                | GitHub Actions                                                                              |
+| Local infra       | Docker Compose (Postgres, MinIO)                                                            |
+
+Engineering principles and layer boundaries: [`.cursor/rules/`](.cursor/rules/). Definition of done for features: [docs/governance/definition-of-done.md](docs/governance/definition-of-done.md).
 
 ## Current status
 
@@ -48,6 +67,7 @@ pnpm test:integration   # requires infrastructure:up and RUN_INFRA_TESTS=true in
 pnpm test:e2e
 pnpm build
 pnpm audit --audit-level=high
+pnpm release:check      # migrations, OpenAPI, audit schema locks
 ```
 
 `Makefile` targets wrap the same scripts (`make test`, `make infrastructure-up`, …). Full CI parity: [docs/governance/ci-local-equivalents.md](docs/governance/ci-local-equivalents.md).
@@ -59,14 +79,17 @@ apps/web                 Next.js App Router (account + signing UI)
 apps/api                 Express HTTP adapter and composition root
 apps/worker              Outbox poller, PDF inspect/flatten, audit verify
 packages/domain          Entities, ports, typed errors
-packages/application     Use cases and application adapters
-packages/database        Prisma schema, migrations, infrastructure
+packages/application     Use cases, authorization, HTTP error mapping
+packages/database        Prisma schema, migrations, infrastructure adapters
 packages/contracts       Shared Zod request/response schemas
-packages/config          Typed environment configuration
+packages/config          Typed environment configuration (only process.env reader)
 packages/object-storage  S3-compatible object-storage adapter
-packages/observability   Metrics / tracing abstractions
+packages/observability   Metrics and tracing abstractions
 packages/logger          Pino structured logging
-docs/                    Architecture, ADRs, security, deployment, runbooks
+packages/eslint-config   Shared ESLint configuration
+packages/typescript-config  Strict TypeScript bases
+packages/test-utils      Reusable test builders and fixtures
+docs/                    Architecture, ADRs, threat model, runbooks, OpenAPI
 ```
 
 ## Documentation
@@ -75,6 +98,7 @@ docs/                    Architecture, ADRs, security, deployment, runbooks
 | ------------------------------ | -------------------------------------------------------------------------------------- |
 | Engineers (humans)             | [docs/README.md](docs/README.md), [CONTRIBUTING.md](CONTRIBUTING.md)                   |
 | Coding agents                  | [AGENTS.md](AGENTS.md), `.cursor/rules/`                                               |
+| Feature completion checklist   | [definition of done](docs/governance/definition-of-done.md)                            |
 | Security / ops                 | [threat model](docs/security/threat-model.md), [deployment](docs/deployment/README.md) |
 | Vulnerability reports          | [SECURITY.md](SECURITY.md)                                                             |
 | Production gate before go-live | [production-readiness checklist](docs/deployment/production-readiness-checklist.md)    |

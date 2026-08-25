@@ -26,6 +26,7 @@ Product intent and non-goals: [product scope](product/product-scope.md). Product
 4. [Domain model](architecture/domain-model.md)
 5. [Architecture decision summary and risk register](architecture/decision-summary.md)
 6. [Security reviews](security/reviews/) — latest adversarial findings and remediations
+7. [Definition of done](governance/definition-of-done.md) — feature completion checklist
 
 ## Architecture
 
