@@ -29,5 +29,7 @@ A change is done when all of the following are true. The [pull request template]
 ## Explicitly not done
 
 - “Works on my machine” without the quality gates
-- Production deployment (not configured yet)
+- Provisioning real cloud accounts, clusters, or vendor resources from this repository
 - Calling a control “compliant” because it exists
+
+Production container images and the operator playbook live under [docs/deployment/](../deployment/README.md).

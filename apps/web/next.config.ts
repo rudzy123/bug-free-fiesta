@@ -1,6 +1,9 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const monorepoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const SIGNING_CSP = [
   "default-src 'self'",
@@ -27,6 +30,11 @@ const signingHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: monorepoRoot,
+  // Browser source maps are off in production images. Server maps are stripped
+  // from runtime Docker layers; keep private debug artifacts out of public builds.
+  productionBrowserSourceMaps: false,
   poweredByHeader: false,
   transpilePackages: ['@esign/config', '@esign/contracts'],
   allowedDevOrigins: ['127.0.0.1'],

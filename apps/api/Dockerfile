@@ -1,23 +1,71 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
-FROM node:22.14.0-alpine AS build
+# Production API image — provider-agnostic.
+# Build: docker build -f apps/api/Dockerfile --target runner -t esign/api:local .
+# Migrate one-shot: docker build -f apps/api/Dockerfile --target migrate -t esign/migrate:local .
+
+ARG NODE_VERSION=22.14.0
+ARG PNPM_VERSION=9.15.9
+
+FROM node:${NODE_VERSION}-alpine AS base
+ARG PNPM_VERSION
+RUN apk add --no-cache ca-certificates libc6-compat openssl \
+  && update-ca-certificates \
+  && corepack enable \
+  && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+FROM base AS deps
+# Prisma generate during install/build needs a URL shape only — never a real secret.
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .npmrc ./
 COPY apps ./apps
 COPY packages ./packages
-ENV DATABASE_URL=postgresql://esign:esign_dev_password@localhost:5432/esign
-ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 RUN pnpm install --frozen-lockfile --prod=false
-# Build @esign/api and all of its workspace dependencies in topological order.
-RUN pnpm exec turbo build --filter=@esign/api
 
-FROM node:22.14.0-alpine AS runner
-WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl
+FROM deps AS build
 ENV NODE_ENV=production
-COPY --from=build /app /app
-WORKDIR /app/apps/api
+RUN pnpm exec turbo build --filter=@esign/api... \
+  && pnpm --filter @esign/api --prod deploy /deploy/api \
+  && find /deploy/api -type f \( -name '*.map' -o -name '*.tsbuildinfo' \) -delete
+
+# One-shot migration image (not the default runtime target).
+FROM deps AS migrate
+RUN addgroup -S esign && adduser -S -G esign -H -D esign \
+  && chown -R esign:esign /app
+USER esign
+ENV NODE_ENV=production
+WORKDIR /app
+ENTRYPOINT ["pnpm", "--filter", "@esign/database", "exec", "prisma", "migrate", "deploy"]
+
+FROM node:${NODE_VERSION}-alpine AS runner
+ARG BUILD_REVISION=unknown
+ARG BUILD_CREATED=unknown
+ARG PNPM_VERSION=9.15.9
+LABEL org.opencontainers.image.title="esign-api" \
+  org.opencontainers.image.description="Electronic signature HTTP API" \
+  org.opencontainers.image.source="https://github.com/rudzy123/bug-free-fiesta" \
+  org.opencontainers.image.revision="${BUILD_REVISION}" \
+  org.opencontainers.image.created="${BUILD_CREATED}" \
+  org.opencontainers.image.licenses="UNLICENSED" \
+  org.opencontainers.image.vendor="esign"
+RUN apk add --no-cache ca-certificates libc6-compat openssl \
+  && update-ca-certificates \
+  && addgroup -S esign \
+  && adduser -S -G esign -H -D esign \
+  && mkdir -p /tmp/esign \
+  && chown -R esign:esign /tmp/esign
+WORKDIR /app
+ENV NODE_ENV=production \
+  API_HOST=0.0.0.0 \
+  API_PORT=4000 \
+  TMPDIR=/tmp/esign \
+  HOME=/tmp/esign
+COPY --from=build --chown=esign:esign /deploy/api/ ./
+USER esign
 EXPOSE 4000
+VOLUME ["/tmp/esign"]
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:4000/health/live').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 CMD ["node", "dist/index.js"]
