@@ -33,17 +33,17 @@ docker run --rm -e DATABASE_URL="postgresql://..." esign/migrate:local
 
 ## Image properties
 
-| Property    | Implementation                                                             |
-| ----------- | -------------------------------------------------------------------------- |
-| Base        | `node:22.14.0-alpine` with `ca-certificates`, `openssl`, `libc6-compat`    |
-| User        | Non-root `esign`                                                           |
-| Ports       | API `4000`, worker health `4100`, web `3000`                               |
-| Health      | `HEALTHCHECK` against `/health/live` (API/worker) or `/api/health` (web)   |
-| Signals     | `STOPSIGNAL SIGTERM`; apps already drain on SIGTERM/SIGINT                 |
-| Temp        | `TMPDIR=/tmp/esign` (mount tmpfs or emptyDir for read-only root)           |
-| Secrets     | Not baked; only public build-args such as `NEXT_PUBLIC_API_BASE_URL`       |
-| OCI labels  | `org.opencontainers.image.*` title, description, source, revision, created |
-| Source maps | Browser maps disabled; server `*.map` deleted from deploy output           |
+| Property    | Implementation                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base        | `node:22.14.0-alpine` with `ca-certificates`, `openssl`, `libc6-compat`; runner runs `apk upgrade` and removes bundled `npm`/`corepack` (runtime unused; source of HIGH/CRITICAL transitive CVEs) |
+| User        | Non-root `esign`                                                                                                                                                                                  |
+| Ports       | API `4000`, worker health `4100`, web `3000`                                                                                                                                                      |
+| Health      | `HEALTHCHECK` against `/health/live` (API/worker) or `/api/health` (web)                                                                                                                          |
+| Signals     | `STOPSIGNAL SIGTERM`; apps already drain on SIGTERM/SIGINT                                                                                                                                        |
+| Temp        | `TMPDIR=/tmp/esign` (mount tmpfs or emptyDir for read-only root)                                                                                                                                  |
+| Secrets     | Not baked; only public build-args such as `NEXT_PUBLIC_API_BASE_URL`                                                                                                                              |
+| OCI labels  | `org.opencontainers.image.*` title, description, source, revision, created                                                                                                                        |
+| Source maps | Browser maps disabled; server `*.map` deleted from deploy output                                                                                                                                  |
 
 ## Read-only root filesystem
 

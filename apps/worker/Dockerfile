@@ -38,11 +38,17 @@ LABEL org.opencontainers.image.title="esign-worker" \
   org.opencontainers.image.licenses="UNLICENSED" \
   org.opencontainers.image.vendor="esign"
 RUN apk add --no-cache ca-certificates libc6-compat openssl \
+  && apk upgrade --no-cache \
   && update-ca-certificates \
   && addgroup -S esign \
   && adduser -S -G esign -H -D esign \
   && mkdir -p /tmp/esign \
-  && chown -R esign:esign /tmp/esign
+  && chown -R esign:esign /tmp/esign \
+  && rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /usr/local/bin/corepack
 WORKDIR /app
 ENV NODE_ENV=production \
   WORKER_HEALTH_HOST=0.0.0.0 \

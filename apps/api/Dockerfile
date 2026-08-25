@@ -41,7 +41,6 @@ ENTRYPOINT ["pnpm", "--filter", "@esign/database", "exec", "prisma", "migrate", 
 FROM node:${NODE_VERSION}-alpine AS runner
 ARG BUILD_REVISION=unknown
 ARG BUILD_CREATED=unknown
-ARG PNPM_VERSION=9.15.9
 LABEL org.opencontainers.image.title="esign-api" \
   org.opencontainers.image.description="Electronic signature HTTP API" \
   org.opencontainers.image.source="https://github.com/rudzy123/bug-free-fiesta" \
@@ -49,12 +48,20 @@ LABEL org.opencontainers.image.title="esign-api" \
   org.opencontainers.image.created="${BUILD_CREATED}" \
   org.opencontainers.image.licenses="UNLICENSED" \
   org.opencontainers.image.vendor="esign"
+# Runtime needs only the Node binary. Strip the image's bundled npm/corepack
+# (source of tar/minimatch/glob CVEs) and upgrade Alpine packages (musl/zlib).
 RUN apk add --no-cache ca-certificates libc6-compat openssl \
+  && apk upgrade --no-cache \
   && update-ca-certificates \
   && addgroup -S esign \
   && adduser -S -G esign -H -D esign \
   && mkdir -p /tmp/esign \
-  && chown -R esign:esign /tmp/esign
+  && chown -R esign:esign /tmp/esign \
+  && rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /usr/local/bin/corepack
 WORKDIR /app
 ENV NODE_ENV=production \
   API_HOST=0.0.0.0 \
