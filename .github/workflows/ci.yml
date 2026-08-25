@@ -48,6 +48,8 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - name: Format check
         run: pnpm format:check
+      - name: Generate Prisma client
+        run: pnpm db:generate
       - name: Lint
         run: pnpm lint
       - name: Typecheck
@@ -101,6 +103,10 @@ jobs:
         run: pnpm infrastructure:up
       - name: Apply migrations
         run: pnpm db:migrate:deploy
+      - name: Generate Prisma client
+        # Ensure src/generated exists before turbo builds/typechecks database sources
+        # (generated output is gitignored and not always restored from turbo caches).
+        run: pnpm db:generate
       - name: Integration tests
         run: pnpm test:integration
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -144,10 +150,10 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - name: Start PostgreSQL and MinIO
         run: pnpm infrastructure:up
-      - name: Build web and workspace dependencies
-        # Seed imports @esign/domain via database factories; dist is gitignored so CI
-        # must build packages before `pnpm db:seed`.
-        run: pnpm --filter @esign/web... build
+      - name: Build API, worker, web, and workspace dependencies
+        # Playwright starts API/worker via tsx; those packages import workspace
+        # dist builds. `@esign/web...` alone does not build application/api/worker.
+        run: pnpm --filter @esign/api... --filter @esign/worker... --filter @esign/web... build
       - name: Apply migrations and seed
         run: |
           pnpm db:migrate:deploy

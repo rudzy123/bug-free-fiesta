@@ -294,13 +294,18 @@ export async function createAuditLog(
   const actorType = input.actorType ?? AuditActorType.accountUser;
   const payload = input.payload ?? { documentId: input.documentId };
   const previousEventHash = input.previousEventHash ?? AUDIT_GENESIS_PREVIOUS_EVENT_HASH;
+  const eventTypeLabel = AUDIT_EVENT_TYPE_DB[type];
+  const actorTypeLabel = AUDIT_ACTOR_TYPE_DB[actorType];
+  if (eventTypeLabel === undefined || actorTypeLabel === undefined) {
+    throw new Error(`unsupported audit type mapping: ${String(type)} / ${String(actorType)}`);
+  }
   const eventHash =
     input.eventHash ??
     computeAuditEventHash({
       previousEventHash,
       sequence,
-      type: AUDIT_EVENT_TYPE_DB[type],
-      actorType: AUDIT_ACTOR_TYPE_DB[actorType],
+      type: eventTypeLabel,
+      actorType: actorTypeLabel,
       actorId: input.actorId,
       occurredAt,
       payload,
