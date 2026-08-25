@@ -36,4 +36,4 @@
 
 ## Definition of done
 
-See [docs/governance/definition-of-done.md](../docs/governance/definition-of-done.md).
+See [docs/governance/definition-of-done.md](../docs/governance/definition-of-done.md). When this change adds or changes product behavior, confirm the applicable rows (authorization, tenant isolation, audit, tests, OpenAPI, threat model, rollout).
