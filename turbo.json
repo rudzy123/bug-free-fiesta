@@ -4,7 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "outputs": ["dist/**", "src/generated/**", ".next/**", "!.next/cache/**"],
       "env": ["NODE_ENV", "NEXT_PUBLIC_API_BASE_URL", "DATABASE_URL"]
     },
     "dev": {
@@ -29,7 +29,7 @@
       "outputs": ["coverage/**", "reports/**"]
     },
     "test:integration": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build", "^build"],
       "cache": false,
       "env": ["RUN_INFRA_TESTS", "DATABASE_URL", "OBJECT_STORAGE_ENDPOINT"]
     },
