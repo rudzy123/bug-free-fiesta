@@ -145,6 +145,7 @@ function harness() {
       revisions,
       storage,
       inspector: createLocalDevelopmentDocumentInspector(),
+      hashing,
       unitOfWork,
       ids,
       clock,

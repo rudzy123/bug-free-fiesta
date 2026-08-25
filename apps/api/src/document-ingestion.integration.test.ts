@@ -226,6 +226,7 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
     revisions,
     storage,
     inspector: createDocumentInspector({ name: 'local', nodeEnv: 'test' }),
+    hashing,
     unitOfWork,
     ids,
     clock,

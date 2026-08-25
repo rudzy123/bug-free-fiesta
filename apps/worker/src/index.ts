@@ -83,6 +83,7 @@ async function main(): Promise<void> {
       name: config.DOCUMENT_INSPECTOR,
       nodeEnv: config.NODE_ENV,
     }),
+    hashing,
     unitOfWork,
     ids,
     clock,

@@ -69,9 +69,12 @@ SEC-007 independent integrity hardening
 **Breaking:** Production should use `structural` for upload acceptance (config enum extended).  
 **Regression tests:** passed after fix.
 
-### Batch 4 — Integrity hardening
+### Batch 4 — Integrity hardening (completed 2026-08-25)
 
-SEC-006, SEC-007 (digest verify on inspect/upload).
+**Findings:** SEC-006, SEC-007 — **fixed**  
+**Schema:** none  
+**Breaking:** none (fail closed on integrity mismatch)  
+**Regression tests:** `document-ingestion.test.ts` SEC-006/SEC-007 cases.
 
 ### Batch 5 — Edge observability & CSP
 
@@ -81,7 +84,7 @@ SEC-009, SEC-010.
 
 SEC-013, SEC-015, SEC-020, SEC-021.
 
-## Unresolved Critical / High (after Batch 3)
+## Unresolved Critical / High (after Batch 4)
 
 | ID      | Severity | Status    |
 | ------- | -------- | --------- |
@@ -91,4 +94,4 @@ SEC-013, SEC-015, SEC-020, SEC-021.
 | SEC-004 | high     | **fixed** |
 | SEC-005 | high     | **fixed** |
 
-No accepted critical or high findings remain open. Next: Batch 4 (medium integrity).
+Accepted critical/high remain fixed. Open mediums include SEC-008 (deferred), SEC-009, SEC-010, plus lows.

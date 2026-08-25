@@ -129,8 +129,14 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | -------------------------------------------------------- |
 | Severity | medium                                                   |
 | CWE      | CWE-345                                                  |
-| Status   | open                                                     |
+| Status   | fixed                                                    |
 | Location | `packages/application/src/documents/inspect-document.ts` |
+
+**Attack:** Object bytes diverge from revision `sha256Digest` / size after upload (storage bit-rot, swap, or confused deputy); inspection still runs and may accept.
+
+**Evidence:** `inspectDocument` loaded object bytes and called the inspector without comparing size or digest to the revision row. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 4):** Before inspection, require `stored.size` and `sha256(stored.body)` to match revision metadata and storage metadata; mismatch → `IntegrityError` (`SOURCE_INTEGRITY_FAILURE`). Regression: `document-ingestion.test.ts` (SEC-006).
 
 ---
 
@@ -140,10 +146,14 @@ Original evidence is preserved under each finding. Status updates append a **Rem
 | -------- | -------------------------------------------------------------- |
 | Severity | medium                                                         |
 | CWE      | CWE-345                                                        |
-| Status   | open                                                           |
+| Status   | fixed                                                          |
 | Location | `packages/application/src/documents/complete-source-upload.ts` |
 
----
+**Attack:** Put succeeds but stored object differs from hashed upload body; DB revision records a digest that never existed in storage.
+
+**Evidence:** `putObject` omitted `expectedSha256Digest` and did not read back / re-hash before attaching the revision. Finalization already used put+verify; source upload did not. (Original defect observed 2026-08-25.)
+
+**Remediation (2026-08-25 Batch 4):** `putObject(..., expectedSha256Digest)` then `getObject` read-back; re-hash and size must match or `IntegrityError`. Regression: `document-ingestion.test.ts` (SEC-007).
 
 ### SEC-008 — In-process memory rate limits
 

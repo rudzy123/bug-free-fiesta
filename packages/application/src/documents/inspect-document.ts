@@ -1,11 +1,13 @@
 import {
   ExternalServiceError,
   INSPECT_DOCUMENT_JOB_TYPE,
+  IntegrityError,
   NotFoundError,
   type Clock,
   type DocumentInspector,
   type DocumentRepository,
   type DocumentRevisionRepository,
+  type Hashing,
   type IdGenerator,
   type ObjectStorage,
   type UnitOfWork,
@@ -26,6 +28,7 @@ export function createInspectDocument(deps: {
   revisions: DocumentRevisionRepository;
   storage: ObjectStorage;
   inspector: DocumentInspector;
+  hashing: Hashing;
   unitOfWork: UnitOfWork;
   ids: IdGenerator;
   clock: Clock;
@@ -64,6 +67,21 @@ export function createInspectDocument(deps: {
     });
     if (!stored) {
       throw new ExternalServiceError({ service: 'object-storage', reason: 'missing_object' });
+    }
+
+    // Authoritative revision metadata must match bytes before any PDF inspection.
+    if (BigInt(stored.body.byteLength) !== revision.sizeBytes) {
+      throw new IntegrityError({
+        reason: 'source_size_mismatch',
+        code: 'SOURCE_INTEGRITY_FAILURE',
+      });
+    }
+    const digest = deps.hashing.sha256Hex(stored.body);
+    if (digest !== revision.sha256Digest || digest !== stored.sha256Digest) {
+      throw new IntegrityError({
+        reason: 'source_digest_mismatch',
+        code: 'SOURCE_INTEGRITY_FAILURE',
+      });
     }
 
     const outcome = await deps.inspector.inspect({

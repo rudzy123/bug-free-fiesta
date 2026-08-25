@@ -189,6 +189,7 @@ function harness(options?: { requiresAccountAuth?: boolean }) {
       revisions,
       storage,
       inspector: createLocalDevelopmentDocumentInspector(),
+      hashing,
       unitOfWork,
       ids,
       clock,

@@ -2,6 +2,7 @@ import {
   AuthenticationError,
   ConflictError,
   INSPECT_DOCUMENT_JOB_TYPE,
+  IntegrityError,
   NotFoundError,
   sourceRevisionObjectKey,
   type Clock,
@@ -107,7 +108,29 @@ export function createCompleteSourceUpload(deps: {
       body: input.body,
       contentType: PDF_CONTENT_TYPE,
       maxBytes: deps.maxUploadBytes,
+      expectedSha256Digest: sha256Digest,
     });
+    const persistedObject = await deps.storage.getObject({
+      organizationId: session.organizationId,
+      key: objectKey,
+    });
+    if (!persistedObject) {
+      throw new IntegrityError({
+        reason: 'source_missing_after_put',
+        code: 'SOURCE_INTEGRITY_FAILURE',
+      });
+    }
+    const persistedDigest = deps.hashing.sha256Hex(persistedObject.body);
+    if (
+      persistedDigest !== sha256Digest ||
+      persistedObject.sha256Digest !== sha256Digest ||
+      BigInt(persistedObject.body.byteLength) !== BigInt(input.body.byteLength)
+    ) {
+      throw new IntegrityError({
+        reason: 'source_digest_mismatch_after_put',
+        code: 'SOURCE_INTEGRITY_FAILURE',
+      });
+    }
 
     const revisionId = deps.ids.next();
     const sizeBytes = BigInt(input.body.byteLength);
