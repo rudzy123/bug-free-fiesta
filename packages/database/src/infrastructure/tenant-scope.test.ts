@@ -145,9 +145,12 @@ describe('Prisma audit writer and job publisher', () => {
       createdAt: new Date('2026-08-17T12:00:00.000Z'),
     }));
     const executeRaw = vi.fn(async () => 0);
-    const writer = createPrismaAuditWriter({
+    const tx = {
       $executeRaw: executeRaw,
       auditLog: { findFirst, create },
+    };
+    const writer = createPrismaAuditWriter({
+      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     } as never);
     await writer.append({
       id: '88888888-8888-4888-8888-888888888888',
@@ -198,8 +201,11 @@ describe('Prisma audit writer and job publisher', () => {
     const create = vi.fn();
     await expect(
       createPrismaAuditWriter({
-        $executeRaw: vi.fn(async () => 0),
-        auditLog: { findFirst, create },
+        $transaction: async (fn: (client: unknown) => Promise<unknown>) =>
+          fn({
+            $executeRaw: vi.fn(async () => 0),
+            auditLog: { findFirst, create },
+          }),
       } as never).append({
         id: '88888888-8888-4888-8888-888888888888',
         organizationId: '',

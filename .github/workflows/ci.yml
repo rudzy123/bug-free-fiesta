@@ -144,14 +144,16 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - name: Start PostgreSQL and MinIO
         run: pnpm infrastructure:up
+      - name: Build web and workspace dependencies
+        # Seed imports @esign/domain via database factories; dist is gitignored so CI
+        # must build packages before `pnpm db:seed`.
+        run: pnpm --filter @esign/web... build
       - name: Apply migrations and seed
         run: |
           pnpm db:migrate:deploy
           pnpm db:seed
       - name: Prepare filesystem object storage
         run: mkdir -p "$OBJECT_STORAGE_FS_ROOT" tmp/e2e-signing-notifications
-      - name: Build web and workspace dependencies
-        run: pnpm --filter @esign/web... build
       - name: Install Playwright Chromium
         run: pnpm --filter @esign/web exec playwright install --with-deps chromium
       - name: End-to-end tests
