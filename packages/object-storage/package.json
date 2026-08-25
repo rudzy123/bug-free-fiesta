@@ -22,7 +22,7 @@
     "test:integration": "vitest run --passWithNoTests integration.test"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.787.0",
+    "@aws-sdk/client-s3": "3.1118.0",
     "@esign/domain": "workspace:*"
   },
   "devDependencies": {
