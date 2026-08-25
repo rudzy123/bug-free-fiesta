@@ -1,6 +1,6 @@
 /**
  * Feature-flag evaluation port. Application code depends on this interface;
- * adapters live in `@esign/application`. Do not read `process.env` here.
+ * adapters live in `@esign/application`. Do not read environment variables here.
  */
 export type FeatureFlagContext = {
   readonly tenantId?: string;
