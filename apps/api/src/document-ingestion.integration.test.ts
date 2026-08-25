@@ -12,6 +12,7 @@ import {
   createCreateDraftDocument,
   createDeclineToSign,
   createDocumentInspector,
+  createDownloadFinalizedArtifact,
   createExchangeSigningToken,
   createGetOrganizationDocument,
   createGetSignerConsent,
@@ -34,6 +35,7 @@ import {
   createMemoryDocumentRepository,
   createMemoryDocumentRevisionRepository,
   createMemoryDocumentScope,
+  createMemoryFinalizedArtifactStore,
   createMemoryIdempotencyRecordRepository,
   createMemoryJobPublisher,
   createMemoryMembershipRepository,
@@ -64,6 +66,7 @@ import {
   createSizeLimitedObjectStorage,
   createStreamDocumentPreview,
   createUuidIdGenerator,
+  createVoidDocument,
   LOCAL_INSPECTOR_REJECT_MARKER,
 } from '@esign/application';
 import {
@@ -193,6 +196,7 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
   const signatureFields = createMemorySignatureFieldStore();
   const signingSessions = createMemorySigningSessionStore();
   const consentRecords = createMemoryConsentStore();
+  const artifacts = createMemoryFinalizedArtifactStore();
   const notifier = createMemoryNotifier();
   const idempotency = createMemoryIdempotencyRecordRepository();
   const documentAudit = createMemoryAuditWriter();
@@ -210,6 +214,7 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
       signatureFields,
       signingSessions,
       consentRecords,
+      finalizedArtifacts: artifacts,
     }),
   );
   const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), MAX_BYTES);
@@ -343,6 +348,29 @@ function testIngestionApp(clock: Clock & { set: (iso: string) => void } = nowClo
         hasher,
         sessionTtlMs: config.SIGNING_SESSION_TTL_SECONDS * 1000,
         idempotencyTtlMs: config.IDEMPOTENCY_TTL_SECONDS * 1000,
+      }),
+      voidDocument: createVoidDocument({
+        authorization,
+        documents,
+        revisions,
+        signers,
+        fields: signatureFields,
+        idempotency,
+        unitOfWork,
+        ids,
+        clock,
+        hashing,
+        idempotencyTtlMs: config.IDEMPOTENCY_TTL_SECONDS * 1000,
+      }),
+      downloadArtifact: createDownloadFinalizedArtifact({
+        authorization,
+        documents,
+        artifacts,
+        storage,
+        hashing,
+        unitOfWork,
+        ids,
+        clock,
       }),
       rotateSession: createRotateSigningSession({
         authorization,
@@ -905,5 +933,25 @@ describe('signer-facing API', () => {
     const expired = await request(app).get('/signing/session').set('Cookie', other.cookies);
     expect(expired.status).toBe(401);
     expect(expired.body.error.message).toBe(afterDecline.body.error.message);
+  });
+
+  it('voids a sent document and rejects further signer exchange', async () => {
+    const { app, inspect } = testIngestionApp();
+    const owner = await loginAs(app, 'ada@example.test');
+    const prepared = await sendPreparedDocument(app, inspect, owner, 'void-1');
+    const voided = await request(app)
+      .post(`/organizations/${ORG_NORTH}/documents/${prepared.documentId}/void`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', owner.cookies)
+      .set('x-csrf-token', owner.csrf)
+      .set('Idempotency-Key', 'void-http-1')
+      .send({});
+    expect(voided.status).toBe(200);
+    expect(publicDocumentSchema.parse(voided.body).state).toBe('voided');
+    const exchange = await request(app)
+      .post('/signing/exchange')
+      .set('Origin', ORIGIN)
+      .send({ token: prepared.urlToken });
+    expect(exchange.status).toBe(401);
   });
 });

@@ -51,6 +51,8 @@ pnpm test:unit
 pnpm infrastructure:up
 RUN_INFRA_TESTS=true pnpm test:integration
 pnpm build
+pnpm --filter @esign/web exec playwright install chromium
+pnpm test:e2e
 pnpm db:validate
 pnpm audit --audit-level=high
 ```

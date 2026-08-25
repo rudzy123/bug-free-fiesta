@@ -7,7 +7,7 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit && tsc -p e2e/tsconfig.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
@@ -24,6 +24,8 @@
   },
   "devDependencies": {
     "@esign/eslint-config": "workspace:*",
+    "@esign/database": "workspace:*",
+    "@esign/test-utils": "workspace:*",
     "@esign/typescript-config": "workspace:*",
     "@playwright/test": "1.62.1",
     "@testing-library/dom": "10.4.1",

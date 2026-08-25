@@ -29,6 +29,8 @@ import type {
   RotateSigningSession,
   SendDocument,
   StreamDocumentPreview,
+  VoidDocument,
+  DownloadFinalizedArtifact,
   AssertAccountAction,
 } from '@esign/application';
 import { asyncRoute } from '../async-route.js';
@@ -55,6 +57,8 @@ export type DocumentIngestionRouterDeps = {
   replaceSigners: ReplaceDocumentSigners;
   replaceFields: ReplaceDocumentFields;
   sendDocument: SendDocument;
+  voidDocument: VoidDocument;
+  downloadArtifact: DownloadFinalizedArtifact;
   rotateSession: RotateSigningSession;
   revokeSession: RevokeSigningSession;
 };
@@ -271,6 +275,55 @@ export function createDocumentIngestionRouter(deps: DocumentIngestionRouterDeps)
         requestId: req.correlationId,
       });
       res.status(200).json(sendDocumentResponseSchema.parse(result));
+    }),
+  );
+
+  router.post(
+    '/organizations/:organizationId/documents/:documentId/void',
+    requireOrigin,
+    requireSession,
+    requireCsrf,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.void' });
+      const result = await deps.voidDocument({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        idempotencyKey: headerValue(req, 'idempotency-key') ?? '',
+        requestId: req.correlationId,
+      });
+      res.status(200).json(publicDocumentSchema.parse(result));
+    }),
+  );
+
+  router.get(
+    '/organizations/:organizationId/documents/:documentId/artifact',
+    requireSession,
+    requireMembership,
+    asyncRoute(async (req, res) => {
+      const actor = req.accountActor;
+      if (actor === undefined) {
+        throw new Error('missing account actor after middleware');
+      }
+      deps.assertAction({ actor, action: 'document.download_artifact' });
+      const result = await deps.downloadArtifact({
+        actor,
+        documentId: parseDocumentId(req.params.documentId),
+        requestId: req.correlationId,
+      });
+      res.setHeader('Content-Type', result.contentType);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${result.displayName.replaceAll('"', '')}"`,
+      );
+      res.status(200).send(Buffer.from(result.body));
     }),
   );
 

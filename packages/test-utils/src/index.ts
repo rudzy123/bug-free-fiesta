@@ -177,3 +177,26 @@ function crc32(body: Uint8Array): number {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+export async function pollUntil<T>(
+  read: () => Promise<T>,
+  isDone: (value: T) => boolean,
+  options: { timeoutMs: number; intervalMs: number; message: string },
+): Promise<T> {
+  const deadline = Date.now() + options.timeoutMs;
+  let last: T | undefined;
+  while (Date.now() < deadline) {
+    last = await read();
+    if (isDone(last)) {
+      return last;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      break;
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.min(options.intervalMs, remaining));
+    });
+  }
+  throw new Error(options.message);
+}

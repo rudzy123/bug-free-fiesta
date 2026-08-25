@@ -133,6 +133,19 @@ export function createMemoryDocumentRepository(
         return { ...current, state: 'declined' };
       });
     },
+    async markVoided(input) {
+      return bumpDocument(records, input, (current) => {
+        if (
+          current.state !== 'draft' &&
+          current.state !== 'prepared' &&
+          current.state !== 'sent' &&
+          current.state !== 'in_progress'
+        ) {
+          throw new ConflictError({ reason: 'document_not_voidable' });
+        }
+        return { ...current, state: 'voided' };
+      });
+    },
     async markInProgress(input) {
       return bumpDocument(records, input, (current) => {
         if (current.state !== 'sent' && current.state !== 'in_progress') {

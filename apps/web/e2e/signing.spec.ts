@@ -226,45 +226,61 @@ async function drawOnCanvas(page: Page, pointerType: 'mouse' | 'touch'): Promise
   });
 }
 
-test('signing page sends no-store and no-referrer', async ({ page }) => {
-  await mockSigningApi(page);
-  const response = await page.goto('/signing');
-  expect(response).not.toBeNull();
-  const headers = response?.headers() ?? {};
-  expect(headers['referrer-policy']).toBe('no-referrer');
-  expect(headers['cache-control']).toContain('no-store');
-  expect(headers['content-security-policy']).toContain("default-src 'self'");
-});
+test(
+  'signing page sends no-store and no-referrer',
+  { tag: ['@smoke', '@security'] },
+  async ({ page }) => {
+    await mockSigningApi(page);
+    const response = await page.goto('/signing');
+    expect(response).not.toBeNull();
+    const headers = response?.headers() ?? {};
+    expect(headers['referrer-policy']).toBe('no-referrer');
+    expect(headers['cache-control']).toContain('no-store');
+    expect(headers['content-security-policy']).toContain("default-src 'self'");
+  },
+);
 
-test('mouse drawing, consent version, and review-before-submit', async ({ page }) => {
-  await mockSigningApi(page);
-  await page.goto('/signing?token=fixture-token');
-  await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
-  await expect(page).toHaveURL(/\/signing$/);
-  await expect(page.getByText('Consent version 3.2.1')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Review and submit' })).toBeDisabled();
-  await drawOnCanvas(page, 'mouse');
-  await completeConsentAndIntent(page);
-  await expect(page.getByRole('button', { name: 'Review and submit' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Review and submit' }).click();
-  await expect(page.getByRole('heading', { name: 'Review before submitting' })).toBeVisible();
-  await page.getByRole('button', { name: 'Submit signature' }).click();
-  await expect(page.getByRole('heading', { name: 'Signing complete' })).toBeVisible();
-});
+test(
+  'mouse drawing, consent version, and review-before-submit',
+  { tag: ['@regression'] },
+  async ({ page }) => {
+    await mockSigningApi(page);
+    await page.goto('/signing?token=fixture-token');
+    await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
+    await expect(page).toHaveURL(/\/signing$/);
+    await expect(page.getByText('Consent version 3.2.1')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Review and submit' })).toBeDisabled();
+    await drawOnCanvas(page, 'mouse');
+    await completeConsentAndIntent(page);
+    await expect(page.getByRole('button', { name: 'Review and submit' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Review and submit' }).click();
+    await expect(page.getByRole('heading', { name: 'Review before submitting' })).toBeVisible();
+    await page.getByRole('button', { name: 'Submit signature' }).click();
+    await expect(page.getByRole('heading', { name: 'Signing complete' })).toBeVisible();
+  },
+);
 
-test('touch-like pointer input can capture a signature', async ({ page }) => {
-  await mockSigningApi(page);
-  await page.goto('/signing?token=fixture-token');
-  await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
-  await drawOnCanvas(page, 'touch');
-  await completeConsentAndIntent(page);
-  await expect(page.getByRole('button', { name: 'Review and submit' })).toBeEnabled();
-});
+test(
+  'touch-like pointer input can capture a signature',
+  { tag: ['@regression'] },
+  async ({ page }) => {
+    await mockSigningApi(page);
+    await page.goto('/signing?token=fixture-token');
+    await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
+    await drawOnCanvas(page, 'touch');
+    await completeConsentAndIntent(page);
+    await expect(page.getByRole('button', { name: 'Review and submit' })).toBeEnabled();
+  },
+);
 
-test('network failure offers a safe retry', async ({ page }) => {
-  await mockSigningApi(page, { failSessionOnce: true });
-  await page.goto('/signing');
-  await expect(page.getByRole('heading', { name: 'Connection interrupted' })).toBeVisible();
-  await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
-});
+test(
+  'network failure offers a safe retry',
+  { tag: ['@resilience', '@regression'] },
+  async ({ page }) => {
+    await mockSigningApi(page, { failSessionOnce: true });
+    await page.goto('/signing');
+    await expect(page.getByRole('heading', { name: 'Connection interrupted' })).toBeVisible();
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByRole('heading', { name: 'Sign document' })).toBeVisible();
+  },
+);

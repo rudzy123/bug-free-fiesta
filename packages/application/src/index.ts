@@ -158,6 +158,16 @@ export {
   type SendDocument,
 } from './documents/send-document.js';
 export {
+  VOID_DOCUMENT_ROUTE,
+  createVoidDocument,
+  type VoidDocument,
+} from './documents/void-document.js';
+export {
+  createDownloadFinalizedArtifact,
+  type DownloadFinalizedArtifact,
+  type DownloadFinalizedArtifactResult,
+} from './documents/download-finalized-artifact.js';
+export {
   createResolveSigningSession,
   createRevokeSigningSession,
   createRotateSigningSession,

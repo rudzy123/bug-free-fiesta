@@ -12,9 +12,13 @@ Every feature change includes tests plus error handling, logging, and documentat
 
 - Unit tests for domain invariants and pure application logic
 - Integration tests for Prisma repositories, HTTP adapters, and worker handlers against real Postgres/MinIO where the repo provides them
-- E2E tests for critical signer and sender journeys
+- E2E tests for critical signer and sender journeys against the local stack (Postgres via Compose, filesystem object storage shared by API and worker)
 
-Do not hit production services. Do not assert on secrets, raw tokens, or full PII in logs or snapshots.
+Do not hit production services. Do not assert on secrets, raw tokens, or full PII in logs or snapshots. Playwright traces and screenshots are retained on failure only; signing tokens are redacted from those artifacts where practical.
+
+E2E specs are tagged `@smoke`, `@regression`, `@security`, and `@resilience`. Isolate data per test with new opaque ids. Poll observable state with a deadline (`pollUntil`); do not use arbitrary sleeps.
+
+Playwright `e2e/support` may use Prisma only for test-only fault injection (expired sessions, audit-chain corruption, injected transaction failures). That is not application or React code; UI still must not import Prisma.
 
 ```typescript
 // ❌ BAD — untested claim, hidden clock, sequential IDs

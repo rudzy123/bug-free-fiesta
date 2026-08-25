@@ -82,6 +82,11 @@ export type DocumentRepository = {
     documentId: string;
     expectedVersion: number;
   }) => Promise<Document>;
+  markVoided: (input: {
+    organizationId: string;
+    documentId: string;
+    expectedVersion: number;
+  }) => Promise<Document>;
   markInProgress: (input: {
     organizationId: string;
     documentId: string;

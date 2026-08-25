@@ -116,9 +116,15 @@ importers:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
     devDependencies:
+      '@esign/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@esign/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@esign/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@esign/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

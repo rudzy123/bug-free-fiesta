@@ -302,6 +302,39 @@ export function createPrismaDocumentRepository(prisma: PrismaClientOrTx): Docume
       }
       return toDomainDocument(row);
     },
+    async markVoided(input) {
+      const organizationId = requireOrganizationId(input.organizationId);
+      const documentId = requireOpaqueId(input.documentId, 'documentId');
+      const result = await prisma.document.updateMany({
+        where: {
+          organizationId,
+          id: documentId,
+          version: input.expectedVersion,
+          state: {
+            in: [
+              DOCUMENT_STATE_TO_PRISMA.draft,
+              DOCUMENT_STATE_TO_PRISMA.prepared,
+              DOCUMENT_STATE_TO_PRISMA.sent,
+              DOCUMENT_STATE_TO_PRISMA.in_progress,
+            ],
+          },
+        },
+        data: {
+          state: DOCUMENT_STATE_TO_PRISMA.voided,
+          version: { increment: 1 },
+        },
+      });
+      if (result.count !== 1) {
+        throw new ConflictError({ reason: 'document_version' });
+      }
+      const row = await prisma.document.findUnique({
+        where: tenantCompoundWhere(organizationId, documentId, 'documentId'),
+      });
+      if (!row) {
+        throw new NotFoundError({ resource: 'document' });
+      }
+      return toDomainDocument(row);
+    },
     async markInProgress(input) {
       const organizationId = requireOrganizationId(input.organizationId);
       const documentId = requireOpaqueId(input.documentId, 'documentId');

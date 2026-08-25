@@ -4,7 +4,7 @@ info:
   version: 0.0.0
   description: >
     Public HTTP surface. Health, account-user authentication, document ingestion,
-    preparation, send, and the signer-facing session API.
+    preparation, send, void, finalized artifact download, and the signer-facing session API.
     This document is not a legal or compliance statement.
 servers:
   - url: http://localhost:4000
@@ -477,6 +477,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SendDocumentResponse'
+  /organizations/{organizationId}/documents/{documentId}/void:
+    post:
+      summary: Void a document that has not been finalized
+      operationId: voidDocument
+      description: >
+        Transitions draft, prepared, sent, or in_progress to voided. Revokes
+        open signing sessions. Idempotent with Idempotency-Key. Completed and
+        later states cannot be voided.
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      responses:
+        '200':
+          description: Document voided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicDocument'
+        '409':
+          description: Document cannot be voided from its current state
+  /organizations/{organizationId}/documents/{documentId}/artifact:
+    get:
+      summary: Download the finalized PDF artifact
+      operationId: downloadFinalizedArtifact
+      description: >
+        Authorized tenant download of the content-addressed finalized PDF.
+        The stored digest is verified before bytes are returned. An append-only
+        audit event is recorded. This is not a legal certificate of completion.
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Finalized PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '409':
+          description: Artifact is not ready
   /organizations/{organizationId}/documents/{documentId}/signers/{signerId}/sessions/rotate:
     post:
       summary: Revoke open sessions and issue a new signing token

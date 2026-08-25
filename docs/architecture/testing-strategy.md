@@ -6,12 +6,38 @@ Do not hit production services. Do not assert on secrets, raw tokens, or full PI
 
 ## Layers
 
-| Layer       | What                                                                                          | Where                                                   |
-| ----------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Unit        | Domain invariants, tenant repository contracts, error mapping, architecture import bans       | `packages/domain`, `packages/application`; frozen clock |
-| Integration | Prisma repositories, HTTP adapters, worker handlers, outbox poller                            | Real PostgreSQL; MinIO when storage is involved         |
-| Contract    | Zod schemas in `packages/contracts` reject extra fields and oversize payloads                 | Vitest                                                  |
-| E2E         | Owner sends → signer consents and signs → artifact downloadable by owner, not by other tenant | Playwright against local compose                        |
+| Layer       | What                                                                                    | Where                                                     |
+| ----------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Unit        | Domain invariants, tenant repository contracts, error mapping, architecture import bans | `packages/domain`, `packages/application`; frozen clock   |
+| Integration | Prisma repositories, HTTP adapters, worker handlers, outbox poller                      | Real PostgreSQL; MinIO when storage is involved           |
+| Contract    | Zod schemas in `packages/contracts` reject extra fields and oversize payloads           | Vitest                                                    |
+| E2E         | Owner login/upload/send via API fixtures; signer UI; worker finalization; audit verify  | Playwright against local compose + API + worker + Next.js |
+
+Sender console UI is not built yet. Admin steps in e2e use authenticated HTTP fixtures, not a dashboard. Signer consent, intent, canvas, and completion screens are browser-driven.
+
+## Playwright e2e
+
+**Local**
+
+1. Docker available (Compose starts Postgres; MinIO is not used by these tests).
+2. `pnpm --filter @esign/web exec playwright install chromium`
+3. `pnpm test:e2e`
+
+Playwright global setup runs `infrastructure:up`, migrates, and seeds. It then starts the API, worker, and Next.js with `OBJECT_STORAGE_DRIVER=filesystem` so both processes share `tmp/e2e-object-storage`. Do not reuse a leftover API process that still uses in-memory storage.
+
+Tag filters:
+
+```bash
+pnpm --filter @esign/web exec playwright test --grep @smoke
+pnpm --filter @esign/web exec playwright test --grep @security
+pnpm --filter @esign/web exec playwright test --grep @resilience
+```
+
+**CI**
+
+The `e2e` GitHub Actions job installs Chromium, then runs `pnpm test:e2e` (same global setup). Artifacts: `apps/web/playwright-report` and `apps/web/test-results`. Traces and screenshots are kept on failure; teardown redacts `token=` query strings and JSON token fields.
+
+Tests create their own documents and signers. They poll inspection and finalization with deadlines instead of fixed sleeps.
 
 ## Required scenarios (v1)
 
