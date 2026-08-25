@@ -1,34 +1,63 @@
 # Dependencies and build output
 node_modules
+**/node_modules
 .pnpm-store
 dist
+**/dist
 build
 .next
+**/.next
 out
 coverage
+**/coverage
+reports
+**/reports
 .turbo
+**/.turbo
 *.tsbuildinfo
+**/*.tsbuildinfo
 packages/database/src/generated
 
-# Local secrets and data
+# Local secrets and data — never bake into images
 .env
 .env.*
 !.env.example
+**/.env
+**/.env.*
+!**/.env.example
 docker-data
 minio-data
 postgres-data
-playwright-report
-test-results
+tmp
+**/tmp
 
-# Git and docs
+# Git, IDE, and agent clutter
 .git
 .gitignore
-docs
+.cursor
+.vscode
+.idea
 *.md
 !README.md
+docs
+AGENTS.md
+CONTRIBUTING.md
+SECURITY.md
+CODEOWNERS
+Makefile
 
-# Tests
+# Tests and Playwright (not needed for production images)
 **/*.test.ts
+**/*.test.tsx
 **/*.integration.test.ts
-e2e
-playwright.config.ts
+**/vitest.config.ts
+**/vitest.config.mts
+apps/web/e2e
+apps/web/playwright.config.ts
+apps/web/playwright-report
+apps/web/test-results
+**/coverage
+**/*.map
+
+# CI and GitHub metadata (not required inside the build context payload)
+.github

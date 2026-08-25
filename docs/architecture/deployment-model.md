@@ -54,8 +54,10 @@ PDF uploads are capped by `DOCUMENT_MAX_UPLOAD_BYTES` at the reverse proxy, the 
 
 Prefer forward-only schema migrations. Rollback of application code must remain compatible with the current schema or follow an explicit expand/contract ADR later.
 
+Production container images, SBOM/scanning, resource guidance, and the readiness checklist live under [docs/deployment/](../deployment/README.md). This document stays the short architectural overview; that tree is the operator playbook.
+
 **Legal review required:** data residency (which region stores PDFs and backups) before production onboarding of regulated customers.
 
 ## Related documents
 
-[Container architecture](container-architecture.md), [Reliability model](reliability-model.md), [ADR-0003](adrs/0003-postgresql-and-prisma.md).
+[Container architecture](container-architecture.md), [Reliability model](reliability-model.md), [ADR-0003](adrs/0003-postgresql-and-prisma.md), [Deployment playbook](../deployment/README.md).
