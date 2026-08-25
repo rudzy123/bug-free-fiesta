@@ -35,7 +35,7 @@ docker run --rm -e DATABASE_URL="postgresql://..." esign/migrate:local
 
 | Property    | Implementation                                                             |
 | ----------- | -------------------------------------------------------------------------- |
-| Base        | `node:22.14.0-alpine` with `ca-certificates`, `openssl`, `libc6-compat`    |
+| Base        | `node:22.14.0-alpine` with `ca-certificates`, `openssl`, `libc6-compat`; runner runs `apk upgrade` and removes bundled `npm`/`corepack` (runtime unused; source of HIGH/CRITICAL transitive CVEs) |
 | User        | Non-root `esign`                                                           |
 | Ports       | API `4000`, worker health `4100`, web `3000`                               |
 | Health      | `HEALTHCHECK` against `/health/live` (API/worker) or `/api/health` (web)   |
