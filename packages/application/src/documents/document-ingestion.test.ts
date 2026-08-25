@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   AuthenticationError,
   ConflictError,
+  IntegrityError,
   ValidationError,
   type AccountUserActor,
   type Clock,
+  type ObjectStorage,
 } from '@esign/domain';
 import { createMembershipAuthorizationPolicy } from '../authorization/membership-policy.js';
 import {
@@ -66,7 +68,7 @@ function pdfBytes(extra = ''): Uint8Array {
   return new TextEncoder().encode(`%PDF-1.4\n${extra}\n%%EOF\n`);
 }
 
-function harness() {
+function harness(options?: { storage?: ObjectStorage }) {
   const clock = nowClock();
   const hashing = createSha256Hashing();
   const hasher = createSigningTokenHasher(hashing);
@@ -79,7 +81,10 @@ function harness() {
   const idempotency = createMemoryIdempotencyRecordRepository();
   const audit = createMemoryAuditWriter();
   const jobs = createMemoryJobPublisher();
-  const storage = createSizeLimitedObjectStorage(createMemoryObjectStorage(), MAX_BYTES);
+  const storage = createSizeLimitedObjectStorage(
+    options?.storage ?? createMemoryObjectStorage(),
+    MAX_BYTES,
+  );
   const unitOfWork = createMemoryUnitOfWork(
     createMemoryDocumentScope({
       documents,
@@ -123,6 +128,7 @@ function harness() {
     revisions,
     storage,
     inspector: createLocalDevelopmentDocumentInspector(),
+    hashing,
     unitOfWork,
     ids,
     clock,
@@ -374,5 +380,88 @@ describe('document ingestion', () => {
         requestId: 'req-2',
       }),
     ).rejects.toBeInstanceOf(AuthenticationError);
+  });
+
+  it('rejects inspect when stored source bytes no longer match revision digest (SEC-006)', async () => {
+    const inner = createMemoryObjectStorage();
+    let tamperReads = false;
+    const storage: ObjectStorage = {
+      putObject: (input) => inner.putObject(input),
+      async getObject(input) {
+        const stored = await inner.getObject(input);
+        if (!stored || !tamperReads) {
+          return stored;
+        }
+        const body = Uint8Array.from(stored.body);
+        const last = body.byteLength - 1;
+        body[last] = (body[last] ?? 0) ^ 0xff;
+        return { ...stored, body };
+      },
+      deleteObject: (input) => inner.deleteObject(input),
+      listKeys: (input) => inner.listKeys(input),
+    };
+    const h = harness({ storage });
+    const created = await h.createDraft({
+      actor: actor(),
+      title: 'NDA',
+      filename: 'a.pdf',
+      idempotencyKey: 'sec-006-digest',
+      requestId: 'req-1',
+    });
+    const uploaded = await h.completeUpload({
+      organizationId: ORG,
+      documentId: created.documentId,
+      rawToken: created.upload.token ?? '',
+      contentType: 'application/pdf',
+      body: pdfBytes(),
+      requestId: 'req-2',
+    });
+    tamperReads = true;
+    await expect(
+      h.inspect({
+        organizationId: ORG,
+        documentId: created.documentId,
+        revisionId: uploaded.currentRevision?.revisionId ?? '',
+        jobId: 'job-sec-006',
+        requestId: 'req-3',
+      }),
+    ).rejects.toBeInstanceOf(IntegrityError);
+  });
+
+  it('rejects upload when object storage read-back digest mismatches (SEC-007)', async () => {
+    const inner = createMemoryObjectStorage();
+    const storage: ObjectStorage = {
+      putObject: (input) => inner.putObject(input),
+      async getObject(input) {
+        const stored = await inner.getObject(input);
+        if (!stored) {
+          return null;
+        }
+        const body = Uint8Array.from(stored.body);
+        const last = body.byteLength - 1;
+        body[last] = (body[last] ?? 0) ^ 0xff;
+        return { ...stored, body };
+      },
+      deleteObject: (input) => inner.deleteObject(input),
+      listKeys: (input) => inner.listKeys(input),
+    };
+    const h = harness({ storage });
+    const created = await h.createDraft({
+      actor: actor(),
+      title: 'NDA',
+      filename: 'a.pdf',
+      idempotencyKey: 'sec-007-readback',
+      requestId: 'req-1',
+    });
+    await expect(
+      h.completeUpload({
+        organizationId: ORG,
+        documentId: created.documentId,
+        rawToken: created.upload.token ?? '',
+        contentType: 'application/pdf',
+        body: pdfBytes(),
+        requestId: 'req-2',
+      }),
+    ).rejects.toBeInstanceOf(IntegrityError);
   });
 });

@@ -420,6 +420,7 @@ export function createDocumentIngestionFromPrisma(input: {
       revisions: repos.revisions,
       storage,
       inspector,
+      hashing,
       unitOfWork,
       ids,
       clock,
