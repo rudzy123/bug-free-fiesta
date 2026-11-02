@@ -22,7 +22,7 @@
     "test:integration": "vitest run --passWithNoTests integration.test"
   },
   "dependencies": {
-    "zod": "3.24.4"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@esign/eslint-config": "workspace:*",
